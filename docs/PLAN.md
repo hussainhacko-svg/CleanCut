@@ -130,7 +130,7 @@ test/             mirrors lib/
 | `flutter_localizations` (SDK), `intl` | i18n | 1 |
 | `path_provider`, `uuid` | Storage, ids | 1 |
 | `very_good_analysis` | Lints | 0 |
-| `pigeon` (dev) | Bridge codegen | 2 |
+| `pigeon` (dev) | Bridge codegen (used from Phase 1 for the media picker, owner-approved) | 1 |
 | `mocktail` (dev) | Tests | 1 |
 | Gradle: `androidx.media3:media3-transformer`, `-effect`, `-common`, `-exoplayer` (+ `CompositionPlayer`) | Engine | 2 |
 | Gradle: `kotlinx-coroutines-android` | Engine | 2 |
@@ -149,13 +149,13 @@ Each phase ends with a working, tested build and a tag `v0.<phase>.0`.
 - [x] very_good_analysis, CI (analyze + test)
 - [x] GitHub repository
 
-### Phase 1 — App shell & project model
-- [ ] Add Phase-1 deps; theme (dark/light M3), l10n wiring, go_router
-- [ ] Domain: `Project`, tracks, clips, `Animatable`, `Keyframe`, time utils (µs)
-- [ ] `EditCommand` + `History` (undo/redo, coalescing for drags)
-- [ ] `ProjectRepository` (JSON files in app docs dir, schemaVersion, autosave)
-- [ ] Home screen: project grid, new project (pick media via Photo Picker, choose aspect), rename/duplicate/delete
-- [ ] Tests: model invariants, commands, serialization round-trip
+### Phase 1 — App shell & project model ✅
+- [x] Add Phase-1 deps; theme (dark/light M3), l10n wiring, go_router
+- [x] Domain: `Project`, tracks, clips, `Animatable`, `Keyframe`, time utils (µs)
+- [x] `EditCommand` + `History` (undo/redo, coalescing for drags)
+- [x] `ProjectRepository` (JSON files in app docs dir, schemaVersion, autosave)
+- [x] Home screen: project grid, new project (pick media via Photo Picker, choose aspect), rename/duplicate/delete
+- [x] Tests: model invariants, commands, serialization round-trip
 
 ### Phase 2 — Native engine spike (highest risk — do early)
 - [ ] Pigeon `EngineHostApi` / `EngineFlutterApi` (events: position, state, errors)
