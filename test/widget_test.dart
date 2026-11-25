@@ -1,10 +1,11 @@
-import 'package:cleancut/app/app.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/fakes.dart';
+
 void main() {
-  testWidgets('app shell renders with dark theme by default', (tester) async {
-    await tester.pumpWidget(const CleanCutApp());
+  testWidgets('app starts on the home screen in dark theme', (tester) async {
+    await TestEnv().pumpApp(tester);
 
     expect(find.text('CleanCut'), findsOneWidget);
     final context = tester.element(find.byType(Scaffold));

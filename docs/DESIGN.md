@@ -95,3 +95,23 @@ Snapping: clip edges snap to playhead, clip boundaries, and markers. Transforms 
 - `TimelineView` (ruler, lanes, clips, playhead, snapping)
 - `PreviewSurface` (Texture + gizmo overlay layer)
 - `TransformGizmo`, `CropOverlay`, `MaskOverlay`
+
+## 7. Home screen (projects)
+
+```
+┌──────────────────────────────┐
+│ CleanCut                  ⚙  │  app bar: title, Settings
+│ ┌──────────┐ ┌──────────┐    │
+│ │  ▭  0:42 │ │  ▯  1:05 │    │  grid of project cards (max 240dp wide):
+│ │ Trip   ⋮ │ │ Demo   ⋮ │    │  canvas-shaped preview + duration badge,
+│ │ Edited … │ │ Edited … │    │  name, edited date, ⋮ menu
+│ └──────────┘ └──────────┘    │
+│                              │
+│        [ + New project ]     │  extended FAB, bottom center (thumb zone)
+└──────────────────────────────┘
+```
+
+- **New project:** system Photo Picker (videos + photos, multi-select) → bottom sheet "Canvas size" (Original, 9:16, 16:9, 1:1, 4:5, 3:4, 4:3) → project is created and opened. Cancelling either step creates nothing.
+- **Card menu:** Rename (dialog), Duplicate ("<name> copy"), Delete. Delete happens immediately and shows a snackbar with **Undo** — no confirmation dialog.
+- Empty state: icon, "No projects yet", hint to tap New project.
+- Thumbnails replace the canvas-shape placeholder once Phase 2 adds frame extraction.
