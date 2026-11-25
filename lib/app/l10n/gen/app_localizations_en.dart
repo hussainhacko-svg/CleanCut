@@ -49,6 +49,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeNewProject => 'New project';
 
   @override
+  String get homeMyProjects => 'My projects';
+
+  @override
   String get homeEmptyTitle => 'No projects yet';
 
   @override
@@ -75,11 +78,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String projectEditedOn(DateTime date) {
-    final intl.DateFormat dateDateFormat = intl.DateFormat.yMMMd(localeName);
+  String projectCardDate(DateTime date) {
+    final intl.DateFormat dateDateFormat = intl.DateFormat(
+      'd, MMM, y',
+      localeName,
+    );
     final String dateString = dateDateFormat.format(date);
 
-    return 'Edited $dateString';
+    return '$dateString';
   }
 
   @override

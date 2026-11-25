@@ -172,6 +172,12 @@ abstract class AppLocalizations {
   /// **'New project'**
   String get homeNewProject;
 
+  /// No description provided for @homeMyProjects.
+  ///
+  /// In en, this message translates to:
+  /// **'My projects'**
+  String get homeMyProjects;
+
   /// No description provided for @homeEmptyTitle.
   ///
   /// In en, this message translates to:
@@ -202,11 +208,11 @@ abstract class AppLocalizations {
   /// **'{count, plural, =0{Empty} =1{1 clip} other{{count} clips}}'**
   String projectClipCount(int count);
 
-  /// No description provided for @projectEditedOn.
+  /// Last-edited date on a project card, e.g. 26, Aug, 2023.
   ///
   /// In en, this message translates to:
-  /// **'Edited {date}'**
-  String projectEditedOn(DateTime date);
+  /// **'{date}'**
+  String projectCardDate(DateTime date);
 
   /// No description provided for @projectDefaultName.
   ///

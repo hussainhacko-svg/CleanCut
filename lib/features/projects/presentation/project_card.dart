@@ -1,4 +1,5 @@
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
+import 'package:cleancut/core/theme/app_tokens.dart';
 import 'package:cleancut/core/utils/timecode.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:flutter/material.dart';
@@ -15,7 +16,8 @@ enum ProjectAction {
   delete,
 }
 
-/// A project tile in the home grid.
+/// A project row in the home list (VCLIP "Projects" card): thumbnail, name,
+/// date and duration, with a round "•••" menu button.
 class ProjectCard extends StatelessWidget {
   /// Creates the card.
   const new({
@@ -24,6 +26,9 @@ class ProjectCard extends StatelessWidget {
     required this.onAction,
     super.key,
   });
+
+  /// Height of the card.
+  static const double height = 114;
 
   /// The project shown.
   final Project project;
@@ -39,127 +44,149 @@ class ProjectCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final aspect = project.canvas.aspect;
 
-    return Card.filled(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onOpen,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: ColoredBox(
-                color: scheme.surfaceContainerHighest,
-                child: Stack(
+    return SizedBox(
+      height: height,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onOpen,
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(12, 13, 56, 13),
+                child: Row(
                   children: [
-                    Center(
-                      child: AspectRatio(
-                        aspectRatio: aspect.ratio,
-                        child: FractionallySizedBox(
-                          widthFactor: 0.6,
-                          heightFactor: 0.6,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              border: Border.all(color: scheme.outline),
-                              borderRadius: BorderRadius.circular(4),
+                    _Thumbnail(project: project),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            project.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontSize: 18,
                             ),
-                            child: Icon(
-                              Icons.movie_outlined,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            l10n.projectCardDate(project.updatedAt.toLocal()),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
                               color: scheme.onSurfaceVariant,
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 4),
+                          Text(
+                            formatDurationUs(project.durationUs),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontSize: 10,
+                              color: scheme.onSurfaceVariant,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    PositionedDirectional(
-                      end: 8,
-                      bottom: 8,
-                      child: _Badge(text: formatDurationUs(project.durationUs)),
                     ),
                   ],
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(12, 4, 0, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          project.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleSmall,
-                        ),
-                        Text(
-                          l10n.projectEditedOn(project.updatedAt.toLocal()),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  PopupMenuButton<ProjectAction>(
-                    tooltip: l10n.homeProjectOptions(project.name),
-                    onSelected: onAction,
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: ProjectAction.rename,
-                        child: Text(l10n.projectRename),
-                      ),
-                      PopupMenuItem(
-                        value: ProjectAction.duplicate,
-                        child: Text(l10n.projectDuplicate),
-                      ),
-                      PopupMenuItem(
-                        value: ProjectAction.delete,
-                        child: Text(l10n.projectDelete),
-                      ),
-                    ],
-                  ),
-                ],
+              PositionedDirectional(
+                top: 2,
+                end: 2,
+                child: _MenuButton(project: project, onAction: onAction),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _Badge extends StatelessWidget {
-  const new({required this.text});
+/// Canvas-shaped placeholder until Phase 2 adds frame thumbnails.
+class _Thumbnail extends StatelessWidget {
+  const new({required this.project});
 
-  final String text;
+  final Project project;
+
+  static const double _width = 72;
+  static const double _height = 88;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.inverseSurface.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Padding(
-        padding: const EdgeInsetsDirectional.symmetric(
-          horizontal: 6,
-          vertical: 2,
-        ),
-        child: Text(
-          text,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onInverseSurface,
-            fontFeatures: const [FontFeature.tabularFigures()],
+    final scheme = Theme.of(context).colorScheme;
+    final ratio = project.canvas.aspect.ratio.clamp(0.25, 4.0);
+    // Fit the canvas shape inside the 72×88 slot.
+    final fitsWidth = ratio >= _width / _height;
+    final w = fitsWidth ? _width : _height * ratio;
+    final h = fitsWidth ? _width / ratio : _height;
+    return SizedBox(
+      width: _width,
+      height: _height,
+      child: Center(
+        child: Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(4),
           ),
+          child: Icon(Icons.movie_outlined, color: scheme.onSurfaceVariant),
         ),
       ),
+    );
+  }
+}
+
+/// Round 32dp "•••" chip with a 48dp touch target.
+class _MenuButton extends StatelessWidget {
+  const new({required this.project, required this.onAction});
+
+  final Project project;
+  final ValueChanged<ProjectAction> onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    return PopupMenuButton<ProjectAction>(
+      tooltip: l10n.homeProjectOptions(project.name),
+      onSelected: onAction,
+      style: IconButton.styleFrom(
+        minimumSize: const Size.square(48),
+        padding: EdgeInsets.zero,
+      ),
+      icon: Container(
+        width: AppTokens.chipSize,
+        height: AppTokens.chipSize,
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(Icons.more_horiz, size: 20, color: scheme.onSurface),
+      ),
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: ProjectAction.rename,
+          child: Text(l10n.projectRename),
+        ),
+        PopupMenuItem(
+          value: ProjectAction.duplicate,
+          child: Text(l10n.projectDuplicate),
+        ),
+        PopupMenuItem(
+          value: ProjectAction.delete,
+          child: Text(l10n.projectDelete),
+        ),
+      ],
     );
   }
 }

@@ -35,7 +35,10 @@ void main() {
       );
       final labels = tester
           .widgetList<Text>(
-            find.descendant(of: find.byType(Wrap), matching: find.byType(Text)),
+            find.descendant(
+              of: find.byType(SingleChildScrollView),
+              matching: find.byType(Text),
+            ),
           )
           .map((t) => t.data);
       expect(labels, ['Original', '9:16', '16:9', '1:1', '4:5', '3:4', '4:3']);
@@ -60,7 +63,11 @@ void main() {
       await tester.pumpWidget(
         localizedApp(const Scaffold(body: AspectSheet())),
       );
-      final size = tester.getSize(find.byType(InkWell).first);
+      final option = find.descendant(
+        of: find.byType(SingleChildScrollView),
+        matching: find.byType(InkWell),
+      );
+      final size = tester.getSize(option.first);
       expect(size.height, greaterThanOrEqualTo(48));
       expect(size.width, greaterThanOrEqualTo(48));
     });

@@ -74,9 +74,10 @@ pigeons/                  # Pigeon interface definitions (source of truth for th
 
 ## 8. UI rules (see `docs/DESIGN.md`)
 
+- **The VCLIP Figma kit is the visual spec for every screen** (owner decision, see `docs/DESIGN.md` intro). Read the matching frame with the Figma MCP before building UI; where it differs from older rules below (e.g. home's "New project" tile sits at the top), the kit wins.
 - Layout: **Bottom Dock** pattern. Breakpoints by window width: compact `< 600dp` (phone), medium `600–839dp`, expanded `≥ 840dp` (tablet: left tool rail + right properties panel).
 - Touch targets **≥ 48×48dp**. Primary actions within the bottom thumb zone on phones.
-- Material 3, **dark theme by default**, light theme available in settings. Colors only from `ColorScheme` / theme extensions — no hard-coded `Color(0x...)` in widgets.
+- Material 3 widgets styled with the VCLIP tokens, **dark theme by default**, light theme available in settings. Colors only from `ColorScheme` / theme extensions — no hard-coded `Color(0x...)` in widgets.
 - Every slider-based property: drag + tap-to-type exact value + reset-to-default + haptic tick at default/snap points.
 - Every destructive or multi-step edit is undoable; no "Are you sure?" dialogs for undoable actions.
 - The timeline is always **left-to-right** regardless of locale (wrap in `Directionality(textDirection: TextDirection.ltr)`).

@@ -156,6 +156,7 @@ Each phase ends with a working, tested build and a tag `v0.<phase>.0`.
 - [x] `ProjectRepository` (JSON files in app docs dir, schemaVersion, autosave)
 - [x] Home screen: project grid, new project (pick media via Photo Picker, choose aspect), rename/duplicate/delete
 - [x] Tests: model invariants, commands, serialization round-trip
+- [x] Restyle to the VCLIP Figma kit (theme tokens, Plus Jakarta Sans / Bebas Neue, home list + New project tile, panel-style canvas picker)
 
 ### Phase 2 — Native engine spike (highest risk — do early)
 - [ ] Pigeon `EngineHostApi` / `EngineFlutterApi` (events: position, state, errors)
