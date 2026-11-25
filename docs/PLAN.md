@@ -43,7 +43,7 @@ Touch-first video editor for Android phones and tablets, built with Flutter (UI)
 | **Text motion** | `TextAnimation(in, out, loop)` presets: fade, typewriter, slide, pop, bounce, wave, blur-in; duration per phase | `OverlayEffect` with a time-varying `TextureOverlay`; text rasterized via `Canvas`/`StaticLayout` per frame, cached |
 | **Text styles** | `TextStyleSpec(font, size, color, gradient, stroke, shadow, background box + radius, letter/line spacing, alignment, bold/italic/underline)` + saved style presets | Android `StaticLayout` + `Paint` rendering to bitmap |
 
-> **"Flow"** is interpreted as playback speed + speed curves. If you meant something else (e.g. transitions or optical-flow slow-motion), update this row.
+> **"Flow"** = playback speed + speed ramps (confirmed by owner).
 
 Cross-cutting: **keyframes** — every animatable property (`position`, `scale`, `rotation`, `opacity`, `blur`, mask params) is `Animatable<T>` = constant or `List<Keyframe<T>>` with easing (linear, ease-in/out, cubic-bezier).
 
