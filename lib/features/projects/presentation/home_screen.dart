@@ -130,6 +130,9 @@ class HomeScreen extends ConsumerWidget {
             ..hideCurrentSnackBar()
             ..showSnackBar(
               SnackBar(
+                // A snackbar with an action persists by default; this one
+                // should time out like any other notice.
+                persist: false,
                 content: Text(l10n.projectDeleted(deleted.name)),
                 action: SnackBarAction(
                   label: l10n.commonUndo,

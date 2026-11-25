@@ -139,6 +139,21 @@ void main() {
     expect(env.repo.projects, contains('p1'));
   });
 
+  testWidgets('delete snackbar dismisses itself', (tester) async {
+    final env = TestEnv(projects: [project()]);
+    await env.pumpApp(tester);
+
+    await openMenu(tester, 'Test project');
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    expect(find.text('Deleted "Test project"'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+    expect(find.text('Deleted "Test project"'), findsNothing);
+    expect(env.repo.projects, isEmpty);
+  });
+
   test('originalAspectOf uses the first media with a size', () {
     expect(originalAspectOf([audio(), video()]), CanvasAspect.landscape16x9);
     expect(originalAspectOf([image()]), CanvasAspect.portrait4x5);
