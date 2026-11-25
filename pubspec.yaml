@@ -1,0 +1,19 @@
+name: cleancut
+description: "CleanCut - touch-first video editor for Android"
+publish_to: "none"
+version: 0.0.1+1
+
+environment:
+  sdk: ^3.13.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  very_good_analysis: ^11.0.0
+
+flutter:
+  uses-material-design: true
