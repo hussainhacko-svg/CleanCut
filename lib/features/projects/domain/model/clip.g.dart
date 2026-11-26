@@ -21,6 +21,12 @@ _Clip _$ClipFromJson(Map<String, dynamic> json) => _Clip(
       : ClipTransform.fromJson(json['transform'] as Map<String, dynamic>),
   fitMode:
       $enumDecodeNullable(_$FitModeEnumMap, json['fitMode']) ?? FitMode.fit,
+  crop: json['crop'] == null
+      ? CropRect.full
+      : CropRect.fromJson(json['crop'] as Map<String, dynamic>),
+  border: json['border'] == null
+      ? const ClipBorder()
+      : ClipBorder.fromJson(json['border'] as Map<String, dynamic>),
   volume: (json['volume'] as num?)?.toDouble() ?? 1.0,
   muted: json['muted'] as bool? ?? false,
 );
@@ -35,6 +41,8 @@ Map<String, dynamic> _$ClipToJson(_Clip instance) => <String, dynamic>{
   'keepPitch': instance.keepPitch,
   'transform': instance.transform.toJson(),
   'fitMode': _$FitModeEnumMap[instance.fitMode]!,
+  'crop': instance.crop.toJson(),
+  'border': instance.border.toJson(),
   'volume': instance.volume,
   'muted': instance.muted,
 };

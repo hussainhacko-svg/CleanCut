@@ -2,6 +2,7 @@ import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/theme/accent_gradient.dart';
 import 'package:cleancut/core/utils/timecode.dart';
 import 'package:cleancut/core/widgets/app_icon.dart';
+import 'package:cleancut/features/projects/domain/model/canvas_background.dart';
 import 'package:cleancut/features/projects/domain/model/project_canvas.dart';
 import 'package:cleancut/features/projects/presentation/playback/playback_controller.dart';
 import 'package:flutter/material.dart';
@@ -32,7 +33,11 @@ class PreviewView extends ConsumerWidget {
         aspectRatio: canvas.aspect.ratio,
         child: ColoredBox(
           // Data, not a design token: the canvas color the user picked.
-          color: Color(canvas.backgroundArgb),
+          // Other backgrounds are drawn by the engine; black until then.
+          color: Color(switch (canvas.background) {
+            ColorBackground(:final argb) => argb,
+            _ => 0xFF000000,
+          }),
           child: textureId == null || !hasMedia
               ? null
               : Texture(

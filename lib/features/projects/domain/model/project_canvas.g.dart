@@ -22,7 +22,11 @@ _ProjectCanvas _$ProjectCanvasFromJson(Map<String, dynamic> json) =>
           : CanvasAspect.fromJson(json['aspect'] as Map<String, dynamic>),
       shortSidePx: (json['shortSidePx'] as num?)?.toInt() ?? 1080,
       fps: (json['fps'] as num?)?.toInt() ?? 30,
-      backgroundArgb: (json['backgroundArgb'] as num?)?.toInt() ?? 0xFF000000,
+      background: json['background'] == null
+          ? CanvasBackground.black
+          : CanvasBackground.fromJson(
+              json['background'] as Map<String, dynamic>,
+            ),
     );
 
 Map<String, dynamic> _$ProjectCanvasToJson(_ProjectCanvas instance) =>
@@ -30,5 +34,5 @@ Map<String, dynamic> _$ProjectCanvasToJson(_ProjectCanvas instance) =>
       'aspect': instance.aspect.toJson(),
       'shortSidePx': instance.shortSidePx,
       'fps': instance.fps,
-      'backgroundArgb': instance.backgroundArgb,
+      'background': instance.background.toJson(),
     };

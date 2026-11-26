@@ -1,7 +1,9 @@
 import 'dart:convert';
 
 import 'package:cleancut/features/projects/domain/model/animatable.dart';
+import 'package:cleancut/features/projects/domain/model/canvas_background.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart';
+import 'package:cleancut/features/projects/domain/model/clip_style.dart';
 import 'package:cleancut/features/projects/domain/model/clip_transform.dart';
 import 'package:cleancut/features/projects/domain/model/easing.dart';
 import 'package:cleancut/features/projects/domain/model/keyframe.dart';
@@ -411,7 +413,11 @@ void main() {
           aspect: CanvasAspect.portrait9x16,
           fps: 60,
           shortSidePx: 720,
-          backgroundArgb: 0xFF112233,
+          background: CanvasBackground.gradient(
+            startArgb: 0xFF112233,
+            endArgb: 0xFF445566,
+            angleDegrees: 45,
+          ),
         ),
         mainTrack: MainTrack(
           clips: [
@@ -420,6 +426,18 @@ void main() {
               keepPitch: false,
               muted: true,
               fitMode: FitMode.fill,
+              crop: const CropRect(
+                left: 0.1,
+                top: 0.2,
+                right: 0.9,
+                bottom: 0.8,
+                aspect: CanvasAspect.square,
+              ),
+              border: const ClipBorder(
+                width: 0.01,
+                argb: 0xFFFF0000,
+                radius: 0.2,
+              ),
               transform: ClipTransform(
                 scale: Animatable.keyframed([
                   Keyframe(timeUs: 0, value: 1, easing: Easing.easeInOut),

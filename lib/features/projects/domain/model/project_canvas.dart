@@ -1,3 +1,4 @@
+import 'package:cleancut/features/projects/domain/model/canvas_background.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'project_canvas.freezed.dart';
@@ -72,12 +73,12 @@ abstract class CanvasAspect with _$CanvasAspect {
 abstract class ProjectCanvas with _$ProjectCanvas {
   /// Creates canvas settings.
   ///
-  /// [backgroundArgb] is the color behind letterboxed clips, as 0xAARRGGBB.
+  /// [background] fills the canvas behind the clips.
   const factory({
     @Default(CanvasAspect.landscape16x9) CanvasAspect aspect,
     @Default(1080) int shortSidePx,
     @Default(30) int fps,
-    @Default(0xFF000000) int backgroundArgb,
+    @Default(CanvasBackground.black) CanvasBackground background,
   }) = _ProjectCanvas;
 
   /// Parses canvas settings from JSON.

@@ -190,3 +190,86 @@ final class AnimatableVec2Converter
   Map<String, dynamic> toJson(Animatable<Vec2> object) =>
       animatableToJson(object, (v) => v.toJson());
 }
+
+/// Editing helpers used by keyframe tools. Times are clip-relative µs.
+extension AnimatableEditing<T> on Animatable<T> {
+  /// Times of the keyframes; empty for a constant.
+  List<int> get keyframeTimes => switch (this) {
+    ConstantAnimatable<T>() => const [],
+    KeyframedAnimatable<T>(:final keyframes) => [
+      for (final k in keyframes) k.timeUs,
+    ],
+  };
+
+  /// The keyframe closest to [timeUs] within [toleranceUs], if any.
+  Keyframe<T>? keyframeNear(int timeUs, {int toleranceUs = 0}) {
+    if (this case KeyframedAnimatable<T>(:final keyframes)) {
+      Keyframe<T>? best;
+      for (final k in keyframes) {
+        final distance = (k.timeUs - timeUs).abs();
+        if (distance > toleranceUs) continue;
+        if (best == null || distance < (best.timeUs - timeUs).abs()) best = k;
+      }
+      return best;
+    }
+    return null;
+  }
+
+  /// Sets the value seen at [timeUs] to [value].
+  ///
+  /// A constant becomes the new constant. An animated property gets a
+  /// keyframe at [timeUs], or the keyframe within [toleranceUs] of it is
+  /// updated in place (keeping its time and easing).
+  Animatable<T> withValueAt(int timeUs, T value, {int toleranceUs = 0}) {
+    switch (this) {
+      case ConstantAnimatable<T>():
+        return Animatable.constant(value);
+      case KeyframedAnimatable<T>(:final keyframes):
+        final near = keyframeNear(timeUs, toleranceUs: toleranceUs);
+        final time = near?.timeUs ?? timeUs;
+        return Animatable.keyframed([
+          for (final k in keyframes)
+            if (k.timeUs != time) k,
+          near?.copyWith(value: value) ?? Keyframe(timeUs: time, value: value),
+        ]);
+    }
+  }
+
+  /// Adds a keyframe at [timeUs] holding the current value there, or
+  /// removes the keyframe within [toleranceUs] of it. Removing the last
+  /// keyframe turns the property into a constant of that keyframe's value.
+  Animatable<T> toggledKeyframeAt(
+    int timeUs,
+    Lerp<T> lerp, {
+    int toleranceUs = 0,
+  }) {
+    final value = valueAt(timeUs, lerp);
+    switch (this) {
+      case ConstantAnimatable<T>():
+        return Animatable.keyframed([Keyframe(timeUs: timeUs, value: value)]);
+      case KeyframedAnimatable<T>(:final keyframes):
+        final near = keyframeNear(timeUs, toleranceUs: toleranceUs);
+        if (near == null) {
+          return Animatable.keyframed([
+            ...keyframes,
+            Keyframe(timeUs: timeUs, value: value),
+          ]);
+        }
+        final rest = [
+          for (final k in keyframes)
+            if (k.timeUs != near.timeUs) k,
+        ];
+        return rest.isEmpty
+            ? Animatable.constant(near.value)
+            : Animatable.keyframed(rest);
+    }
+  }
+
+  /// Every value this property takes: the constant or each keyframe's.
+  Iterable<T> get allValues => switch (this) {
+    ConstantAnimatable<T>(:final value) => [value],
+    KeyframedAnimatable<T>(:final keyframes) => [
+      for (final k in keyframes) k.value,
+    ],
+  };
+}

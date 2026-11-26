@@ -289,7 +289,7 @@ as int,
 /// @nodoc
 mixin _$ProjectCanvas {
 
- CanvasAspect get aspect; int get shortSidePx; int get fps; int get backgroundArgb;
+ CanvasAspect get aspect; int get shortSidePx; int get fps; CanvasBackground get background;
 /// Create a copy of ProjectCanvas
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -303,20 +303,20 @@ $ProjectCanvasCopyWith<ProjectCanvas> get copyWith => _$ProjectCanvasCopyWithImp
 @override
 bool operator ==(Object other) {
   final _this = this as ProjectCanvas;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProjectCanvas&&(identical(other.aspect, _this.aspect) || other.aspect == _this.aspect)&&(identical(other.shortSidePx, _this.shortSidePx) || other.shortSidePx == _this.shortSidePx)&&(identical(other.fps, _this.fps) || other.fps == _this.fps)&&(identical(other.backgroundArgb, _this.backgroundArgb) || other.backgroundArgb == _this.backgroundArgb));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProjectCanvas&&(identical(other.aspect, _this.aspect) || other.aspect == _this.aspect)&&(identical(other.shortSidePx, _this.shortSidePx) || other.shortSidePx == _this.shortSidePx)&&(identical(other.fps, _this.fps) || other.fps == _this.fps)&&(identical(other.background, _this.background) || other.background == _this.background));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as ProjectCanvas;
-  return Object.hash(runtimeType,_this.aspect,_this.shortSidePx,_this.fps,_this.backgroundArgb);
+  return Object.hash(runtimeType,_this.aspect,_this.shortSidePx,_this.fps,_this.background);
 }
 
 @override
 String toString() {
   final _this = this as ProjectCanvas;
-  return 'ProjectCanvas(aspect: ${_this.aspect}, shortSidePx: ${_this.shortSidePx}, fps: ${_this.fps}, backgroundArgb: ${_this.backgroundArgb})';
+  return 'ProjectCanvas(aspect: ${_this.aspect}, shortSidePx: ${_this.shortSidePx}, fps: ${_this.fps}, background: ${_this.background})';
 }
 
 
@@ -327,11 +327,11 @@ abstract mixin class $ProjectCanvasCopyWith<$Res>  {
   factory $ProjectCanvasCopyWith(ProjectCanvas value, $Res Function(ProjectCanvas) _then) = _$ProjectCanvasCopyWithImpl;
 @useResult
 $Res call({
- CanvasAspect aspect, int shortSidePx, int fps, int backgroundArgb
+ CanvasAspect aspect, int shortSidePx, int fps, CanvasBackground background
 });
 
 
-$CanvasAspectCopyWith<$Res> get aspect;
+$CanvasAspectCopyWith<$Res> get aspect;$CanvasBackgroundCopyWith<$Res> get background;
 
 }
 /// @nodoc
@@ -344,13 +344,13 @@ class _$ProjectCanvasCopyWithImpl<$Res>
 
 /// Create a copy of ProjectCanvas
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? aspect = null,Object? shortSidePx = null,Object? fps = null,Object? backgroundArgb = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? aspect = null,Object? shortSidePx = null,Object? fps = null,Object? background = null,}) {
   return _then(ProjectCanvas(
 aspect: null == aspect ? _self.aspect : aspect // ignore: cast_nullable_to_non_nullable
 as CanvasAspect,shortSidePx: null == shortSidePx ? _self.shortSidePx : shortSidePx // ignore: cast_nullable_to_non_nullable
 as int,fps: null == fps ? _self.fps : fps // ignore: cast_nullable_to_non_nullable
-as int,backgroundArgb: null == backgroundArgb ? _self.backgroundArgb : backgroundArgb // ignore: cast_nullable_to_non_nullable
-as int,
+as int,background: null == background ? _self.background : background // ignore: cast_nullable_to_non_nullable
+as CanvasBackground,
   ));
 }
 /// Create a copy of ProjectCanvas
@@ -361,6 +361,15 @@ $CanvasAspectCopyWith<$Res> get aspect {
   
   return $CanvasAspectCopyWith<$Res>(_self.aspect, (value) {
     return _then(_self.copyWith(aspect: value));
+  });
+}/// Create a copy of ProjectCanvas
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$CanvasBackgroundCopyWith<$Res> get background {
+  
+  return $CanvasBackgroundCopyWith<$Res>(_self.background, (value) {
+    return _then(_self.copyWith(background: value));
   });
 }
 }
@@ -444,10 +453,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( CanvasAspect aspect,  int shortSidePx,  int fps,  int backgroundArgb)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( CanvasAspect aspect,  int shortSidePx,  int fps,  CanvasBackground background)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ProjectCanvas() when $default != null:
-return $default(_that.aspect,_that.shortSidePx,_that.fps,_that.backgroundArgb);case _:
+return $default(_that.aspect,_that.shortSidePx,_that.fps,_that.background);case _:
   return orElse();
 
 }
@@ -465,10 +474,10 @@ return $default(_that.aspect,_that.shortSidePx,_that.fps,_that.backgroundArgb);c
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( CanvasAspect aspect,  int shortSidePx,  int fps,  int backgroundArgb)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( CanvasAspect aspect,  int shortSidePx,  int fps,  CanvasBackground background)  $default,) {final _that = this;
 switch (_that) {
 case _ProjectCanvas():
-return $default(_that.aspect,_that.shortSidePx,_that.fps,_that.backgroundArgb);case _:
+return $default(_that.aspect,_that.shortSidePx,_that.fps,_that.background);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -485,10 +494,10 @@ return $default(_that.aspect,_that.shortSidePx,_that.fps,_that.backgroundArgb);c
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( CanvasAspect aspect,  int shortSidePx,  int fps,  int backgroundArgb)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( CanvasAspect aspect,  int shortSidePx,  int fps,  CanvasBackground background)?  $default,) {final _that = this;
 switch (_that) {
 case _ProjectCanvas() when $default != null:
-return $default(_that.aspect,_that.shortSidePx,_that.fps,_that.backgroundArgb);case _:
+return $default(_that.aspect,_that.shortSidePx,_that.fps,_that.background);case _:
   return null;
 
 }
@@ -500,13 +509,13 @@ return $default(_that.aspect,_that.shortSidePx,_that.fps,_that.backgroundArgb);c
 @JsonSerializable()
 
 class _ProjectCanvas implements ProjectCanvas {
-  const _ProjectCanvas({this.aspect = CanvasAspect.landscape16x9, this.shortSidePx = 1080, this.fps = 30, this.backgroundArgb = 0xFF000000});
+  const _ProjectCanvas({this.aspect = CanvasAspect.landscape16x9, this.shortSidePx = 1080, this.fps = 30, this.background = CanvasBackground.black});
   factory _ProjectCanvas.fromJson(Map<String, dynamic> json) => _$ProjectCanvasFromJson(json);
 
 @override@JsonKey() final  CanvasAspect aspect;
 @override@JsonKey() final  int shortSidePx;
 @override@JsonKey() final  int fps;
-@override@JsonKey() final  int backgroundArgb;
+@override@JsonKey() final  CanvasBackground background;
 
 /// Create a copy of ProjectCanvas
 /// with the given fields replaced by the non-null parameter values.
@@ -521,18 +530,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProjectCanvas&&(identical(other.aspect, aspect) || other.aspect == aspect)&&(identical(other.shortSidePx, shortSidePx) || other.shortSidePx == shortSidePx)&&(identical(other.fps, fps) || other.fps == fps)&&(identical(other.backgroundArgb, backgroundArgb) || other.backgroundArgb == backgroundArgb));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProjectCanvas&&(identical(other.aspect, aspect) || other.aspect == aspect)&&(identical(other.shortSidePx, shortSidePx) || other.shortSidePx == shortSidePx)&&(identical(other.fps, fps) || other.fps == fps)&&(identical(other.background, background) || other.background == background));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,aspect,shortSidePx,fps,backgroundArgb);
+    return Object.hash(runtimeType,aspect,shortSidePx,fps,background);
 }
 
 @override
 String toString() {
-    return 'ProjectCanvas(aspect: $aspect, shortSidePx: $shortSidePx, fps: $fps, backgroundArgb: $backgroundArgb)';
+    return 'ProjectCanvas(aspect: $aspect, shortSidePx: $shortSidePx, fps: $fps, background: $background)';
 }
 
 
@@ -543,11 +552,11 @@ abstract mixin class _$ProjectCanvasCopyWith<$Res> implements $ProjectCanvasCopy
   factory _$ProjectCanvasCopyWith(_ProjectCanvas value, $Res Function(_ProjectCanvas) _then) = __$ProjectCanvasCopyWithImpl;
 @override @useResult
 $Res call({
- CanvasAspect aspect, int shortSidePx, int fps, int backgroundArgb
+ CanvasAspect aspect, int shortSidePx, int fps, CanvasBackground background
 });
 
 
-@override $CanvasAspectCopyWith<$Res> get aspect;
+@override $CanvasAspectCopyWith<$Res> get aspect;@override $CanvasBackgroundCopyWith<$Res> get background;
 
 }
 /// @nodoc
@@ -560,13 +569,13 @@ class __$ProjectCanvasCopyWithImpl<$Res>
 
 /// Create a copy of ProjectCanvas
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? aspect = null,Object? shortSidePx = null,Object? fps = null,Object? backgroundArgb = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? aspect = null,Object? shortSidePx = null,Object? fps = null,Object? background = null,}) {
   return _then(_ProjectCanvas(
 aspect: null == aspect ? _self.aspect : aspect // ignore: cast_nullable_to_non_nullable
 as CanvasAspect,shortSidePx: null == shortSidePx ? _self.shortSidePx : shortSidePx // ignore: cast_nullable_to_non_nullable
 as int,fps: null == fps ? _self.fps : fps // ignore: cast_nullable_to_non_nullable
-as int,backgroundArgb: null == backgroundArgb ? _self.backgroundArgb : backgroundArgb // ignore: cast_nullable_to_non_nullable
-as int,
+as int,background: null == background ? _self.background : background // ignore: cast_nullable_to_non_nullable
+as CanvasBackground,
   ));
 }
 
@@ -578,6 +587,15 @@ $CanvasAspectCopyWith<$Res> get aspect {
   
   return $CanvasAspectCopyWith<$Res>(_self.aspect, (value) {
     return _then(_self.copyWith(aspect: value));
+  });
+}/// Create a copy of ProjectCanvas
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$CanvasBackgroundCopyWith<$Res> get background {
+  
+  return $CanvasBackgroundCopyWith<$Res>(_self.background, (value) {
+    return _then(_self.copyWith(background: value));
   });
 }
 }

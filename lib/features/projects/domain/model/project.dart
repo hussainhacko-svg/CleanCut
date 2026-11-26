@@ -33,7 +33,9 @@ abstract class Project with _$Project {
   /// Schema version written by this build. Bump it with a migration.
   ///
   /// 2: clips may have a `speedCurve` (Phase 4 Flow curves).
-  static const int currentSchemaVersion = 2;
+  /// 3: `canvas.background` replaces `canvas.backgroundArgb`; clips may
+  /// have `crop` and `border` (Phase 5).
+  static const int currentSchemaVersion = 3;
 
   /// Length of the whole edit: the end of the latest track.
   int get durationUs {
@@ -58,6 +60,7 @@ abstract class Project with _$Project {
     final problems = <String>[];
     if (name.trim().isEmpty) problems.add('name: empty');
     if (canvas.fps <= 0) problems.add('canvas.fps: must be > 0');
+    problems.addAll(canvas.background.validate().map((p) => 'canvas: $p'));
     if (canvas.shortSidePx <= 0) {
       problems.add('canvas.shortSidePx: must be > 0');
     }
