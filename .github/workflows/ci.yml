@@ -1,9 +1,11 @@
 name: CI
 
 on:
+  # Runs only when a version tag (e.g. v1.2.0) is pushed, which includes
+  # tags created by publishing a GitHub release. Can also be started by hand.
   push:
-    branches: [main]
-  pull_request:
+    tags: ["v*"]
+  workflow_dispatch:
 
 jobs:
   analyze-and-test:
