@@ -44,9 +44,12 @@ you finish a chunk of work, and leave the next agent the same courtesy.
   - **Still open:** speed curves (follow-up); split/delete/etc. for overlay
     and audio clips (Phases 7/9); audible keep-pitch check (emulator has
     no audio output in testing).
-  - **Pre-existing (Phase 2), not fixed:** timeline thumbnails use
-    `OPTION_CLOSEST_SYNC` (`ThumbnailExtractor.kt`), so videos with sparse
-    keyframes (e.g. screen recordings) show the same frame in every tile.
+  - **Thumbnails fixed (Phase 2 bug):** tiles used the nearest keyframe
+    only, so sparse-keyframe videos (screen recordings) repeated frame 0.
+    `ThumbnailTiming` now decodes the exact frame when the previous
+    keyframe is > 0.5 s away (looked up via `MediaExtractor`, no decoding);
+    the video thumbnail cache key is versioned (`thumb|v2|`) so stale
+    frames aren't reused. Emulator: ~40 exact tiles in 4-8 s worst case.
 
 ## Design source
 
