@@ -259,6 +259,7 @@ class _SpeedPanelState extends State<SpeedPanel> {
                           painter: _RulerPainter(
                             inset: _inset,
                             color: scheme.onSurface,
+                            markerX: bubbleX,
                           ),
                         ),
                       ),
@@ -440,12 +441,19 @@ class _MarkLabel extends StatelessWidget {
   }
 }
 
-/// Ticks: a tall one at every label, three short ones between (kit).
+/// Ticks: a tall one at every label, three short ones between, and a
+/// taller marker under the value bubble (kit "Speed").
 class _RulerPainter extends CustomPainter {
-  new({required this.inset, required this.color});
+  new({required this.inset, required this.color, required this.markerX});
 
   final double inset;
   final Color color;
+
+  /// Where the current value is (under the bubble).
+  final double markerX;
+
+  /// Height of the current-value marker tick.
+  static const double markerHeight = 16;
 
   static const int _minorPerSegment = 4;
 
@@ -462,11 +470,19 @@ class _RulerPainter extends CustomPainter {
       paint.color = color.withValues(alpha: major ? 1 : 0.6);
       canvas.drawLine(Offset(x, -h / 2), Offset(x, h / 2), paint);
     }
+    canvas.drawLine(
+      Offset(markerX, -markerHeight / 2),
+      Offset(markerX, markerHeight / 2),
+      Paint()
+        ..color = color
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round,
+    );
   }
 
   @override
   bool shouldRepaint(_RulerPainter old) =>
-      old.inset != inset || old.color != color;
+      old.inset != inset || old.color != color || old.markerX != markerX;
 }
 
 /// Types an exact speed; completes with it, or null when cancelled.

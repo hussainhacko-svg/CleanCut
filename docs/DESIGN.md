@@ -86,6 +86,7 @@ Tools whose phase hasn't shipped show "Coming in a later update." Icons that exi
 
 - Opens over the dock on phones (the timeline shrinks above it) and in place of the properties panel on tablets; closes with ✕, system back, or when the selection changes.
 - Range **0.1×–10×** (owner decision; the kit shows 1/8×–4×). Labels sit at even distances and the speed grows geometrically between them, so 1× is the middle.
+- A taller tick under the bubble marks the current value (kit).
 - Drag anywhere on the ruler (bubble follows, haptic tick + snap at each label), tap to jump, tap a label (48dp target) to pick that speed, tap the bubble to type an exact value, Reset → 1×. Labels shrink to fit narrow panels (tablet). The speed is applied once, on release, so the preview reloads once; each change is one undo step.
 - A **"Normal | Curve"** tab row (kit "Filters" tab style: selected bold in the accent gradient, others muted, 48dp targets) sits under the header. The panel opens on Curve when the clip has a curve. Keep pitch stays below both tabs. On phones the panel leaves the timeline at least 80dp and scrolls inside on short screens.
 
@@ -109,7 +110,7 @@ Tools whose phase hasn't shipped show "Coming in a later update." Icons that exi
 - Playhead: a 2px white line fixed in the middle, spanning the lanes only. Dragging the timeline scrubs; within 8px of a clip edge it snaps there with a haptic tick; playback resumes after the drag if it was playing. Two-finger pinch zooms around the playhead.
 - Rows, top to bottom: effect · text · overlay lanes (30px pills, radius 18.5, 10px label with a small glyph), the main video strip (60px thumbnails, radius 10, 4px visual gap between clips, ⧓ transition marker on each boundary), audio lanes (orange pills with a white waveform). The "mute original audio" speaker sits left of 0 s on the first audio row.
 - Lane colors (`TimelineColors`): effect `#808080`, text `#43418E`, overlay `#D158D9`, audio `#E86F48`.
-- Selection: tap a clip to select, tap it again or empty space (or ‹ Back) to deselect. A selected main clip gets a cream `#EDDB93` tint (85%), a 2px white border and 4×14 white trim handles; the other lanes drop to 60% opacity. A selected pill gets a 50% fill, a 2px outline and handles in its lane color. Selection is UI state (not undoable) and clears when its clip disappears.
+- Selection: tap a clip to select, tap it again or empty space (or ‹ Back) to deselect. A selected main clip gets a light cream `#EDDB93` wash (50%, thumbnails stay visible as in the kit's "Video" frame), a 2px white border and 4×14 white trim handles; the other lanes drop to 60% opacity. A selected pill gets a 50% fill, a 2px outline and handles in its lane color. Selection is UI state (not undoable) and clears when its clip disappears.
 - The ⧓ marker is decorative until transitions ship: a 48dp target would cover short clips (a 2 s clip is 45px wide at the default zoom).
 - **Trim:** the selected clip's white handles have 48dp-wide touch targets centred on its edges. Dragging draws the new length live (trimming the start moves the left edge; the gap closes on release, as the main track is magnetic), snaps to the playhead with a haptic tick, stops at the media's ends and at 0.1 s, and is applied on release as one undo step. The preview then seeks to the trimmed edge to show its frame.
 - **Reorder:** long-press a main clip to lift it (raised, shadowed, haptic); drag it sideways; a 2dp white line shows where it will land (a haptic tick when that changes); release to drop. A long press without moving changes nothing.
@@ -187,13 +188,13 @@ Colors live only in `AppTheme` (`lib/app/theme/app_theme.dart`); shapes and font
 │ ┌──────────────────────────┐ │
 │ │ ▯▯  Flow lifestyle  (•••)│ │  card #212121, radius 10, 114dp: 72×88 thumbnail,
 │ │ ▯▯  26, Nov, 2026        │ │  name 18, date 14 (secondary), duration 10,
-│ │ ▯▯  1:06                 │ │  round ••• chip top-right opens the menu
+│ │ ▯▯  01:06                │ │  round ••• chip top-right opens the menu
 │ └──────────────────────────┘ │
 └──────────────────────────────┘
 ```
 
 - One column on phones; on tablets the cards flow into a grid (max 560dp per card).
-- **New project:** system Photo Picker (videos + photos, multi-select) → "Canvas size" panel (tool-panel style: title + ✕, a scrolling row of 70dp outlined preset tiles: Original, 9:16, 16:9, 1:1, 4:5, 3:4, 4:3) → project is created and opened. Cancelling either step creates nothing.
+- **New project:** system Photo Picker (videos + photos, multi-select) → "Canvas size" panel (tool-panel style: title + ✕, then the kit "Ratio" row: bare rounded aspect outlines in `onSurfaceVariant` with captions, 64dp apart — Original first, drawn as the kit's "Fit" corners glyph — then 9:16, 16:9, 1:1, 4:5, 3:4, 4:3; a selected ratio gets an accent-gradient outline and a bold white caption. The kit's Instagram/TikTok logos inside 1:1 and 9:16 are left out: third-party trademarks) → project is created and opened. Cancelling either step creates nothing.
 - **Card menu:** Rename (dialog), Duplicate ("<name> copy"), Delete. Delete happens immediately and shows a snackbar with **Undo** — no confirmation dialog.
 - Empty state: the New project tile, then icon, "No projects yet" and a hint.
 - The card thumbnail is the first frame of the first clip (native extraction, disk-cached); the canvas-shape placeholder shows while it loads or when there is no frame.

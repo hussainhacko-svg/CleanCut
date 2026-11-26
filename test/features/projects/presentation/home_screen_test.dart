@@ -36,7 +36,7 @@ void main() {
         .widgetList<ProjectCard>(find.byType(ProjectCard))
         .map((c) => c.project.name);
     expect(names, ['Newer', 'Older']);
-    expect(find.text('1:05'), findsOneWidget);
+    expect(find.text('01:05'), findsOneWidget);
   });
 
   testWidgets('new project: pick media, choose aspect, open editor', (

@@ -87,7 +87,7 @@ class ProjectCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            formatDurationUs(project.durationUs),
+                            formatClockUs(project.durationUs),
                             style: theme.textTheme.labelSmall?.copyWith(
                               fontSize: 10,
                               color: scheme.onSurfaceVariant,

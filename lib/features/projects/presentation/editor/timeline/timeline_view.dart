@@ -964,7 +964,9 @@ class MainClipView extends StatelessWidget {
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: colors.selectionTint.withValues(alpha: 0.85),
+                color: colors.selectionTint.withValues(
+                  alpha: TimelineColors.selectedClipTint,
+                ),
                 borderRadius: radius,
                 border: Border.all(color: scheme.onSurface, width: 2),
               ),
