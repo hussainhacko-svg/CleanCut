@@ -77,4 +77,10 @@ final class ProjectCodec {
 ///
 /// When bumping `Project.currentSchemaVersion` to `n + 1`, add entry `n`
 /// here and a migration test.
-const Map<int, JsonMigration> projectMigrations = {};
+const Map<int, JsonMigration> projectMigrations = {
+  // 1 -> 2: clips gained an optional `speedCurve`; a missing one means a
+  // constant speed, so v1 files need no change.
+  1: _addSpeedCurves,
+};
+
+Map<String, dynamic> _addSpeedCurves(Map<String, dynamic> json) => json;

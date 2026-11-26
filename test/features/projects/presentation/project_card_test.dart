@@ -56,7 +56,7 @@ void main() {
       await pumpCard(tester);
       expect(find.text('Test project'), findsOneWidget);
       expect(find.text('26, Nov, 2026'), findsOneWidget);
-      expect(find.text('1:05'), findsOneWidget);
+      expect(find.text('01:05'), findsOneWidget);
       expect(
         tester.getSize(find.byType(ProjectCard)).height,
         ProjectCard.height,

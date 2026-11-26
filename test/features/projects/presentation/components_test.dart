@@ -1,3 +1,4 @@
+import 'package:cleancut/core/widgets/app_icon.dart';
 import 'package:cleancut/features/projects/domain/model/project_canvas.dart';
 import 'package:cleancut/features/projects/presentation/aspect_sheet.dart';
 import 'package:cleancut/features/projects/presentation/rename_dialog.dart';
@@ -57,6 +58,46 @@ void main() {
       await tester.tap(find.text('Original'));
       await tester.pumpAndSettle();
       expect(result, CanvasAspect.square);
+    });
+
+    testWidgets('kit Ratio style: corners glyph for Original, selection', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        localizedApp(
+          const Scaffold(
+            body: AspectSheet(
+              original: CanvasAspect.landscape4x3,
+              selected: CanvasAspect.landscape16x9,
+            ),
+          ),
+        ),
+      );
+      // Original ("Fit" in the kit) is drawn with the corners glyph.
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is AppIcon && w.icon == AppIcons.fullscreen,
+        ),
+        findsOneWidget,
+      );
+      // No boxed tiles: options are bare shapes with captions.
+      expect(
+        find.descendant(
+          of: find.byType(SingleChildScrollView),
+          matching: find.byWidgetPredicate(
+            (w) => w is Container && w.decoration is BoxDecoration,
+          ),
+        ),
+        findsNothing,
+      );
+      final selected = tester.widget<Text>(find.text('16:9'));
+      final other = tester.widget<Text>(find.text('9:16'));
+      expect(selected.style?.fontWeight, FontWeight.w700);
+      expect(other.style?.fontWeight, FontWeight.w400);
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('16:9')),
+        isSemantics(isSelected: true),
+      );
     });
 
     testWidgets('options are at least 48dp tall', (tester) async {

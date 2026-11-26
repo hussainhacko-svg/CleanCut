@@ -1,5 +1,5 @@
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
-import 'package:cleancut/core/theme/app_tokens.dart';
+import 'package:cleancut/core/theme/accent_gradient.dart';
 import 'package:cleancut/core/widgets/app_icon.dart';
 import 'package:cleancut/features/projects/domain/model/project_canvas.dart';
 import 'package:flutter/material.dart';
@@ -14,13 +14,18 @@ Future<CanvasAspect?> showAspectSheet(
   builder: (context) => AspectSheet(original: original),
 );
 
-/// Grid of canvas aspect ratios to start a project with.
+/// Canvas aspect ratios to start a project with, styled like the kit's
+/// "Ratio" frame: a row of bare aspect outlines with captions, the selected
+/// one outlined in the accent gradient.
 class AspectSheet extends StatelessWidget {
   /// Creates the sheet.
-  const new({super.key, this.original});
+  const new({super.key, this.original, this.selected});
 
   /// Aspect of the first picked media, offered as "Original".
   final CanvasAspect? original;
+
+  /// The highlighted aspect, if any (none when starting a project).
+  final CanvasAspect? selected;
 
   @override
   Widget build(BuildContext context) {
@@ -68,14 +73,18 @@ class AspectSheet extends StatelessWidget {
             const SizedBox(height: 16),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsetsDirectional.symmetric(horizontal: 26),
+              padding: const EdgeInsetsDirectional.symmetric(horizontal: 18),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final (aspect, label) in options)
+                  for (final (i, (aspect, label)) in options.indexed)
                     _AspectOption(
                       aspect: aspect,
                       label: label,
+                      // "Original" is the kit's "Fit": a corners glyph.
+                      isOriginal: original != null && i == 0,
+                      selected:
+                          aspect == selected && (original == null || i > 0),
                       onTap: () => Navigator.of(context).pop(aspect),
                     ),
                 ],
@@ -88,17 +97,27 @@ class AspectSheet extends StatelessWidget {
   }
 }
 
-/// A 70dp preset tile with the aspect's shape and a caption, like the VCLIP
-/// filter presets.
+/// One ratio choice (kit "Ratio"): the aspect drawn as a rounded outline,
+/// caption underneath. Selected: accent-gradient outline, bold white
+/// caption.
 class _AspectOption extends StatelessWidget {
-  const new({required this.aspect, required this.label, required this.onTap});
+  const new({
+    required this.aspect,
+    required this.label,
+    required this.isOriginal,
+    required this.selected,
+    required this.onTap,
+  });
 
   final CanvasAspect aspect;
   final String label;
+  final bool isOriginal;
+  final bool selected;
   final VoidCallback onTap;
 
-  static const double _tile = 70;
-  static const double _shape = 34;
+  /// Width of one choice (kit: 62 apart) and the shape's bounding box.
+  static const double _width = 64;
+  static const double _shape = 44;
 
   @override
   Widget build(BuildContext context) {
@@ -107,43 +126,78 @@ class _AspectOption extends StatelessWidget {
     final ratio = aspect.ratio.clamp(0.25, 4.0);
     final width = ratio >= 1 ? _shape : _shape * ratio;
     final height = ratio >= 1 ? _shape / ratio : _shape;
-    const radius = BorderRadius.all(Radius.circular(AppTokens.cardRadius));
-    return InkWell(
-      borderRadius: radius,
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsetsDirectional.symmetric(horizontal: 4),
-        child: Column(
-          children: [
-            Container(
-              width: _tile,
-              height: _tile,
-              decoration: BoxDecoration(
-                borderRadius: radius,
-                border: Border.all(color: scheme.outline),
-              ),
-              alignment: Alignment.center,
-              child: Container(
-                width: width,
-                height: height,
-                decoration: BoxDecoration(
-                  border: Border.all(color: scheme.onSurface, width: 1.5),
-                  borderRadius: BorderRadius.circular(3),
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      excludeSemantics: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: SizedBox(
+          width: _width,
+          child: Column(
+            children: [
+              SizedBox(
+                height: _shape + 12,
+                child: Center(
+                  child: isOriginal
+                      ? AppIcon(
+                          AppIcons.fullscreen,
+                          size: 34,
+                          color: scheme.onSurfaceVariant,
+                        )
+                      : CustomPaint(
+                          size: Size(width, height),
+                          painter: _ShapePainter(
+                            color: scheme.onSurfaceVariant,
+                            gradient: selected
+                                ? AccentGradient.of(context).linear
+                                : null,
+                          ),
+                        ),
                 ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
+              const SizedBox(height: 8),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                  color: selected ? scheme.onSurface : scheme.onSurfaceVariant,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+/// A rounded rectangle outline, in [gradient] when given, else [color].
+class _ShapePainter extends CustomPainter {
+  new({required this.color, this.gradient});
+
+  final Color color;
+  final Gradient? gradient;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = gradient == null ? 1.5 : 2
+      ..color = color;
+    if (gradient case final g?) paint.shader = g.createShader(rect);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect.deflate(1), const Radius.circular(4)),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ShapePainter old) =>
+      old.color != color || old.gradient != gradient;
 }

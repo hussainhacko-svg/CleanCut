@@ -31,7 +31,9 @@ abstract class Project with _$Project {
   factory fromJson(Map<String, dynamic> json) => _$ProjectFromJson(json);
 
   /// Schema version written by this build. Bump it with a migration.
-  static const int currentSchemaVersion = 1;
+  ///
+  /// 2: clips may have a `speedCurve` (Phase 4 Flow curves).
+  static const int currentSchemaVersion = 2;
 
   /// Length of the whole edit: the end of the latest track.
   int get durationUs {

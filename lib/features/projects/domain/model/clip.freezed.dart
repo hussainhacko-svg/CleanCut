@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Clip {
 
- String get id; MediaRef get media; int get sourceInUs; int get sourceOutUs; double get speed; bool get keepPitch; ClipTransform get transform; FitMode get fitMode; double get volume; bool get muted;
+ String get id; MediaRef get media; int get sourceInUs; int get sourceOutUs; double get speed; SpeedCurve? get speedCurve; bool get keepPitch; ClipTransform get transform; FitMode get fitMode; double get volume; bool get muted;
 /// Create a copy of Clip
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,20 +30,20 @@ $ClipCopyWith<Clip> get copyWith => _$ClipCopyWithImpl<Clip>(this as Clip, _$ide
 @override
 bool operator ==(Object other) {
   final _this = this as Clip;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Clip&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.media, _this.media) || other.media == _this.media)&&(identical(other.sourceInUs, _this.sourceInUs) || other.sourceInUs == _this.sourceInUs)&&(identical(other.sourceOutUs, _this.sourceOutUs) || other.sourceOutUs == _this.sourceOutUs)&&(identical(other.speed, _this.speed) || other.speed == _this.speed)&&(identical(other.keepPitch, _this.keepPitch) || other.keepPitch == _this.keepPitch)&&(identical(other.transform, _this.transform) || other.transform == _this.transform)&&(identical(other.fitMode, _this.fitMode) || other.fitMode == _this.fitMode)&&(identical(other.volume, _this.volume) || other.volume == _this.volume)&&(identical(other.muted, _this.muted) || other.muted == _this.muted));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Clip&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.media, _this.media) || other.media == _this.media)&&(identical(other.sourceInUs, _this.sourceInUs) || other.sourceInUs == _this.sourceInUs)&&(identical(other.sourceOutUs, _this.sourceOutUs) || other.sourceOutUs == _this.sourceOutUs)&&(identical(other.speed, _this.speed) || other.speed == _this.speed)&&(identical(other.speedCurve, _this.speedCurve) || other.speedCurve == _this.speedCurve)&&(identical(other.keepPitch, _this.keepPitch) || other.keepPitch == _this.keepPitch)&&(identical(other.transform, _this.transform) || other.transform == _this.transform)&&(identical(other.fitMode, _this.fitMode) || other.fitMode == _this.fitMode)&&(identical(other.volume, _this.volume) || other.volume == _this.volume)&&(identical(other.muted, _this.muted) || other.muted == _this.muted));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as Clip;
-  return Object.hash(runtimeType,_this.id,_this.media,_this.sourceInUs,_this.sourceOutUs,_this.speed,_this.keepPitch,_this.transform,_this.fitMode,_this.volume,_this.muted);
+  return Object.hash(runtimeType,_this.id,_this.media,_this.sourceInUs,_this.sourceOutUs,_this.speed,_this.speedCurve,_this.keepPitch,_this.transform,_this.fitMode,_this.volume,_this.muted);
 }
 
 @override
 String toString() {
   final _this = this as Clip;
-  return 'Clip(id: ${_this.id}, media: ${_this.media}, sourceInUs: ${_this.sourceInUs}, sourceOutUs: ${_this.sourceOutUs}, speed: ${_this.speed}, keepPitch: ${_this.keepPitch}, transform: ${_this.transform}, fitMode: ${_this.fitMode}, volume: ${_this.volume}, muted: ${_this.muted})';
+  return 'Clip(id: ${_this.id}, media: ${_this.media}, sourceInUs: ${_this.sourceInUs}, sourceOutUs: ${_this.sourceOutUs}, speed: ${_this.speed}, speedCurve: ${_this.speedCurve}, keepPitch: ${_this.keepPitch}, transform: ${_this.transform}, fitMode: ${_this.fitMode}, volume: ${_this.volume}, muted: ${_this.muted})';
 }
 
 
@@ -54,11 +54,11 @@ abstract mixin class $ClipCopyWith<$Res>  {
   factory $ClipCopyWith(Clip value, $Res Function(Clip) _then) = _$ClipCopyWithImpl;
 @useResult
 $Res call({
- String id, MediaRef media, int sourceInUs, int sourceOutUs, double speed, bool keepPitch, ClipTransform transform, FitMode fitMode, double volume, bool muted
+ String id, MediaRef media, int sourceInUs, int sourceOutUs, double speed, SpeedCurve? speedCurve, bool keepPitch, ClipTransform transform, FitMode fitMode, double volume, bool muted
 });
 
 
-$MediaRefCopyWith<$Res> get media;$ClipTransformCopyWith<$Res> get transform;
+$MediaRefCopyWith<$Res> get media;$SpeedCurveCopyWith<$Res>? get speedCurve;$ClipTransformCopyWith<$Res> get transform;
 
 }
 /// @nodoc
@@ -71,14 +71,15 @@ class _$ClipCopyWithImpl<$Res>
 
 /// Create a copy of Clip
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? media = null,Object? sourceInUs = null,Object? sourceOutUs = null,Object? speed = null,Object? keepPitch = null,Object? transform = null,Object? fitMode = null,Object? volume = null,Object? muted = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? media = null,Object? sourceInUs = null,Object? sourceOutUs = null,Object? speed = null,Object? speedCurve = freezed,Object? keepPitch = null,Object? transform = null,Object? fitMode = null,Object? volume = null,Object? muted = null,}) {
   return _then(Clip(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,media: null == media ? _self.media : media // ignore: cast_nullable_to_non_nullable
 as MediaRef,sourceInUs: null == sourceInUs ? _self.sourceInUs : sourceInUs // ignore: cast_nullable_to_non_nullable
 as int,sourceOutUs: null == sourceOutUs ? _self.sourceOutUs : sourceOutUs // ignore: cast_nullable_to_non_nullable
 as int,speed: null == speed ? _self.speed : speed // ignore: cast_nullable_to_non_nullable
-as double,keepPitch: null == keepPitch ? _self.keepPitch : keepPitch // ignore: cast_nullable_to_non_nullable
+as double,speedCurve: freezed == speedCurve ? _self.speedCurve : speedCurve // ignore: cast_nullable_to_non_nullable
+as SpeedCurve?,keepPitch: null == keepPitch ? _self.keepPitch : keepPitch // ignore: cast_nullable_to_non_nullable
 as bool,transform: null == transform ? _self.transform : transform // ignore: cast_nullable_to_non_nullable
 as ClipTransform,fitMode: null == fitMode ? _self.fitMode : fitMode // ignore: cast_nullable_to_non_nullable
 as FitMode,volume: null == volume ? _self.volume : volume // ignore: cast_nullable_to_non_nullable
@@ -94,6 +95,18 @@ $MediaRefCopyWith<$Res> get media {
   
   return $MediaRefCopyWith<$Res>(_self.media, (value) {
     return _then(_self.copyWith(media: value));
+  });
+}/// Create a copy of Clip
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$SpeedCurveCopyWith<$Res>? get speedCurve {
+    if (_self.speedCurve == null) {
+    return null;
+  }
+
+  return $SpeedCurveCopyWith<$Res>(_self.speedCurve!, (value) {
+    return _then(_self.copyWith(speedCurve: value));
   });
 }/// Create a copy of Clip
 /// with the given fields replaced by the non-null parameter values.
@@ -186,10 +199,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  MediaRef media,  int sourceInUs,  int sourceOutUs,  double speed,  bool keepPitch,  ClipTransform transform,  FitMode fitMode,  double volume,  bool muted)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  MediaRef media,  int sourceInUs,  int sourceOutUs,  double speed,  SpeedCurve? speedCurve,  bool keepPitch,  ClipTransform transform,  FitMode fitMode,  double volume,  bool muted)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Clip() when $default != null:
-return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.speed,_that.keepPitch,_that.transform,_that.fitMode,_that.volume,_that.muted);case _:
+return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.speed,_that.speedCurve,_that.keepPitch,_that.transform,_that.fitMode,_that.volume,_that.muted);case _:
   return orElse();
 
 }
@@ -207,10 +220,10 @@ return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.sp
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  MediaRef media,  int sourceInUs,  int sourceOutUs,  double speed,  bool keepPitch,  ClipTransform transform,  FitMode fitMode,  double volume,  bool muted)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  MediaRef media,  int sourceInUs,  int sourceOutUs,  double speed,  SpeedCurve? speedCurve,  bool keepPitch,  ClipTransform transform,  FitMode fitMode,  double volume,  bool muted)  $default,) {final _that = this;
 switch (_that) {
 case _Clip():
-return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.speed,_that.keepPitch,_that.transform,_that.fitMode,_that.volume,_that.muted);case _:
+return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.speed,_that.speedCurve,_that.keepPitch,_that.transform,_that.fitMode,_that.volume,_that.muted);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -227,10 +240,10 @@ return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.sp
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  MediaRef media,  int sourceInUs,  int sourceOutUs,  double speed,  bool keepPitch,  ClipTransform transform,  FitMode fitMode,  double volume,  bool muted)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  MediaRef media,  int sourceInUs,  int sourceOutUs,  double speed,  SpeedCurve? speedCurve,  bool keepPitch,  ClipTransform transform,  FitMode fitMode,  double volume,  bool muted)?  $default,) {final _that = this;
 switch (_that) {
 case _Clip() when $default != null:
-return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.speed,_that.keepPitch,_that.transform,_that.fitMode,_that.volume,_that.muted);case _:
+return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.speed,_that.speedCurve,_that.keepPitch,_that.transform,_that.fitMode,_that.volume,_that.muted);case _:
   return null;
 
 }
@@ -242,7 +255,7 @@ return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.sp
 @JsonSerializable()
 
 class _Clip extends Clip {
-  const _Clip({required this.id, required this.media, required this.sourceInUs, required this.sourceOutUs, this.speed = 1.0, this.keepPitch = true, this.transform = const ClipTransform(), this.fitMode = FitMode.fit, this.volume = 1.0, this.muted = false}): super._();
+  const _Clip({required this.id, required this.media, required this.sourceInUs, required this.sourceOutUs, this.speed = 1.0, this.speedCurve, this.keepPitch = true, this.transform = const ClipTransform(), this.fitMode = FitMode.fit, this.volume = 1.0, this.muted = false}): super._();
   factory _Clip.fromJson(Map<String, dynamic> json) => _$ClipFromJson(json);
 
 @override final  String id;
@@ -250,6 +263,7 @@ class _Clip extends Clip {
 @override final  int sourceInUs;
 @override final  int sourceOutUs;
 @override@JsonKey() final  double speed;
+@override final  SpeedCurve? speedCurve;
 @override@JsonKey() final  bool keepPitch;
 @override@JsonKey() final  ClipTransform transform;
 @override@JsonKey() final  FitMode fitMode;
@@ -269,18 +283,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Clip&&(identical(other.id, id) || other.id == id)&&(identical(other.media, media) || other.media == media)&&(identical(other.sourceInUs, sourceInUs) || other.sourceInUs == sourceInUs)&&(identical(other.sourceOutUs, sourceOutUs) || other.sourceOutUs == sourceOutUs)&&(identical(other.speed, speed) || other.speed == speed)&&(identical(other.keepPitch, keepPitch) || other.keepPitch == keepPitch)&&(identical(other.transform, transform) || other.transform == transform)&&(identical(other.fitMode, fitMode) || other.fitMode == fitMode)&&(identical(other.volume, volume) || other.volume == volume)&&(identical(other.muted, muted) || other.muted == muted));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Clip&&(identical(other.id, id) || other.id == id)&&(identical(other.media, media) || other.media == media)&&(identical(other.sourceInUs, sourceInUs) || other.sourceInUs == sourceInUs)&&(identical(other.sourceOutUs, sourceOutUs) || other.sourceOutUs == sourceOutUs)&&(identical(other.speed, speed) || other.speed == speed)&&(identical(other.speedCurve, speedCurve) || other.speedCurve == speedCurve)&&(identical(other.keepPitch, keepPitch) || other.keepPitch == keepPitch)&&(identical(other.transform, transform) || other.transform == transform)&&(identical(other.fitMode, fitMode) || other.fitMode == fitMode)&&(identical(other.volume, volume) || other.volume == volume)&&(identical(other.muted, muted) || other.muted == muted));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,media,sourceInUs,sourceOutUs,speed,keepPitch,transform,fitMode,volume,muted);
+    return Object.hash(runtimeType,id,media,sourceInUs,sourceOutUs,speed,speedCurve,keepPitch,transform,fitMode,volume,muted);
 }
 
 @override
 String toString() {
-    return 'Clip(id: $id, media: $media, sourceInUs: $sourceInUs, sourceOutUs: $sourceOutUs, speed: $speed, keepPitch: $keepPitch, transform: $transform, fitMode: $fitMode, volume: $volume, muted: $muted)';
+    return 'Clip(id: $id, media: $media, sourceInUs: $sourceInUs, sourceOutUs: $sourceOutUs, speed: $speed, speedCurve: $speedCurve, keepPitch: $keepPitch, transform: $transform, fitMode: $fitMode, volume: $volume, muted: $muted)';
 }
 
 
@@ -291,11 +305,11 @@ abstract mixin class _$ClipCopyWith<$Res> implements $ClipCopyWith<$Res> {
   factory _$ClipCopyWith(_Clip value, $Res Function(_Clip) _then) = __$ClipCopyWithImpl;
 @override @useResult
 $Res call({
- String id, MediaRef media, int sourceInUs, int sourceOutUs, double speed, bool keepPitch, ClipTransform transform, FitMode fitMode, double volume, bool muted
+ String id, MediaRef media, int sourceInUs, int sourceOutUs, double speed, SpeedCurve? speedCurve, bool keepPitch, ClipTransform transform, FitMode fitMode, double volume, bool muted
 });
 
 
-@override $MediaRefCopyWith<$Res> get media;@override $ClipTransformCopyWith<$Res> get transform;
+@override $MediaRefCopyWith<$Res> get media;@override $SpeedCurveCopyWith<$Res>? get speedCurve;@override $ClipTransformCopyWith<$Res> get transform;
 
 }
 /// @nodoc
@@ -308,14 +322,15 @@ class __$ClipCopyWithImpl<$Res>
 
 /// Create a copy of Clip
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? media = null,Object? sourceInUs = null,Object? sourceOutUs = null,Object? speed = null,Object? keepPitch = null,Object? transform = null,Object? fitMode = null,Object? volume = null,Object? muted = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? media = null,Object? sourceInUs = null,Object? sourceOutUs = null,Object? speed = null,Object? speedCurve = freezed,Object? keepPitch = null,Object? transform = null,Object? fitMode = null,Object? volume = null,Object? muted = null,}) {
   return _then(_Clip(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,media: null == media ? _self.media : media // ignore: cast_nullable_to_non_nullable
 as MediaRef,sourceInUs: null == sourceInUs ? _self.sourceInUs : sourceInUs // ignore: cast_nullable_to_non_nullable
 as int,sourceOutUs: null == sourceOutUs ? _self.sourceOutUs : sourceOutUs // ignore: cast_nullable_to_non_nullable
 as int,speed: null == speed ? _self.speed : speed // ignore: cast_nullable_to_non_nullable
-as double,keepPitch: null == keepPitch ? _self.keepPitch : keepPitch // ignore: cast_nullable_to_non_nullable
+as double,speedCurve: freezed == speedCurve ? _self.speedCurve : speedCurve // ignore: cast_nullable_to_non_nullable
+as SpeedCurve?,keepPitch: null == keepPitch ? _self.keepPitch : keepPitch // ignore: cast_nullable_to_non_nullable
 as bool,transform: null == transform ? _self.transform : transform // ignore: cast_nullable_to_non_nullable
 as ClipTransform,fitMode: null == fitMode ? _self.fitMode : fitMode // ignore: cast_nullable_to_non_nullable
 as FitMode,volume: null == volume ? _self.volume : volume // ignore: cast_nullable_to_non_nullable
@@ -332,6 +347,18 @@ $MediaRefCopyWith<$Res> get media {
   
   return $MediaRefCopyWith<$Res>(_self.media, (value) {
     return _then(_self.copyWith(media: value));
+  });
+}/// Create a copy of Clip
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$SpeedCurveCopyWith<$Res>? get speedCurve {
+    if (_self.speedCurve == null) {
+    return null;
+  }
+
+  return $SpeedCurveCopyWith<$Res>(_self.speedCurve!, (value) {
+    return _then(_self.copyWith(speedCurve: value));
   });
 }/// Create a copy of Clip
 /// with the given fields replaced by the non-null parameter values.

@@ -232,6 +232,119 @@ abstract class _$TimelineSelectionController
   }
 }
 
+/// The tool panel open in a project's editor, if any. Closes whenever the
+/// selection changes, since every panel edits the selected clip.
+
+@ProviderFor(OpenToolPanel)
+final openToolPanelProvider = OpenToolPanelFamily._();
+
+/// The tool panel open in a project's editor, if any. Closes whenever the
+/// selection changes, since every panel edits the selected clip.
+final class OpenToolPanelProvider
+    extends $NotifierProvider<OpenToolPanel, ToolPanelKind?> {
+  /// The tool panel open in a project's editor, if any. Closes whenever the
+  /// selection changes, since every panel edits the selected clip.
+  OpenToolPanelProvider._({
+    required OpenToolPanelFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'openToolPanelProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$openToolPanelHash();
+
+  @override
+  String toString() {
+    return r'openToolPanelProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  OpenToolPanel create() => OpenToolPanel();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(ToolPanelKind? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<ToolPanelKind?>(value),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is OpenToolPanelProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$openToolPanelHash() => r'559f20834036961eb0c0648996e60ac8118fb238';
+
+/// The tool panel open in a project's editor, if any. Closes whenever the
+/// selection changes, since every panel edits the selected clip.
+
+final class OpenToolPanelFamily extends $Family
+    with
+        $ClassFamilyOverride<
+          OpenToolPanel,
+          ToolPanelKind?,
+          ToolPanelKind?,
+          ToolPanelKind?,
+          String
+        > {
+  OpenToolPanelFamily._()
+    : super(
+        retry: null,
+        name: r'openToolPanelProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// The tool panel open in a project's editor, if any. Closes whenever the
+  /// selection changes, since every panel edits the selected clip.
+
+  OpenToolPanelProvider call(String projectId) =>
+      OpenToolPanelProvider._(argument: projectId, from: this);
+
+  @override
+  String toString() => r'openToolPanelProvider';
+}
+
+/// The tool panel open in a project's editor, if any. Closes whenever the
+/// selection changes, since every panel edits the selected clip.
+
+abstract class _$OpenToolPanel extends $Notifier<ToolPanelKind?> {
+  late final _$args = ref.$arg as String;
+  String get projectId => _$args;
+
+  ToolPanelKind? build(String projectId);
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<ToolPanelKind?, ToolPanelKind?>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<ToolPanelKind?, ToolPanelKind?>,
+              ToolPanelKind?,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, () => build(_$args));
+  }
+}
+
 /// Audio peaks of [uri] for an audio lane (null when it has no audio).
 
 @ProviderFor(clipWaveform)

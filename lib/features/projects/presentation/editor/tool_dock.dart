@@ -35,6 +35,9 @@ enum DockTool {
   /// Split at the playhead.
   split(AppIcons.toolSplit),
 
+  /// Duplicate (not in the kit; owner placed it right after Split).
+  duplicate(AppIcons.toolDuplicate),
+
   /// Filters.
   filters(AppIcons.toolFilters),
 
@@ -75,6 +78,7 @@ enum DockTool {
     ratio => l10n.toolRatio,
     back => l10n.commonBack,
     split => l10n.toolSplit,
+    duplicate => l10n.toolDuplicate,
     filters => l10n.toolFilters,
     crop => l10n.toolCrop,
     adjust => l10n.toolAdjust,
@@ -100,6 +104,7 @@ List<DockTool> dockToolsFor(TimelineSelection selection) => switch (selection) {
   MainClipSelection() || OverlaySelection() => const [
     DockTool.back,
     DockTool.split,
+    DockTool.duplicate,
     DockTool.filters,
     DockTool.crop,
     DockTool.adjust,

@@ -9,6 +9,7 @@ export 'package:cleancut/engine/engine_api.g.dart'
         PlaybackStatus,
         PlayerStateEvent,
         SpecMediaKind,
+        SpeedStepSpec,
         WaveformData;
 
 /// A playback position, tagged with the texture id of its preview.

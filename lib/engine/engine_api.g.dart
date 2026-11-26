@@ -117,6 +117,54 @@ enum SpecMediaKind { video, image }
 /// Player status, mirroring Media3's `Player.STATE_*`.
 enum PlaybackStatus { idle, buffering, ready, ended }
 
+/// A constant-speed piece of a speed curve: from [startUs] (measured from
+/// the clip's trim start, in source time) until the next step's start.
+class SpeedStepSpec {
+  SpeedStepSpec({required this.startUs, required this.speed});
+
+  int startUs;
+
+  double speed;
+
+  List<Object?> _toList() {
+    return <Object?>[startUs, speed];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static SpeedStepSpec decode(Object result) {
+    result as List<Object?>;
+    return SpeedStepSpec(
+      startUs: result[0]! as int,
+      speed: result[1]! as double,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! SpeedStepSpec || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(startUs, other.startUs) &&
+        _deepEquals(speed, other.speed);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'SpeedStepSpec(startUs: $startUs, speed: $speed)';
+  }
+}
+
 /// One clip of the main sequence. Times are microseconds.
 class ClipSpec {
   ClipSpec({
@@ -125,6 +173,9 @@ class ClipSpec {
     required this.sourceDurationUs,
     required this.sourceInUs,
     required this.sourceOutUs,
+    required this.speed,
+    required this.keepPitch,
+    required this.speedSteps,
   });
 
   /// Content URI of the source.
@@ -141,8 +192,29 @@ class ClipSpec {
   /// Trim end within the source (exclusive).
   int sourceOutUs;
 
+  /// Constant playback speed (0.1–10); the clip lasts
+  /// `(sourceOutUs - sourceInUs) / speed` on the timeline. Always 1 for
+  /// images, whose trim already is their display length.
+  double speed;
+
+  /// Whether sped-up or slowed-down audio keeps its pitch.
+  bool keepPitch;
+
+  /// A speed curve as constant-speed steps (sorted, the first at 0); when
+  /// not empty it replaces [speed]. Empty for images.
+  List<SpeedStepSpec> speedSteps;
+
   List<Object?> _toList() {
-    return <Object?>[uri, kind, sourceDurationUs, sourceInUs, sourceOutUs];
+    return <Object?>[
+      uri,
+      kind,
+      sourceDurationUs,
+      sourceInUs,
+      sourceOutUs,
+      speed,
+      keepPitch,
+      speedSteps,
+    ];
   }
 
   Object encode() {
@@ -157,6 +229,9 @@ class ClipSpec {
       sourceDurationUs: result[2]! as int,
       sourceInUs: result[3]! as int,
       sourceOutUs: result[4]! as int,
+      speed: result[5]! as double,
+      keepPitch: result[6]! as bool,
+      speedSteps: (result[7]! as List<Object?>).cast<SpeedStepSpec>(),
     );
   }
 
@@ -173,7 +248,10 @@ class ClipSpec {
         _deepEquals(kind, other.kind) &&
         _deepEquals(sourceDurationUs, other.sourceDurationUs) &&
         _deepEquals(sourceInUs, other.sourceInUs) &&
-        _deepEquals(sourceOutUs, other.sourceOutUs);
+        _deepEquals(sourceOutUs, other.sourceOutUs) &&
+        _deepEquals(speed, other.speed) &&
+        _deepEquals(keepPitch, other.keepPitch) &&
+        _deepEquals(speedSteps, other.speedSteps);
   }
 
   @override
@@ -182,7 +260,7 @@ class ClipSpec {
 
   @override
   String toString() {
-    return 'ClipSpec(uri: $uri, kind: $kind, sourceDurationUs: $sourceDurationUs, sourceInUs: $sourceInUs, sourceOutUs: $sourceOutUs)';
+    return 'ClipSpec(uri: $uri, kind: $kind, sourceDurationUs: $sourceDurationUs, sourceInUs: $sourceInUs, sourceOutUs: $sourceOutUs, speed: $speed, keepPitch: $keepPitch, speedSteps: $speedSteps)';
   }
 }
 
@@ -384,17 +462,20 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is PlaybackStatus) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    } else if (value is ClipSpec) {
+    } else if (value is SpeedStepSpec) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    } else if (value is CompositionSpec) {
+    } else if (value is ClipSpec) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    } else if (value is PlayerStateEvent) {
+    } else if (value is CompositionSpec) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    } else if (value is WaveformData) {
+    } else if (value is PlayerStateEvent) {
       buffer.putUint8(134);
+      writeValue(buffer, value.encode());
+    } else if (value is WaveformData) {
+      buffer.putUint8(135);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -411,12 +492,14 @@ class _PigeonCodec extends StandardMessageCodec {
         final value = readValue(buffer) as int?;
         return value == null ? null : PlaybackStatus.values[value];
       case 131:
-        return ClipSpec.decode(readValue(buffer)!);
+        return SpeedStepSpec.decode(readValue(buffer)!);
       case 132:
-        return CompositionSpec.decode(readValue(buffer)!);
+        return ClipSpec.decode(readValue(buffer)!);
       case 133:
-        return PlayerStateEvent.decode(readValue(buffer)!);
+        return CompositionSpec.decode(readValue(buffer)!);
       case 134:
+        return PlayerStateEvent.decode(readValue(buffer)!);
+      case 135:
         return WaveformData.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);

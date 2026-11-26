@@ -31,6 +31,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonBack => 'Back';
 
   @override
+  String get commonReset => 'Reset';
+
+  @override
+  String get commonClose => 'Close';
+
+  @override
   String get settingsTitle => 'Settings';
 
   @override
@@ -207,6 +213,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get toolSplit => 'Split';
 
   @override
+  String get toolDuplicate => 'Duplicate';
+
+  @override
   String get toolFilters => 'Filters';
 
   @override
@@ -248,4 +257,75 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get panelClip => 'Clip';
+
+  @override
+  String get editorSplitOutside =>
+      'Move the playhead over the selected clip to split it.';
+
+  @override
+  String speedValue(double value) {
+    final intl.NumberFormat valueNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String valueString = valueNumberFormat.format(value);
+
+    return '$valueString×';
+  }
+
+  @override
+  String get speedKeepPitch => 'Keep pitch';
+
+  @override
+  String get speedTypeTitle => 'Speed';
+
+  @override
+  String get speedTypeLabel => 'Speed (0.1–10)';
+
+  @override
+  String get speedTypeInvalid => 'Enter a speed from 0.1 to 10';
+
+  @override
+  String get speedTypeHint => 'Tap to type an exact speed';
+
+  @override
+  String get speedTabNormal => 'Normal';
+
+  @override
+  String get speedTabCurve => 'Curve';
+
+  @override
+  String get curveNone => 'None';
+
+  @override
+  String get curveCustom => 'Custom';
+
+  @override
+  String get curveMontage => 'Montage';
+
+  @override
+  String get curveHero => 'Hero';
+
+  @override
+  String get curveBullet => 'Bullet';
+
+  @override
+  String get curveFlashIn => 'Flash in';
+
+  @override
+  String get curveFlashOut => 'Flash out';
+
+  @override
+  String get curveEditHint => 'Tap again to edit the curve';
+
+  @override
+  String get curveGraph =>
+      'Speed curve. Drag a point to change the speed there.';
+
+  @override
+  String get curveAddPoint => 'Add point';
+
+  @override
+  String get curveDeletePoint => 'Delete point';
+
+  @override
+  String get curveBackToPresets => 'Presets';
 }

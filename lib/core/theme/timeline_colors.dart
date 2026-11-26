@@ -27,6 +27,10 @@ final class TimelineColors extends ThemeExtension<TimelineColors> {
   /// Cream tint laid over a selected main-track clip.
   final Color selectionTint;
 
+  /// Opacity of [selectionTint] over a selected main clip: a light wash,
+  /// so its thumbnails stay visible (kit "Video").
+  static const double selectedClipTint = 0.5;
+
   /// Opacity of the fill of a selected pill (outline stays full color).
   static const double selectedPillFill = 0.5;
 

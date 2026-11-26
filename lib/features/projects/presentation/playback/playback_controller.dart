@@ -70,6 +70,10 @@ class Playback extends _$Playback {
   /// one still closing during a route transition) are ignored.
   int? _id;
   CompositionSpec? _loadedSpec;
+  int? _knownDurationUs;
+  Future<void>? _loadFuture;
+  Object? _loadToken;
+  int _loadsInFlight = 0;
   int? _pendingSeekUs;
   Future<void>? _seekLoop;
 
@@ -79,6 +83,7 @@ class Playback extends _$Playback {
     final subs = [
       _engine.states.listen((e) {
         if (e.textureId != _id) return;
+        if (_loadsInFlight == 0) _knownDurationUs = e.durationUs;
         state = state._copyWith(
           status: e.status,
           isPlaying: e.isPlaying,
@@ -120,24 +125,35 @@ class Playback extends _$Playback {
 
   /// Loads [project] into the preview. Edits that don't change what the
   /// engine plays (e.g. a rename) don't reload it.
-  Future<void> load(Project project) async {
+  Future<void> load(Project project) {
     final spec = compositionSpecOf(project);
     // Checked and recorded before awaiting, so two loads started together
     // can't both send the same composition.
-    if (spec == _loadedSpec) return;
+    if (spec == _loadedSpec) return _loadFuture ?? Future<void>.value();
     _loadedSpec = spec;
-    if (!await _ready()) {
-      if (_loadedSpec == spec) _loadedSpec = null;
-      return;
-    }
-    // A newer load arrived while waiting for the preview; let it win.
-    if (_loadedSpec != spec) return;
-    state = state._copyWith(clearError: true);
+    _knownDurationUs = project.durationUs;
+    final token = Object();
+    _loadToken = token;
+    return _loadFuture = _runLoad(spec, token);
+  }
+
+  Future<void> _runLoad(CompositionSpec spec, Object token) async {
+    _loadsInFlight++;
     try {
+      if (!await _ready()) {
+        if (_loadedSpec == spec) _loadedSpec = null;
+        return;
+      }
+      // A newer load arrived while waiting for the preview; let it win.
+      if (_loadedSpec != spec) return;
+      state = state._copyWith(clearError: true);
       await _engine.setComposition(spec);
     } on Object {
       if (_loadedSpec == spec) _loadedSpec = null;
       rethrow;
+    } finally {
+      _loadsInFlight--;
+      if (identical(_loadToken, token)) _loadFuture = null;
     }
   }
 
@@ -169,7 +185,8 @@ class Playback extends _$Playback {
   /// While a seek is in flight only the latest target is kept, so a fast
   /// scrub never queues up stale seeks.
   Future<void> seekTo(int positionUs) {
-    final clamped = positionUs.clamp(0, state.durationUs);
+    final maxUs = _knownDurationUs ?? state.durationUs;
+    final clamped = positionUs.clamp(0, maxUs);
     _setPosition(clamped);
     _pendingSeekUs = clamped;
     return _seekLoop ??= _runSeeks().whenComplete(() => _seekLoop = null);
@@ -177,9 +194,18 @@ class Playback extends _$Playback {
 
   Future<void> _runSeeks() async {
     if (!await _ready()) return;
-    for (var target = _pendingSeekUs; target != null; target = _pendingSeekUs) {
+    while (_pendingSeekUs != null) {
+      final load = _loadFuture;
+      if (load != null) {
+        try {
+          await load;
+        } on Object {
+          // A failed load belongs to its own caller.
+        }
+      }
+      final target = _pendingSeekUs;
+      if (target == null || !ref.mounted) return;
       _pendingSeekUs = null;
-      if (!ref.mounted) return;
       await _engine.seekTo(target);
     }
   }

@@ -92,7 +92,7 @@ class HomeScreen extends ConsumerWidget {
             ],
             AsyncData(value: final list) => [
               SliverPadding(
-                padding: const EdgeInsetsDirectional.fromSTEB(24, 40, 24, 20),
+                padding: const EdgeInsetsDirectional.fromSTEB(24, 28, 24, 20),
                 sliver: SliverToBoxAdapter(
                   child: Semantics(
                     header: true,

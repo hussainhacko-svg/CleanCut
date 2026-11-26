@@ -96,6 +96,9 @@ class FakeMediaEngine implements MediaEngine {
   /// Gate for [createPreview]; complete it to hand out the texture.
   Completer<void>? createGate;
 
+  /// Gate for [setComposition]; while set, loads wait for it.
+  Completer<void>? setGate;
+
   /// Gate for [seekTo]; while set, seeks wait for it.
   Completer<void>? seekGate;
 
@@ -142,6 +145,7 @@ class FakeMediaEngine implements MediaEngine {
   @override
   Future<void> setComposition(CompositionSpec spec) async {
     calls.add('set');
+    await setGate?.future;
     if (failNextSet) {
       failNextSet = false;
       throw StateError('engine failed');

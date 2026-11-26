@@ -13,6 +13,15 @@ import 'package:pigeon/pigeon.dart';
 /// Kind of a clip's source file.
 enum SpecMediaKind { video, image }
 
+/// A constant-speed piece of a speed curve: from [startUs] (measured from
+/// the clip's trim start, in source time) until the next step's start.
+class SpeedStepSpec {
+  SpeedStepSpec({required this.startUs, required this.speed});
+
+  final int startUs;
+  final double speed;
+}
+
 /// One clip of the main sequence. Times are microseconds.
 class ClipSpec {
   ClipSpec({
@@ -21,6 +30,9 @@ class ClipSpec {
     required this.sourceDurationUs,
     required this.sourceInUs,
     required this.sourceOutUs,
+    required this.speed,
+    required this.keepPitch,
+    required this.speedSteps,
   });
 
   /// Content URI of the source.
@@ -35,6 +47,18 @@ class ClipSpec {
 
   /// Trim end within the source (exclusive).
   final int sourceOutUs;
+
+  /// Constant playback speed (0.1–10); the clip lasts
+  /// `(sourceOutUs - sourceInUs) / speed` on the timeline. Always 1 for
+  /// images, whose trim already is their display length.
+  final double speed;
+
+  /// Whether sped-up or slowed-down audio keeps its pitch.
+  final bool keepPitch;
+
+  /// A speed curve as constant-speed steps (sorted, the first at 0); when
+  /// not empty it replaces [speed]. Empty for images.
+  final List<SpeedStepSpec> speedSteps;
 }
 
 /// What the preview plays: the main track, fitted into the canvas.
