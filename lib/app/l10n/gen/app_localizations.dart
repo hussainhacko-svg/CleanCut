@@ -651,6 +651,276 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Presets'**
   String get curveBackToPresets;
+
+  /// Crop preset without a locked aspect ratio.
+  ///
+  /// In en, this message translates to:
+  /// **'Free'**
+  String get cropFree;
+
+  /// A crop aspect preset, e.g. 16:9.
+  ///
+  /// In en, this message translates to:
+  /// **'{width}:{height}'**
+  String cropAspect(int width, int height);
+
+  /// No description provided for @cropMirror.
+  ///
+  /// In en, this message translates to:
+  /// **'Mirror'**
+  String get cropMirror;
+
+  /// No description provided for @cropFlip.
+  ///
+  /// In en, this message translates to:
+  /// **'Flip'**
+  String get cropFlip;
+
+  /// No description provided for @cropRotate90.
+  ///
+  /// In en, this message translates to:
+  /// **'Rotate 90°'**
+  String get cropRotate90;
+
+  /// No description provided for @cropRotation.
+  ///
+  /// In en, this message translates to:
+  /// **'Rotation'**
+  String get cropRotation;
+
+  /// An angle in degrees, e.g. 45° or -12°.
+  ///
+  /// In en, this message translates to:
+  /// **'{value}°'**
+  String rotationValue(int value);
+
+  /// No description provided for @rotationTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Degrees (−180 to 180)'**
+  String get rotationTypeLabel;
+
+  /// No description provided for @rotationTypeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an angle from −180 to 180'**
+  String get rotationTypeInvalid;
+
+  /// No description provided for @rotationTypeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to type an exact angle'**
+  String get rotationTypeHint;
+
+  /// No description provided for @cropOverlayLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop frame handles'**
+  String get cropOverlayLabel;
+
+  /// No description provided for @transformGizmoLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Transform preview'**
+  String get transformGizmoLabel;
+
+  /// No description provided for @toolTransform.
+  ///
+  /// In en, this message translates to:
+  /// **'Transform'**
+  String get toolTransform;
+
+  /// No description provided for @transformTabFill.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill'**
+  String get transformTabFill;
+
+  /// No description provided for @transformTabPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Position'**
+  String get transformTabPosition;
+
+  /// No description provided for @transformTabOpacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Opacity'**
+  String get transformTabOpacity;
+
+  /// No description provided for @transformTabBorder.
+  ///
+  /// In en, this message translates to:
+  /// **'Border'**
+  String get transformTabBorder;
+
+  /// No description provided for @fitModeFit.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit'**
+  String get fitModeFit;
+
+  /// No description provided for @fitModeFill.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill'**
+  String get fitModeFill;
+
+  /// No description provided for @fitModeStretch.
+  ///
+  /// In en, this message translates to:
+  /// **'Stretch'**
+  String get fitModeStretch;
+
+  /// No description provided for @transformX.
+  ///
+  /// In en, this message translates to:
+  /// **'X'**
+  String get transformX;
+
+  /// No description provided for @transformY.
+  ///
+  /// In en, this message translates to:
+  /// **'Y'**
+  String get transformY;
+
+  /// No description provided for @transformScale.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale'**
+  String get transformScale;
+
+  /// No description provided for @transformOpacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Opacity'**
+  String get transformOpacity;
+
+  /// No description provided for @transformBorderWidth.
+  ///
+  /// In en, this message translates to:
+  /// **'Width'**
+  String get transformBorderWidth;
+
+  /// No description provided for @transformBorderCorners.
+  ///
+  /// In en, this message translates to:
+  /// **'Corners'**
+  String get transformBorderCorners;
+
+  /// No description provided for @transformBorderColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get transformBorderColor;
+
+  /// A whole-number percentage, e.g. 100% or -50%.
+  ///
+  /// In en, this message translates to:
+  /// **'{value}%'**
+  String percentValue(int value);
+
+  /// Allowed numeric range label in a type-to-edit dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'{min} to {max}'**
+  String valueRangeLabel(String min, String max);
+
+  /// Validation error in a type-to-edit dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a value from {min} to {max}'**
+  String valueRangeInvalid(String min, String max);
+
+  /// No description provided for @tapToTypeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to type an exact value'**
+  String get tapToTypeHint;
+
+  /// Accessible label for a color swatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Color {index}'**
+  String colorSwatchLabel(int index);
+
+  /// No description provided for @ratioTabRatio.
+  ///
+  /// In en, this message translates to:
+  /// **'Ratio'**
+  String get ratioTabRatio;
+
+  /// No description provided for @ratioTabBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Background'**
+  String get ratioTabBackground;
+
+  /// No description provided for @backgroundColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get backgroundColor;
+
+  /// No description provided for @backgroundGradient.
+  ///
+  /// In en, this message translates to:
+  /// **'Gradient'**
+  String get backgroundGradient;
+
+  /// No description provided for @backgroundBlur.
+  ///
+  /// In en, this message translates to:
+  /// **'Blur'**
+  String get backgroundBlur;
+
+  /// No description provided for @backgroundImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Image'**
+  String get backgroundImage;
+
+  /// No description provided for @backgroundAngle.
+  ///
+  /// In en, this message translates to:
+  /// **'Angle'**
+  String get backgroundAngle;
+
+  /// No description provided for @backgroundBlurAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Strength'**
+  String get backgroundBlurAmount;
+
+  /// No description provided for @backgroundPickImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose image'**
+  String get backgroundPickImage;
+
+  /// No description provided for @backgroundChangeImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Change image'**
+  String get backgroundChangeImage;
+
+  /// Accessible label for a gradient swatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Gradient {index}'**
+  String gradientSwatchLabel(int index);
+
+  /// Tooltip for adding a keyframe on a property slider.
+  ///
+  /// In en, this message translates to:
+  /// **'Add {property} keyframe'**
+  String keyframeAdd(String property);
+
+  /// Tooltip for removing a keyframe on a property slider.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {property} keyframe'**
+  String keyframeRemove(String property);
 }
 
 class _AppLocalizationsDelegate

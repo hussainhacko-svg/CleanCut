@@ -4,11 +4,13 @@ import 'package:cleancut/engine/media_engine.dart';
 import 'package:cleancut/features/projects/domain/model/animatable.dart';
 import 'package:cleancut/features/projects/domain/model/canvas_background.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart';
+import 'package:cleancut/features/projects/domain/model/clip_style.dart';
 import 'package:cleancut/features/projects/domain/model/clip_transform.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/model/speed_curve.dart';
 import 'package:cleancut/features/projects/domain/model/time.dart';
+import 'package:cleancut/features/projects/domain/model/vec2.dart';
 
 /// Short side of the preview surface in pixels. Export renders at the
 /// canvas resolution instead; preview stays light for smooth scrubbing.
@@ -19,12 +21,36 @@ const int previewShortSidePx = 720;
 /// Covers trims, constant speed and speed curves (Flow), stills, the
 /// canvas size and background, and each clip's fit, crop, transform
 /// (keyframes sampled at the canvas frame rate) and border.
+///
+/// When [uncroppedClipId] is set (while the Crop panel is open), that clip
+/// renders uncropped and fitted (preserving its flip and rotation) so the
+/// on-preview crop handles sit over the whole source frame.
 CompositionSpec compositionSpecOf(
   Project project, {
   int shortSidePx = previewShortSidePx,
+  String? uncroppedClipId,
 }) {
   final size = project.canvas.aspect.pixelSize(shortSidePx);
   final fps = project.canvas.fps;
+  ClipStyleSpec styleOf(Clip clip) {
+    if (uncroppedClipId == null || clip.id != uncroppedClipId) {
+      return clipStyleSpecOf(clip, fps: fps);
+    }
+    return clipStyleSpecOf(
+      clip.copyWith(
+        fitMode: FitMode.fit,
+        crop: CropRect.full,
+        border: const ClipBorder(),
+        transform: clip.transform.copyWith(
+          position: const Animatable.constant(Vec2.zero),
+          scale: const Animatable.constant(1),
+          opacity: const Animatable.constant(1),
+        ),
+      ),
+      fps: fps,
+    );
+  }
+
   return CompositionSpec(
     clips: [
       for (final clip in project.mainTrack.clips)
@@ -40,7 +66,7 @@ CompositionSpec compositionSpecOf(
             speed: 1,
             keepPitch: true,
             speedSteps: const [],
-            style: clipStyleSpecOf(clip, fps: fps),
+            style: styleOf(clip),
           )
         else
           ClipSpec(
@@ -57,7 +83,7 @@ CompositionSpec compositionSpecOf(
                       const <SpeedStep>[])
                 SpeedStepSpec(startUs: step.startUs, speed: step.speed),
             ],
-            style: clipStyleSpecOf(clip, fps: fps),
+            style: styleOf(clip),
           ),
     ],
     canvasWidth: size.width,

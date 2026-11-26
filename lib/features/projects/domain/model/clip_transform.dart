@@ -60,6 +60,19 @@ abstract final class TransformLimits {
   );
 }
 
+/// [degrees] wrapped into `[-180, 180]`. Values already inside stay as they
+/// are (so −180° stays −180°); non-finite values become 0.
+double wrapDegrees(double degrees) {
+  if (!degrees.isFinite) return 0;
+  if (degrees >= -180 && degrees <= 180) return degrees == 0 ? 0 : degrees;
+  final w = degrees % 360;
+  final wrapped = w > 180 ? w - 360 : w;
+  return wrapped == 0 ? 0 : wrapped;
+}
+
+/// Whether [a] and [b] are the same orientation (equal modulo 360°).
+bool sameAngle(double a, double b) => wrapDegrees(a - b).abs() < 1e-6;
+
 /// A [ClipTransform] evaluated at one moment.
 typedef ResolvedTransform = ({
   Vec2 position,
@@ -72,8 +85,9 @@ typedef ResolvedTransform = ({
 ///
 /// - `position`: center offset, canvas-normalized (see [Vec2]).
 /// - `scale`: uniform factor; 1 is the fitted size.
-/// - `rotation`: clockwise degrees (not wrapped, so keyframes can spin
-///   more than a turn).
+/// - `rotation`: clockwise degrees. Edits keep a constant within
+///   `[-180, 180]`; keyframes are not wrapped, so they can spin more than a
+///   turn.
 /// - `opacity`: `[0, 1]`.
 /// - `flipX` mirrors left-right, `flipY` flips upside down; both apply to
 ///   the picture before the rotation.
@@ -109,6 +123,24 @@ abstract class ClipTransform with _$ClipTransform {
     rotation: rotation.valueAt(timeUs, lerpDouble),
     opacity: opacity.valueAt(timeUs, lerpDouble),
   );
+
+  /// The values an edit at [timeUs] replaces: a property with a keyframe
+  /// within [toleranceUs] reads that keyframe's value (the one
+  /// [withValuesAt] updates), any other property its value at [timeUs].
+  ///
+  /// Editors read this back, so a value they just wrote never looks like
+  /// an outside change just because the playhead sits beside the keyframe.
+  ResolvedTransform editableAt(int timeUs, {int toleranceUs = 0}) {
+    T read<T>(Animatable<T> property, Lerp<T> lerp) =>
+        property.keyframeNear(timeUs, toleranceUs: toleranceUs)?.value ??
+        property.valueAt(timeUs, lerp);
+    return (
+      position: read(position, Vec2.lerp),
+      scale: read(scale, lerpDouble),
+      rotation: read(rotation, lerpDouble),
+      opacity: read(opacity, lerpDouble),
+    );
+  }
 
   /// Whether any property is keyframed.
   bool get isAnimated =>
@@ -149,7 +181,8 @@ abstract class ClipTransform with _$ClipTransform {
   /// Sets the values seen at [timeUs] (see `Animatable.withValueAt`):
   /// constants change everywhere, animated properties get or update a
   /// keyframe. Values are clamped into [TransformLimits]; a non-finite
-  /// rotation is ignored.
+  /// rotation is ignored, a constant one is wrapped into `[-180, 180]`, and
+  /// a keyframed one keeps the turn nearest the value it replaces.
   ClipTransform withValuesAt(
     int timeUs, {
     Vec2? position,
@@ -174,7 +207,11 @@ abstract class ClipTransform with _$ClipTransform {
           ),
     rotation: rotation == null || !rotation.isFinite
         ? this.rotation
-        : this.rotation.withValueAt(timeUs, rotation, toleranceUs: toleranceUs),
+        : this.rotation.withValueAt(
+            timeUs,
+            _rotationToStore(timeUs, rotation, toleranceUs),
+            toleranceUs: toleranceUs,
+          ),
     opacity: opacity == null
         ? this.opacity
         : this.opacity.withValueAt(
@@ -183,6 +220,20 @@ abstract class ClipTransform with _$ClipTransform {
             toleranceUs: toleranceUs,
           ),
   );
+
+  /// The angle stored for [degrees] set at [timeUs]: a constant is wrapped
+  /// into `[-180, 180]`; a keyframed rotation takes the equivalent angle
+  /// (± whole turns) nearest the value it replaces, so wrapping never makes
+  /// the clip spin the long way round between keyframes.
+  double _rotationToStore(int timeUs, double degrees, int toleranceUs) {
+    if (!rotation.isAnimated) return wrapDegrees(degrees);
+    final current =
+        rotation.keyframeNear(timeUs, toleranceUs: toleranceUs)?.value ??
+        rotation.valueAt(timeUs, lerpDouble);
+    final turns = ((current - degrees) / 360).roundToDouble();
+    final stored = degrees + 360 * turns;
+    return stored == 0 ? 0 : stored;
+  }
 
   /// Adds or removes a keyframe of [property] at [timeUs] (see
   /// `Animatable.toggledKeyframeAt`).

@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui show Clip;
 
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
+import 'package:cleancut/core/theme/accent_gradient.dart';
 import 'package:cleancut/core/theme/timeline_colors.dart';
 import 'package:cleancut/core/widgets/app_icon.dart';
 import 'package:cleancut/engine/media_engine.dart';
@@ -960,6 +961,7 @@ class MainClipView extends StatelessWidget {
     final colors = TimelineColors.of(context);
     final scheme = Theme.of(context).colorScheme;
     const radius = BorderRadius.all(Radius.circular(10));
+    final keyframeTimes = clip.transform.keyframeTimes;
     final move = onLongPressMove;
     final strip = Stack(
       clipBehavior: ui.Clip.none,
@@ -999,6 +1001,14 @@ class MainClipView extends StatelessWidget {
               child: _Handle(color: scheme.onSurface),
             ),
         ],
+        if (keyframeTimes.isNotEmpty)
+          Positioned.fill(
+            child: ClipKeyframeMarkers(
+              timesUs: keyframeTimes,
+              clipDurationUs: clip.durationUs,
+              scale: scale,
+            ),
+          ),
       ],
     );
     return Semantics(
@@ -1055,6 +1065,113 @@ class _Handle extends StatelessWidget {
       borderRadius: BorderRadius.circular(2),
     ),
   );
+}
+
+/// Diamond markers rendered along the top edge of a timeline clip for each
+/// keyframe timestamp in [timesUs], keeping them visible even when an open
+/// tool panel shrinks the timeline and clear of centered trim/transition
+/// chrome.
+class ClipKeyframeMarkers extends StatelessWidget {
+  /// Creates the marker strip.
+  const new({
+    required this.timesUs,
+    required this.clipDurationUs,
+    required this.scale,
+    super.key,
+  });
+
+  /// Clip-relative keyframe times in microseconds.
+  final List<int> timesUs;
+
+  /// Current displayed clip duration in microseconds.
+  final int clipDurationUs;
+
+  /// Current timeline zoom scale.
+  final TimelineScale scale;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final gradient = AccentGradient.of(context);
+    return IgnorePointer(
+      child: CustomPaint(
+        painter: _ClipKeyframeMarkersPainter(
+          timesUs: timesUs,
+          clipDurationUs: clipDurationUs,
+          scale: scale,
+          borderColor: scheme.onSurface,
+          shadowColor: scheme.scrim,
+          gradient: gradient,
+        ),
+      ),
+    );
+  }
+}
+
+class _ClipKeyframeMarkersPainter extends CustomPainter {
+  new({
+    required this.timesUs,
+    required this.clipDurationUs,
+    required this.scale,
+    required this.borderColor,
+    required this.shadowColor,
+    required this.gradient,
+  });
+
+  final List<int> timesUs;
+  final int clipDurationUs;
+  final TimelineScale scale;
+  final Color borderColor;
+  final Color shadowColor;
+  final AccentGradient gradient;
+
+  static const double _radius = 4;
+  static const double _topOffset = 9;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0 || timesUs.isEmpty) return;
+    const cy = _topOffset;
+    final minX = math.min(size.width / 2, _radius + 3);
+    final maxX = math.max(minX, size.width - _radius - 3);
+    final shadowPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.4
+      ..color = shadowColor.withValues(alpha: 0.65);
+    final strokePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..color = borderColor;
+
+    for (final t in timesUs) {
+      if (t < 0 || t > clipDurationUs) continue;
+      final rawX = scale.toPx(t) - TimelineMetrics.clipGap / 2;
+      final cx = rawX.clamp(minX, maxX);
+      final rect = Rect.fromCircle(center: Offset(cx, cy), radius: _radius);
+      final diamond = Path()
+        ..moveTo(cx, cy - _radius)
+        ..lineTo(cx + _radius, cy)
+        ..lineTo(cx, cy + _radius)
+        ..lineTo(cx - _radius, cy)
+        ..close();
+      final fillPaint = Paint()
+        ..style = PaintingStyle.fill
+        ..shader = gradient.linear.createShader(rect);
+      canvas
+        ..drawPath(diamond, shadowPaint)
+        ..drawPath(diamond, fillPaint)
+        ..drawPath(diamond, strokePaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ClipKeyframeMarkersPainter old) =>
+      old.timesUs != timesUs ||
+      old.clipDurationUs != clipDurationUs ||
+      old.scale != scale ||
+      old.borderColor != borderColor ||
+      old.shadowColor != shadowColor ||
+      old.gradient != gradient;
 }
 
 /// Thumbnail tiles of a clip, built only near the visible part of the

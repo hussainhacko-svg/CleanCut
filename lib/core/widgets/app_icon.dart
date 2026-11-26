@@ -66,6 +66,9 @@ enum AppIcons {
   /// Clip tool: crop.
   toolCrop('tool_crop'),
 
+  /// Clip tool: transform (not in the kit; drawn in its style).
+  toolTransform('tool_transform'),
+
   /// Clip tool: adjustments.
   toolAdjust('tool_adjust'),
 
@@ -80,6 +83,18 @@ enum AppIcons {
 
   /// Clip tool: delete.
   toolDelete('tool_delete'),
+
+  /// Crop panel: mirror left-right.
+  cropMirror('crop_mirror'),
+
+  /// Crop panel: flip upside down.
+  cropFlip('crop_flip'),
+
+  /// Crop panel: rotate a quarter turn.
+  cropRotate('crop_rotate'),
+
+  /// Crop panel: free (unlocked) crop preset.
+  cropFree('crop_free'),
 
   /// Timeline: transition marker between clips (white circle).
   transition('transition', multicolor: true),

@@ -5,22 +5,31 @@ import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/widgets/app_icon.dart';
 import 'package:cleancut/features/projects/domain/commands/clip_commands.dart';
 import 'package:cleancut/features/projects/domain/commands/project_commands.dart';
+import 'package:cleancut/features/projects/domain/commands/style_commands.dart';
 import 'package:cleancut/features/projects/domain/history/edit_command.dart';
+import 'package:cleancut/features/projects/domain/model/canvas_background.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart';
+import 'package:cleancut/features/projects/domain/model/clip_style.dart';
+import 'package:cleancut/features/projects/domain/model/clip_transform.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/model/project_canvas.dart';
 import 'package:cleancut/features/projects/domain/project_repository.dart';
 import 'package:cleancut/features/projects/domain/timeline/timeline_selection.dart';
 import 'package:cleancut/features/projects/presentation/editor/editor_state.dart';
+import 'package:cleancut/features/projects/presentation/editor/overlays/crop_overlay.dart';
+import 'package:cleancut/features/projects/presentation/editor/overlays/transform_gizmo.dart';
+import 'package:cleancut/features/projects/presentation/editor/panels/crop_panel.dart';
+import 'package:cleancut/features/projects/presentation/editor/panels/ratio_panel.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/speed_panel.dart';
+import 'package:cleancut/features/projects/presentation/editor/panels/transform_panel.dart';
 import 'package:cleancut/features/projects/presentation/editor/timeline/timeline_view.dart';
 import 'package:cleancut/features/projects/presentation/editor/tool_dock.dart';
 import 'package:cleancut/features/projects/presentation/playback/playback_controller.dart';
 import 'package:cleancut/features/projects/presentation/playback/preview_widgets.dart';
 import 'package:cleancut/features/projects/presentation/project_providers.dart';
 import 'package:cleancut/features/projects/presentation/project_session.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide TransformProperty;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -162,7 +171,9 @@ class _Editor extends ConsumerWidget {
       case DockTool.split ||
           DockTool.duplicate ||
           DockTool.delete ||
-          DockTool.speed:
+          DockTool.speed ||
+          DockTool.crop ||
+          DockTool.transform:
         final selection = ref.read(
           timelineSelectionControllerProvider(projectId),
         );
@@ -172,14 +183,16 @@ class _Editor extends ConsumerWidget {
           return;
         }
         _onClipTool(ref, messenger, l10n, tool, selection.clipId);
+      case DockTool.ratio:
+        ref
+            .read(openToolPanelProvider(projectId).notifier)
+            .open(ToolPanelKind.ratio);
       case DockTool.music ||
           DockTool.voice ||
           DockTool.text ||
           DockTool.effect ||
           DockTool.overlay ||
-          DockTool.ratio ||
           DockTool.filters ||
-          DockTool.crop ||
           DockTool.adjust ||
           DockTool.animation ||
           DockTool.volume:
@@ -221,16 +234,56 @@ class _Editor extends ConsumerWidget {
         ref
             .read(openToolPanelProvider(projectId).notifier)
             .open(ToolPanelKind.speed);
+      case DockTool.crop:
+        // The crop handles sit over the frame on screen, so show this clip.
+        final index = project.mainTrack.clips.indexWhere((c) => c.id == clipId);
+        if (index >= 0) {
+          final startUs = project.mainTrack.startOf(index);
+          final endUs = startUs + project.mainTrack.clips[index].durationUs;
+          final positionUs = ref.read(playbackPositionProvider(projectId));
+          if (positionUs < startUs || positionUs >= endUs) {
+            unawaited(
+              ref.read(playbackProvider(projectId).notifier).seekTo(startUs),
+            );
+          }
+        }
+        ref
+            .read(openToolPanelProvider(projectId).notifier)
+            .open(ToolPanelKind.crop);
+      case DockTool.transform:
+        ref
+            .read(openToolPanelProvider(projectId).notifier)
+            .open(ToolPanelKind.transform);
       // Only clip tools are routed here.
       case _:
         _soon(messenger, l10n);
     }
   }
 
-  /// The open tool panel for the selected main clip, or null.
+  /// Opens the full screen preview, flagging it so the editor's preview
+  /// tweaks (the uncropped clip under the crop handles) pause meanwhile.
+  Future<void> _openFullscreen(BuildContext context, WidgetRef ref) async {
+    final fullscreen = previewFullscreenProvider(projectId);
+    ref.read(fullscreen.notifier).set(open: true);
+    try {
+      await FullscreenPreview.open(
+        context,
+        projectId: projectId,
+        canvas: project.canvas,
+      );
+    } finally {
+      if (context.mounted) ref.read(fullscreen.notifier).set(open: false);
+    }
+  }
+
+  /// The open tool panel, or null.
   Widget? _toolPanel(WidgetRef ref, TimelineSelection selection) {
     final kind = ref.watch(openToolPanelProvider(projectId));
-    if (kind == null || selection is! MainClipSelection) return null;
+    if (kind == null) return null;
+    if (kind == ToolPanelKind.ratio) {
+      return _ProjectRatioPanel(projectId: projectId, project: project);
+    }
+    if (selection is! MainClipSelection) return null;
     final index = project.mainTrack.clips.indexWhere(
       (c) => c.id == selection.clipId,
     );
@@ -243,7 +296,59 @@ class _Editor extends ConsumerWidget {
         clip: clip,
         clipStartUs: clipStartUs,
       ),
+      ToolPanelKind.crop => _ClipCropPanel(
+        projectId: projectId,
+        clip: clip,
+        clipStartUs: clipStartUs,
+        canvasRatio: project.canvas.aspect.ratio,
+        keyframeToleranceUs: keyframeToleranceUs(project),
+      ),
+      ToolPanelKind.transform => _ClipTransformPanel(
+        projectId: projectId,
+        clip: clip,
+        clipStartUs: clipStartUs,
+        keyframeToleranceUs: keyframeToleranceUs(project),
+      ),
+      ToolPanelKind.ratio => const SizedBox.shrink(),
     };
+  }
+
+  /// The active preview overlay (crop handles while Crop is open, or the
+  /// direct-manipulation transform gizmo whenever a main clip is selected),
+  /// shown only while the playhead is on that clip.
+  Widget? _previewOverlay(WidgetRef ref, TimelineSelection selection) {
+    if (selection is! MainClipSelection) return null;
+    final clips = project.mainTrack.clips;
+    final index = clips.indexWhere((c) => c.id == selection.clipId);
+    if (index < 0) return null;
+    final clip = clips[index];
+    final clipStartUs = project.mainTrack.startOf(index);
+    final canvasRatio = project.canvas.aspect.ratio;
+    final kind = ref.watch(openToolPanelProvider(projectId));
+    final overlay = kind == ToolPanelKind.crop
+        ? _ClipCropOverlay(
+            projectId: projectId,
+            clip: clip,
+            clipStartUs: clipStartUs,
+            canvasRatio: canvasRatio,
+          )
+        : _ClipTransformGizmo(
+            projectId: projectId,
+            clip: clip,
+            clipStartUs: clipStartUs,
+            canvasRatio: canvasRatio,
+            showFrame: kind == ToolPanelKind.transform,
+            keyframeToleranceUs: keyframeToleranceUs(project),
+          );
+    return _OnClipOnly(
+      projectId: projectId,
+      startUs: clipStartUs,
+      endUs: clipStartUs + clip.durationUs,
+      // At the very end of the project the preview still shows the last
+      // clip's final frame.
+      includeEnd: index == clips.length - 1,
+      child: overlay,
+    );
   }
 
   @override
@@ -260,23 +365,19 @@ class _Editor extends ConsumerWidget {
     final selection = ref.watch(timelineSelectionControllerProvider(projectId));
     final tools = dockToolsFor(selection);
     final panel = _toolPanel(ref, selection);
+    final overlay = _previewOverlay(ref, selection);
     void onTool(DockTool t) => unawaited(_onTool(context, ref, t));
     final transport = TransportBar(
       projectId: projectId,
       onUndo: onUndo,
       onRedo: onRedo,
-      onFullscreen: () => unawaited(
-        FullscreenPreview.open(
-          context,
-          projectId: projectId,
-          canvas: project.canvas,
-        ),
-      ),
+      onFullscreen: () => unawaited(_openFullscreen(context, ref)),
     );
     final timeline = TimelineView(projectId: projectId, project: project);
     final preview = _PreviewArea(
       projectId: projectId,
       canvas: project.canvas,
+      overlay: overlay,
       onHome: onHome,
     );
 
@@ -424,17 +525,516 @@ class _ClipSpeedPanel extends ConsumerWidget {
   }
 }
 
+/// [CropPanel] bound to [clip]. Ruler drags are one undo step; every other
+/// control is its own.
+class _ClipCropPanel extends ConsumerStatefulWidget {
+  const new({
+    required this.projectId,
+    required this.clip,
+    required this.clipStartUs,
+    required this.canvasRatio,
+    required this.keyframeToleranceUs,
+  });
+
+  final String projectId;
+  final Clip clip;
+  final int clipStartUs;
+
+  /// Used for the crop presets when the media's size is unknown.
+  final double canvasRatio;
+
+  /// How near a keyframe an edit updates it instead of adding one.
+  final int keyframeToleranceUs;
+
+  @override
+  ConsumerState<_ClipCropPanel> createState() => _ClipCropPanelState();
+}
+
+class _ClipCropPanelState extends ConsumerState<_ClipCropPanel> {
+  /// Playhead time captured when a ruler drag starts, so dragging while
+  /// playing edits one timestamp and coalesces into one undo step.
+  int? _dragAtUs;
+
+  @override
+  void didUpdateWidget(_ClipCropPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.clip.id != oldWidget.clip.id) _dragAtUs = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final clip = widget.clip;
+    final clipStartUs = widget.clipStartUs;
+    final session = ref.read(projectSessionProvider(widget.projectId).notifier);
+    final position = playbackPositionProvider(widget.projectId);
+    // Clip-relative playhead, read when an edit happens (not watched, so
+    // playback doesn't rebuild the panel).
+    int atUs() => ref.read(position) - clipStartUs;
+    void apply(EditCommand command) {
+      session
+        ..apply(command)
+        ..seal();
+    }
+
+    // The rotation an edit at the playhead (or at the ruler drag's time
+    // while dragging) changes; only rebuilds when it changes.
+    final dragAtUs = _dragAtUs;
+    final toleranceUs = widget.keyframeToleranceUs;
+    final rotation = ref.watch(
+      position.select(
+        (positionUs) => clip.transform
+            .editableAt(
+              (dragAtUs ?? positionUs - clipStartUs).clamp(0, clip.durationUs),
+              toleranceUs: toleranceUs,
+            )
+            .rotation,
+      ),
+    );
+    final media = clip.media;
+    final sourceRatio = media.displayWidth > 0 && media.displayHeight > 0
+        ? media.displayWidth / media.displayHeight
+        : widget.canvasRatio;
+    final transform = clip.transform;
+    final crop = clip.crop;
+    final untouched =
+        crop.isFull &&
+        crop.aspect == null &&
+        !transform.flipX &&
+        !transform.flipY &&
+        sameAngle(rotation, 0);
+    return CropPanel(
+      aspect: crop.aspect,
+      rotation: rotation,
+      mirrored: transform.flipX,
+      flipped: transform.flipY,
+      onAspect: (aspect) {
+        if (aspect == crop.aspect) return;
+        apply(
+          SetClipCropCommand(
+            clip.id,
+            aspect == null
+                ? crop.copyWith(aspect: null)
+                : CropRect.centered(aspect, sourceRatio),
+            coalesce: false,
+          ),
+        );
+      },
+      onRotationDrag: (degrees) {
+        final dragAt = _dragAtUs ??= atUs();
+        session.apply(
+          SetClipTransformValuesCommand(
+            clip.id,
+            atUs: dragAt,
+            rotation: degrees,
+          ),
+        );
+      },
+      onRotationDragEnd: () {
+        // May run after a frame (the panel closed mid-drag), when this is
+        // gone.
+        if (mounted) setState(() => _dragAtUs = null);
+        session.seal();
+      },
+      onRotationSet: (degrees) => apply(
+        SetClipTransformValuesCommand(
+          clip.id,
+          atUs: atUs(),
+          rotation: degrees,
+          coalesce: false,
+        ),
+      ),
+      onMirror: () => apply(ToggleClipFlipCommand(clip.id, horizontal: true)),
+      onFlip: () => apply(ToggleClipFlipCommand(clip.id, horizontal: false)),
+      onRotateQuarter: () =>
+          apply(RotateClipQuarterCommand(clip.id, atUs: atUs())),
+      onReset: untouched
+          ? null
+          : () => apply(ResetClipCropCommand(clip.id, atUs: atUs())),
+      onClose: ref.read(openToolPanelProvider(widget.projectId).notifier).close,
+    );
+  }
+}
+
+/// [TransformPanel] bound to [clip]: slider drags coalesce into one undo step
+/// (at a captured playhead time); discrete taps, swatches and resets each form
+/// their own undo step.
+class _ClipTransformPanel extends ConsumerStatefulWidget {
+  const new({
+    required this.projectId,
+    required this.clip,
+    required this.clipStartUs,
+    required this.keyframeToleranceUs,
+  });
+
+  final String projectId;
+  final Clip clip;
+  final int clipStartUs;
+  final int keyframeToleranceUs;
+
+  @override
+  ConsumerState<_ClipTransformPanel> createState() =>
+      _ClipTransformPanelState();
+}
+
+class _ClipTransformPanelState extends ConsumerState<_ClipTransformPanel> {
+  int? _dragAtUs;
+
+  @override
+  void didUpdateWidget(_ClipTransformPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.clip.id != oldWidget.clip.id) _dragAtUs = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final clip = widget.clip;
+    final clipStartUs = widget.clipStartUs;
+    final toleranceUs = widget.keyframeToleranceUs;
+    final session = ref.read(projectSessionProvider(widget.projectId).notifier);
+    final position = playbackPositionProvider(widget.projectId);
+    int atUs() => ref.read(position) - clipStartUs;
+    void applyDiscrete(EditCommand command) {
+      session
+        ..apply(command)
+        ..seal();
+    }
+
+    // While a slider drags, show the values at the drag's time so playback
+    // moving on doesn't make the thumb jump.
+    final dragAtUs = _dragAtUs;
+    final snapshot = ref.watch(
+      position.select((positionUs) {
+        final at = (dragAtUs ?? positionUs - clipStartUs).clamp(
+          0,
+          clip.durationUs,
+        );
+        final t = clip.transform;
+        return (
+          // What an edit here changes: a keyframe within tolerance reads
+          // as the value just dragged to, not the interpolated one.
+          resolved: t.editableAt(at, toleranceUs: toleranceUs),
+          posKf: t.hasKeyframeNear(
+            TransformProperty.position,
+            at,
+            toleranceUs: toleranceUs,
+          ),
+          scaleKf: t.hasKeyframeNear(
+            TransformProperty.scale,
+            at,
+            toleranceUs: toleranceUs,
+          ),
+          rotKf: t.hasKeyframeNear(
+            TransformProperty.rotation,
+            at,
+            toleranceUs: toleranceUs,
+          ),
+          opKf: t.hasKeyframeNear(
+            TransformProperty.opacity,
+            at,
+            toleranceUs: toleranceUs,
+          ),
+        );
+      }),
+    );
+    final animatedProperties = {
+      for (final prop in TransformProperty.values)
+        if (clip.transform.isAnimatedProperty(prop)) prop,
+    };
+    final activeKeyframes = {
+      if (snapshot.posKf) TransformProperty.position,
+      if (snapshot.scaleKf) TransformProperty.scale,
+      if (snapshot.rotKf) TransformProperty.rotation,
+      if (snapshot.opKf) TransformProperty.opacity,
+    };
+    final resolved = snapshot.resolved;
+    return TransformPanel(
+      fitMode: clip.fitMode,
+      position: resolved.position,
+      scale: resolved.scale,
+      rotation: resolved.rotation,
+      opacity: resolved.opacity,
+      border: clip.border,
+      animatedProperties: animatedProperties,
+      activeKeyframes: activeKeyframes,
+      onToggleKeyframe: (property) => applyDiscrete(
+        ToggleClipKeyframeCommand(clip.id, property, atUs: atUs()),
+      ),
+      onFitMode: (mode) => applyDiscrete(SetClipFitModeCommand(clip.id, mode)),
+      onTransformDrag: ({position, scale, rotation, opacity}) {
+        final dragAt = _dragAtUs ??= atUs();
+        session.apply(
+          SetClipTransformValuesCommand(
+            clip.id,
+            atUs: dragAt,
+            position: position,
+            scale: scale,
+            rotation: rotation,
+            opacity: opacity,
+          ),
+        );
+      },
+      onTransformDragEnd: () {
+        if (mounted) setState(() => _dragAtUs = null);
+        session.seal();
+      },
+      onTransformSet: ({position, scale, rotation, opacity}) => applyDiscrete(
+        SetClipTransformValuesCommand(
+          clip.id,
+          atUs: atUs(),
+          position: position,
+          scale: scale,
+          rotation: rotation,
+          opacity: opacity,
+          coalesce: false,
+        ),
+      ),
+      onBorderDrag: (border) =>
+          session.apply(SetClipBorderCommand(clip.id, border)),
+      onBorderDragEnd: session.seal,
+      onBorderSet: (border) =>
+          applyDiscrete(SetClipBorderCommand(clip.id, border, coalesce: false)),
+      onClose: ref.read(openToolPanelProvider(widget.projectId).notifier).close,
+    );
+  }
+}
+
+/// [RatioPanel] bound to [project]'s canvas aspect and background.
+class _ProjectRatioPanel extends ConsumerWidget {
+  const new({required this.projectId, required this.project});
+
+  final String projectId;
+  final Project project;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final session = ref.read(projectSessionProvider(projectId).notifier);
+    final first = project.mainTrack.clips.firstOrNull?.media;
+    final original =
+        first != null && first.displayWidth > 0 && first.displayHeight > 0
+        ? CanvasAspect.reduced(first.displayWidth, first.displayHeight)
+        : null;
+
+    Future<void> pickImage() async {
+      final MediaRef? picked;
+      try {
+        picked = await ref.read(mediaPickerProvider).pickImage();
+      } on PlatformException {
+        if (context.mounted) {
+          messenger.showSnackBar(
+            SnackBar(content: Text(l10n.mediaPickerFailed)),
+          );
+        }
+        return;
+      }
+      if (picked == null || !context.mounted) return;
+      final existing = project.canvas.background;
+      final blur = existing is ImageBackground ? existing.blur : 0.0;
+      session
+        ..apply(
+          SetCanvasBackgroundCommand(
+            CanvasBackground.image(uri: picked.uri, blur: blur),
+          ),
+        )
+        ..seal();
+    }
+
+    return RatioPanel(
+      aspect: project.canvas.aspect,
+      original: original,
+      background: project.canvas.background,
+      onAspect: (aspect) => session
+        ..apply(SetCanvasAspectCommand(aspect))
+        ..seal(),
+      onBackgroundDrag: (bg) =>
+          session.apply(SetCanvasBackgroundCommand(bg, coalesce: true)),
+      onBackgroundDragEnd: session.seal,
+      onBackgroundSet: (bg) => session
+        ..apply(SetCanvasBackgroundCommand(bg))
+        ..seal(),
+      onPickImage: () => unawaited(pickImage()),
+      onClose: ref.read(openToolPanelProvider(projectId).notifier).close,
+    );
+  }
+}
+
+/// [CropOverlay] bound to [clip]: drags coalesce into one undo step and seal
+/// on release.
+class _ClipCropOverlay extends ConsumerWidget {
+  const new({
+    required this.projectId,
+    required this.clip,
+    required this.clipStartUs,
+    required this.canvasRatio,
+  });
+
+  final String projectId;
+  final Clip clip;
+  final int clipStartUs;
+  final double canvasRatio;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.read(projectSessionProvider(projectId).notifier);
+    final position = playbackPositionProvider(projectId);
+    final rotation = ref.watch(
+      position.select(
+        (positionUs) => clip.transform
+            .at((positionUs - clipStartUs).clamp(0, clip.durationUs))
+            .rotation,
+      ),
+    );
+    final media = clip.media;
+    final sourceRatio = media.displayWidth > 0 && media.displayHeight > 0
+        ? media.displayWidth / media.displayHeight
+        : canvasRatio;
+    return CropOverlay(
+      crop: clip.crop,
+      sourceRatio: sourceRatio,
+      rotationDegrees: rotation,
+      flipX: clip.transform.flipX,
+      flipY: clip.transform.flipY,
+      onChanged: (next) => session.apply(SetClipCropCommand(clip.id, next)),
+      onChangeEnd: session.seal,
+    );
+  }
+}
+
+/// [TransformGizmo] bound to [clip]: drags and pinches coalesce into one undo
+/// step at a playhead time captured on gesture start, and seal on release.
+class _ClipTransformGizmo extends ConsumerStatefulWidget {
+  const new({
+    required this.projectId,
+    required this.clip,
+    required this.clipStartUs,
+    required this.canvasRatio,
+    required this.showFrame,
+    required this.keyframeToleranceUs,
+  });
+
+  final String projectId;
+  final Clip clip;
+  final int clipStartUs;
+  final double canvasRatio;
+  final bool showFrame;
+
+  /// How near a keyframe an edit updates it instead of adding one.
+  final int keyframeToleranceUs;
+
+  @override
+  ConsumerState<_ClipTransformGizmo> createState() =>
+      _ClipTransformGizmoState();
+}
+
+class _ClipTransformGizmoState extends ConsumerState<_ClipTransformGizmo> {
+  /// Clip-relative time captured when a gesture starts. While set, the gizmo
+  /// shows and edits the values at this time, so playback moving on can't
+  /// cancel the gesture or spread it over several keyframes.
+  int? _gestureAtUs;
+
+  @override
+  void didUpdateWidget(_ClipTransformGizmo oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.clip.id != oldWidget.clip.id) _gestureAtUs = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final clip = widget.clip;
+    final clipStartUs = widget.clipStartUs;
+    final session = ref.read(projectSessionProvider(widget.projectId).notifier);
+    final positionProvider = playbackPositionProvider(widget.projectId);
+    final gestureAtUs = _gestureAtUs;
+    final toleranceUs = widget.keyframeToleranceUs;
+    // What an edit at the playhead (or the gesture's time) changes, so the
+    // values the gizmo wrote read back unchanged beside a keyframe.
+    final resolved = ref.watch(
+      positionProvider.select(
+        (positionUs) => clip.transform.editableAt(
+          (gestureAtUs ?? positionUs - clipStartUs).clamp(0, clip.durationUs),
+          toleranceUs: toleranceUs,
+        ),
+      ),
+    );
+    final media = clip.media;
+    final sourceRatio = media.displayWidth > 0 && media.displayHeight > 0
+        ? media.displayWidth / media.displayHeight
+        : widget.canvasRatio;
+    return TransformGizmo(
+      position: resolved.position,
+      scale: resolved.scale,
+      rotation: resolved.rotation,
+      sourceRatio: sourceRatio,
+      crop: clip.crop,
+      fitMode: clip.fitMode,
+      showFrame: widget.showFrame,
+      onChangeStart: () => setState(
+        () => _gestureAtUs = ref.read(positionProvider) - clipStartUs,
+      ),
+      onChanged: ({position, scale, rotation}) {
+        final atUs = _gestureAtUs ??= ref.read(positionProvider) - clipStartUs;
+        session.apply(
+          SetClipTransformValuesCommand(
+            clip.id,
+            atUs: atUs,
+            position: position,
+            scale: scale,
+            rotation: rotation,
+          ),
+        );
+      },
+      onChangeEnd: () {
+        // May run after a frame (a cancelled gesture), when this is gone.
+        if (mounted) setState(() => _gestureAtUs = null);
+        session.seal();
+      },
+    );
+  }
+}
+
+/// Shows [child] only while the playhead is within `[startUs, endUs)` (or
+/// at [endUs] too with [includeEnd]), so an overlay never edits a clip the
+/// preview isn't showing. Rebuilds only when that changes.
+class _OnClipOnly extends ConsumerWidget {
+  const new({
+    required this.projectId,
+    required this.startUs,
+    required this.endUs,
+    required this.includeEnd,
+    required this.child,
+  });
+
+  final String projectId;
+  final int startUs;
+  final int endUs;
+  final bool includeEnd;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final onClip = ref.watch(
+      playbackPositionProvider(projectId).select(
+        (p) => p >= startUs && (p < endUs || (includeEnd && p == endUs)),
+      ),
+    );
+    return onClip ? child : const SizedBox.shrink();
+  }
+}
+
 /// Preview with home and export in the top corners beside it.
 class _PreviewArea extends ConsumerWidget {
   const new({
     required this.projectId,
     required this.canvas,
     required this.onHome,
+    this.overlay,
   });
 
   final String projectId;
   final ProjectCanvas canvas;
   final VoidCallback onHome;
+  final Widget? overlay;
 
   /// The kit's 282-wide preview leaves 56dp on each side for the icons.
   static const double _sideInset = 56;
@@ -452,7 +1052,11 @@ class _PreviewArea extends ConsumerWidget {
             _sideInset,
             0,
           ),
-          child: PreviewView(projectId: projectId, canvas: canvas),
+          child: PreviewView(
+            projectId: projectId,
+            canvas: canvas,
+            overlay: overlay,
+          ),
         ),
         PositionedDirectional(
           start: 3,
@@ -494,24 +1098,55 @@ class _PlaybackBindingState extends ConsumerState<_PlaybackBinding> {
   late final AppLifecycleListener _listener;
   ProviderSubscription<PlaybackState>? _keepPreview;
 
+  String? _uncroppedClipId() {
+    if (ref.read(openToolPanelProvider(widget.projectId)) !=
+            ToolPanelKind.crop ||
+        ref.read(previewFullscreenProvider(widget.projectId))) {
+      return null;
+    }
+    final selection = ref.read(
+      timelineSelectionControllerProvider(widget.projectId),
+    );
+    return selection is MainClipSelection ? selection.clipId : null;
+  }
+
+  void _resyncPreview() => _syncPreview(
+    ref.read(projectSessionProvider(widget.projectId)).value?.history.present,
+  );
+
+  void _syncPreview(Project? project) {
+    if (project == null) return;
+    final playback = playbackProvider(widget.projectId);
+    // The editor owns the preview from the first loaded project until it
+    // closes. Without this, a rebuild that briefly drops every widget
+    // listener (e.g. after a rename) let autoDispose tear down and
+    // recreate the native player.
+    _keepPreview ??= ref.listenManual(playback, (_, _) {});
+    unawaited(
+      ref
+          .read(playback.notifier)
+          .load(project, uncroppedClipId: _uncroppedClipId()),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
-    ref.listenManual(
-      projectSessionProvider(widget.projectId)
-          .select((s) => s.value?.history.present),
-      (_, project) {
-        if (project == null) return;
-        final playback = playbackProvider(widget.projectId);
-        // The editor owns the preview from the first loaded project until it
-        // closes. Without this, a rebuild that briefly drops every widget
-        // listener (e.g. after a rename) let autoDispose tear down and
-        // recreate the native player.
-        _keepPreview ??= ref.listenManual(playback, (_, _) {});
-        unawaited(ref.read(playback.notifier).load(project));
-      },
-      fireImmediately: true,
-    );
+    ref
+      ..listenManual(
+        projectSessionProvider(widget.projectId)
+            .select((s) => s.value?.history.present),
+        (_, project) => _syncPreview(project),
+        fireImmediately: true,
+      )
+      ..listenManual(
+        openToolPanelProvider(widget.projectId),
+        (_, _) => _resyncPreview(),
+      )
+      ..listenManual(
+        previewFullscreenProvider(widget.projectId),
+        (_, _) => _resyncPreview(),
+      );
     _listener = AppLifecycleListener(
       onHide: () {
         // Don't create a preview just to pause it (e.g. after a load error).

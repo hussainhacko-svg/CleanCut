@@ -44,6 +44,9 @@ enum DockTool {
   /// Crop.
   crop(AppIcons.toolCrop),
 
+  /// Transform (not in the kit; owner placed it right after Crop).
+  transform(AppIcons.toolTransform),
+
   /// Adjustments.
   adjust(AppIcons.toolAdjust),
 
@@ -81,6 +84,7 @@ enum DockTool {
     duplicate => l10n.toolDuplicate,
     filters => l10n.toolFilters,
     crop => l10n.toolCrop,
+    transform => l10n.toolTransform,
     adjust => l10n.toolAdjust,
     speed => l10n.toolSpeed,
     animation => l10n.toolAnimation,
@@ -107,6 +111,7 @@ List<DockTool> dockToolsFor(TimelineSelection selection) => switch (selection) {
     DockTool.duplicate,
     DockTool.filters,
     DockTool.crop,
+    DockTool.transform,
     DockTool.adjust,
     DockTool.speed,
     DockTool.animation,

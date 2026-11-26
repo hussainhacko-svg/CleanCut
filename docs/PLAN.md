@@ -184,13 +184,13 @@ Each phase ends with a working, tested build and a tag `v0.<phase>.0`.
 - [ ] Freeze frame, reverse (stretch goal)
 
 ### Phase 5 — Transform & style
-- [ ] Canvas aspect ratio + resolution
-- [ ] Crop with aspect presets and on-preview handles
-- [ ] Rotate (gizmo + 90° quick buttons), position, size (two-finger on preview), mirror, flip
-- [ ] Fill modes (fit / fill / stretch)
-- [ ] Background: color, gradient, blurred source, image
-- [ ] Border (width, color, corner radius), opacity
-- [ ] Keyframe button on each animatable property + keyframe markers on clip
+- [x] Canvas aspect ratio (resolution moves to the Phase 10 export sheet)
+- [x] Crop with aspect presets and on-preview handles
+- [x] Rotate (gizmo + 90° quick buttons), position, size (two-finger on preview), mirror, flip
+- [x] Fill modes (fit / fill / stretch)
+- [x] Background: color, gradient, blurred source, image
+- [x] Border (width, color, corner radius), opacity
+- [x] Keyframe button on each animatable property + keyframe markers on clip
 
 ### Phase 6 — Filters & effects
 - [ ] Filter presets from bundled LUTs with intensity + preview thumbnails

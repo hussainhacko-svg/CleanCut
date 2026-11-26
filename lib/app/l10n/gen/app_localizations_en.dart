@@ -328,4 +328,157 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get curveBackToPresets => 'Presets';
+
+  @override
+  String get cropFree => 'Free';
+
+  @override
+  String cropAspect(int width, int height) {
+    return '$width:$height';
+  }
+
+  @override
+  String get cropMirror => 'Mirror';
+
+  @override
+  String get cropFlip => 'Flip';
+
+  @override
+  String get cropRotate90 => 'Rotate 90°';
+
+  @override
+  String get cropRotation => 'Rotation';
+
+  @override
+  String rotationValue(int value) {
+    return '$value°';
+  }
+
+  @override
+  String get rotationTypeLabel => 'Degrees (−180 to 180)';
+
+  @override
+  String get rotationTypeInvalid => 'Enter an angle from −180 to 180';
+
+  @override
+  String get rotationTypeHint => 'Tap to type an exact angle';
+
+  @override
+  String get cropOverlayLabel => 'Crop frame handles';
+
+  @override
+  String get transformGizmoLabel => 'Transform preview';
+
+  @override
+  String get toolTransform => 'Transform';
+
+  @override
+  String get transformTabFill => 'Fill';
+
+  @override
+  String get transformTabPosition => 'Position';
+
+  @override
+  String get transformTabOpacity => 'Opacity';
+
+  @override
+  String get transformTabBorder => 'Border';
+
+  @override
+  String get fitModeFit => 'Fit';
+
+  @override
+  String get fitModeFill => 'Fill';
+
+  @override
+  String get fitModeStretch => 'Stretch';
+
+  @override
+  String get transformX => 'X';
+
+  @override
+  String get transformY => 'Y';
+
+  @override
+  String get transformScale => 'Scale';
+
+  @override
+  String get transformOpacity => 'Opacity';
+
+  @override
+  String get transformBorderWidth => 'Width';
+
+  @override
+  String get transformBorderCorners => 'Corners';
+
+  @override
+  String get transformBorderColor => 'Color';
+
+  @override
+  String percentValue(int value) {
+    return '$value%';
+  }
+
+  @override
+  String valueRangeLabel(String min, String max) {
+    return '$min to $max';
+  }
+
+  @override
+  String valueRangeInvalid(String min, String max) {
+    return 'Enter a value from $min to $max';
+  }
+
+  @override
+  String get tapToTypeHint => 'Tap to type an exact value';
+
+  @override
+  String colorSwatchLabel(int index) {
+    return 'Color $index';
+  }
+
+  @override
+  String get ratioTabRatio => 'Ratio';
+
+  @override
+  String get ratioTabBackground => 'Background';
+
+  @override
+  String get backgroundColor => 'Color';
+
+  @override
+  String get backgroundGradient => 'Gradient';
+
+  @override
+  String get backgroundBlur => 'Blur';
+
+  @override
+  String get backgroundImage => 'Image';
+
+  @override
+  String get backgroundAngle => 'Angle';
+
+  @override
+  String get backgroundBlurAmount => 'Strength';
+
+  @override
+  String get backgroundPickImage => 'Choose image';
+
+  @override
+  String get backgroundChangeImage => 'Change image';
+
+  @override
+  String gradientSwatchLabel(int index) {
+    return 'Gradient $index';
+  }
+
+  @override
+  String keyframeAdd(String property) {
+    return 'Add $property keyframe';
+  }
+
+  @override
+  String keyframeRemove(String property) {
+    return 'Remove $property keyframe';
+  }
 }

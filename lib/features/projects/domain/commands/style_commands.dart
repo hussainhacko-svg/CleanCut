@@ -215,7 +215,10 @@ final class RotateClipQuarterCommand extends EditCommand {
   @override
   Project apply(Project project) => _updateClip(project, clipId, (c) {
     final at = _clampToClip(c, atUs);
-    final current = c.transform.at(at).rotation;
+    final toleranceUs = keyframeToleranceUs(project);
+    final current = c.transform
+        .editableAt(at, toleranceUs: toleranceUs)
+        .rotation;
     // Next multiple of 90 strictly after the current angle (with 1e-6 slack
     // so float noise right below a multiple, like 89.9999999, advances to 180).
     final next = ((current + 1e-6) / 90).floorToDouble() * 90 + 90;
@@ -223,7 +226,7 @@ final class RotateClipQuarterCommand extends EditCommand {
       transform: c.transform.withValuesAt(
         at,
         rotation: next,
-        toleranceUs: keyframeToleranceUs(project),
+        toleranceUs: toleranceUs,
       ),
     );
   });
@@ -249,6 +252,36 @@ final class ToggleClipFlipCommand extends EditCommand {
       transform: horizontal
           ? c.transform.copyWith(flipX: !c.transform.flipX)
           : c.transform.copyWith(flipY: !c.transform.flipY),
+    ),
+  );
+}
+
+/// The Crop panel's Reset, as one undo step: shows the whole frame again,
+/// clears mirror and flip, and sets the rotation seen at clip-relative
+/// [atUs] to 0 (a keyframed rotation gets a 0 keyframe there).
+final class ResetClipCropCommand extends EditCommand {
+  /// Creates the command.
+  const new(this.clipId, {required this.atUs});
+
+  /// Target clip.
+  final String clipId;
+
+  /// Clip-relative time; clamped into the clip.
+  final int atUs;
+
+  @override
+  Project apply(Project project) => _updateClip(
+    project,
+    clipId,
+    (c) => c.copyWith(
+      crop: CropRect.full,
+      transform: c.transform
+          .copyWith(flipX: false, flipY: false)
+          .withValuesAt(
+            _clampToClip(c, atUs),
+            rotation: 0,
+            toleranceUs: keyframeToleranceUs(project),
+          ),
     ),
   );
 }

@@ -246,6 +246,79 @@ void main() {
       );
     });
 
+    test('editableAt reads back what withValuesAt wrote near a keyframe', () {
+      // Regression: the gizmo read values at the playhead, half a frame from
+      // the keyframe the edit updated, saw an interpolated value and
+      // cancelled its own drag.
+      final t = ClipTransform(
+        position: Animatable.keyframed([
+          Keyframe(timeUs: 0, value: Vec2.zero),
+          Keyframe(timeUs: 2000000, value: const Vec2(x: 0.5, y: 0)),
+        ]),
+        scale: _keyed({0: 1, 2000000: 2}),
+      );
+      const at = 2000000 - 5000;
+      final edited = t.withValuesAt(
+        at,
+        position: const Vec2(x: 0.7, y: 0.1),
+        scale: 3,
+        toleranceUs: 16000,
+      );
+      final r = edited.editableAt(at, toleranceUs: 16000);
+      expect(r.position, const Vec2(x: 0.7, y: 0.1));
+      expect(r.scale, 3);
+      expect(edited.at(at).position, isNot(const Vec2(x: 0.7, y: 0.1)));
+      // Away from keyframes (and for constants) it is the plain value.
+      expect(
+        edited.editableAt(1000000, toleranceUs: 16000),
+        edited.at(1000000),
+      );
+      expect(
+        const ClipTransform().editableAt(5, toleranceUs: 16000),
+        const ClipTransform().at(5),
+      );
+    });
+
+    test('a constant rotation is stored wrapped into [-180, 180]', () {
+      double stored(double degrees) => const ClipTransform()
+          .withValuesAt(0, rotation: degrees)
+          .at(0)
+          .rotation;
+      expect(stored(190), closeTo(-170, 1e-9));
+      expect(stored(360), 0);
+      expect(stored(-180), -180);
+      expect(stored(180), 180);
+      expect(stored(-450), closeTo(-90, 1e-9));
+    });
+
+    test('a keyframed rotation keeps the turn nearest its current value', () {
+      // Regression: a twist from 170° to 190° stored as -170° spun the clip
+      // 340° backwards between keyframes.
+      final t = ClipTransform(rotation: _keyed({0: 170, 1000000: 170}));
+      final twisted = t.withValuesAt(1000000, rotation: -170);
+      expect(twisted.at(1000000).rotation, closeTo(190, 1e-9));
+      expect(twisted.at(500000).rotation, closeTo(180, 1e-9));
+      // Unwrapped input near the current value stays as it is.
+      expect(
+        t.withValuesAt(1000000, rotation: 190).at(1000000).rotation,
+        closeTo(190, 1e-9),
+      );
+      // A new keyframe between others follows the interpolated value.
+      final spin = ClipTransform(rotation: _keyed({0: 0, 1000000: 720}));
+      expect(
+        spin.withValuesAt(500000, rotation: 10).at(500000).rotation,
+        closeTo(370, 1e-9),
+      );
+    });
+
+    test('sameAngle compares orientations modulo 360°', () {
+      expect(sameAngle(190, -170), isTrue);
+      expect(sameAngle(0, 360), isTrue);
+      expect(sameAngle(-180, 180), isTrue);
+      expect(sameAngle(10, 11), isFalse);
+      expect(wrapDegrees(double.nan), 0);
+    });
+
     test('validate rejects out-of-range keyframe values', () {
       expect(ClipTransform(scale: _keyed({0: 1, 9: 0})).validate(), [
         'scale out of range',
@@ -432,9 +505,41 @@ void main() {
       expect(rotate(0), 90);
       expect(rotate(45), 90);
       expect(rotate(90), 180);
-      expect(rotate(270), 360);
+      // Constants stay within [-180, 180] (180 + 90 → -90).
+      expect(rotate(180), -90);
+      expect(rotate(270), 0);
       expect(rotate(-90), 0);
       expect(rotate(-30), 0);
+    });
+
+    test('four quarter turns come back to 0° without growing', () {
+      // Regression: repeated taps stored 360°, 450°, … so Reset stayed on.
+      final p = base();
+      final id = firstId(p);
+      var q = p;
+      final seen = <double>[];
+      for (var i = 0; i < 4; i++) {
+        q = RotateClipQuarterCommand(id, atUs: 0).apply(q);
+        seen.add(q.mainTrack.clips.first.transform.at(0).rotation);
+      }
+      expect(seen, [90, 180, -90, 0]);
+    });
+
+    test('a quarter turn of a keyframed rotation keeps turning clockwise', () {
+      final p = base();
+      final id = firstId(p);
+      final keyed = p.copyWith(
+        mainTrack: p.mainTrack.copyWith(
+          clips: [
+            p.mainTrack.clips.first.copyWith(
+              transform: ClipTransform(rotation: _keyed({0: 0, 1000000: 180})),
+            ),
+            ...p.mainTrack.clips.skip(1),
+          ],
+        ),
+      );
+      final q = RotateClipQuarterCommand(id, atUs: 1000000).apply(keyed);
+      expect(q.mainTrack.clips.first.transform.at(1000000).rotation, 270);
     });
 
     test('mirror and flip toggle independently', () {
@@ -447,6 +552,57 @@ void main() {
       expect(both.mainTrack.clips.first.transform.flipY, isTrue);
       final back = ToggleClipFlipCommand(id, horizontal: true).apply(both);
       expect(back.mainTrack.clips.first.transform.flipX, isFalse);
+    });
+
+    test('crop reset clears crop, mirror, flip and rotation in one step', () {
+      final p = base();
+      final id = firstId(p);
+      var q = SetClipCropCommand(
+        id,
+        const CropRect(left: 0.1, right: 0.9),
+      ).apply(p);
+      q = ToggleClipFlipCommand(id, horizontal: true).apply(q);
+      q = ToggleClipFlipCommand(id, horizontal: false).apply(q);
+      q = SetClipTransformValuesCommand(
+        id,
+        atUs: 0,
+        rotation: 30,
+        scale: 2,
+      ).apply(q);
+      final reset = ResetClipCropCommand(id, atUs: 0).apply(q);
+      final clip = reset.mainTrack.clips.first;
+      expect(clip.crop, CropRect.full);
+      expect(clip.transform.flipX, isFalse);
+      expect(clip.transform.flipY, isFalse);
+      expect(clip.transform.rotation, const Animatable<double>.constant(0));
+      // Not a crop-panel property: left alone.
+      expect(clip.transform.scale, const Animatable<double>.constant(2));
+      expect(ResetClipCropCommand(id, atUs: 0).coalesceKey, isNull);
+    });
+
+    test('crop reset of a keyframed rotation zeroes it at the playhead, '
+        'clamped into the clip', () {
+      final p = base();
+      final id = firstId(p);
+      var q = SetClipTransformValuesCommand(id, atUs: 0, rotation: 45).apply(p);
+      q = ToggleClipKeyframeCommand(
+        id,
+        TransformProperty.rotation,
+        atUs: 0,
+      ).apply(q);
+      q = ResetClipCropCommand(id, atUs: 99000000).apply(q);
+      final clip = q.mainTrack.clips.first;
+      expect(clip.transform.rotation.keyframeTimes, [0, clip.durationUs]);
+      expect(clip.transform.at(0).rotation, 45);
+      expect(clip.transform.at(clip.durationUs).rotation, 0);
+    });
+
+    test('crop reset of an untouched clip changes nothing', () {
+      final p = base();
+      expect(
+        identical(ResetClipCropCommand(firstId(p), atUs: 0).apply(p), p),
+        isTrue,
+      );
     });
 
     test('background is validated; only slider drags coalesce', () {

@@ -71,12 +71,13 @@ void main() {
     test('a clip shows back first, then its tools', () {
       final tools = dockToolsFor(const MainClipSelection('c'));
       expect(tools.first, DockTool.back);
-      expect(tools.take(8), [
+      expect(tools.take(9), [
         DockTool.back,
         DockTool.split,
         DockTool.duplicate,
         DockTool.filters,
         DockTool.crop,
+        DockTool.transform,
         DockTool.adjust,
         DockTool.speed,
         DockTool.animation,

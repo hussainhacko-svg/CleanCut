@@ -64,7 +64,7 @@ Phone dock: a horizontally scrolling row; items 52dp apart, 24px icon + 8px labe
 | State | Dock items |
 |---|---|
 | Nothing selected | ⊕ Add media · Music · Voice · Text · Effect · Overlay · Ratio |
-| Video/photo or overlay clip selected | ‹ Back · Split · Duplicate · Filters · Crop · Adjust · Speed · Animation · Volume · Delete |
+| Video/photo or overlay clip selected | ‹ Back · Split · Duplicate · Filters · Crop · Transform · Adjust · Speed · Animation · Volume · Delete |
 | Text selected (Phase 8, kit "Edit") | ‹ Back · Split · Edit · Delete · Color · Font · Align |
 | Audio selected | ‹ Back · Split · Volume · Speed · Delete |
 
@@ -103,6 +103,41 @@ Tools whose phase hasn't shipped show "Coming in a later update." Icons that exi
 - **Curve presets** (owner-approved shapes; speed at start/25/50/75/100%): Montage 1·2·0.5·2·1, Hero 1·1·0.25·1·1, Bullet 2·0.25·0.25·0.25·2, Flash in 5·2·1·1·1, Flash out 1·1·1·2·5, Custom flat 1×. Tapping a tile applies it; None returns to the Normal speed. Tapping the selected tile again opens the editor. Reset (Curve tab) restores the preset's shape.
 - **Curve editor:** a 150dp graph of speed (10× top, 1× middle, 0.1× bottom, log scale, labelled guides) over the clip, the curve in `primary`, points as white dots (selected: larger, `primary` centre), and a white playhead line. Drag a point up/down (end points) or anywhere between its neighbours (inner points); near 1× it snaps with a haptic tick; the change applies on release (one undo step). Tap a point to select it. The button on the right is **Add point** (adds at the playhead; off when the playhead is outside the clip, on a point, or 10 points exist) or, with an inner point selected, **Delete point**. **‹ Presets** goes back to the tiles.
 - The curve follows the clip (owner decision): trimming stretches it, splitting divides it.
+
+### Crop panel (VCLIP "Crop")
+
+```
+┌──────────────────────────────┐
+│ Crop                Reset  ✕ │
+│ [◁▷] [△▽]               [↻] │  mirror, flip (toggles, faint disc when on) · rotate 90°
+│              (30°)           │  value bubble over the rotation ruler
+│ |''|''|''|''|''|''|''|''|    │  −180° … 0° (middle) … 180°, tall tick every 45°
+│ [⌜⌟] [□] [▯] [▭] [▯] [▭] …  │  presets: Free, 1:1, 9:16, 16:9, 3:4, 4:3, 2:1, 4:5
+│ Free 1:1 9:16 16:9 3:4 4:3 … │  selected = white glyph + bold accent-gradient label
+└──────────────────────────────┘
+```
+
+- **Presets** (owner decision, replacing the kit's "Fit … 5.8:1" list and its Instagram/TikTok logos): Free, 1:1, 9:16, 16:9, 3:4, 4:3, 2:1, 4:5. A ratio crops the largest centered rectangle of that shape from the clip (the lock steers the on-preview handles); Free keeps the rectangle and drops the lock. Free uses the kit's "Fit" corners glyph.
+- **Rotation ruler** works like the speed ruler: drag (applied live, one undo step per drag), tap to jump, tap the bubble to type an exact angle (−180 to 180). It snaps with a haptic tick at multiples of 45°. A constant rotation is stored within ±180° (four quarter turns come back to 0°); a keyframed one keeps the turn nearest its current value, so wrapping never spins the clip the long way between keyframes, and is shown wrapped. A keyframed rotation is edited at the playhead.
+- Mirror, flip and rotate 90° each are one undo step. **Reset** restores the whole frame, clears mirror and flip and sets the rotation to 0 — one undo step; disabled when nothing changed.
+- **On-preview `CropOverlay`:** while Crop is open, the preview shows the selected clip uncropped and fitted (preserving flip and rotation) with a darkened scrim, 3×3 rule-of-thirds grid, and white L-corner brackets. Corners, edges (48dp touch targets) and interior pan update the crop live in one undo step; closing the panel applies the cropped framing to the preview.
+
+### Transform panel, gizmo & keyframes
+
+- **Transform dock tool** sits right after Crop and opens a four-tab panel (`Fill | Position | Opacity | Border`):
+  - **Fill:** Fit, Fill, Stretch tiles (single undo step each).
+  - **Position:** X (−200%..200%), Y (−200%..200%), Scale (5%..1000%, non-linear with 100% centered), Rotation (−180°..180° with 45° snaps).
+  - **Opacity:** 0%..100%.
+  - **Border:** Width, Corners, and circular ARGB color swatches.
+- Every slider supports drag with snap haptics, tap-to-type exact value, and **tab-scoped Reset** (restores only the open tab in one undo step).
+- **Keyframes:** each animatable row (X, Y, Scale, Rotation, Opacity) carries a 48dp ◇/◆ toggle at the right (muted hollow = constant, bright hollow = animated elsewhere, accent-gradient filled = keyframe at playhead). Timeline main clips show accent-gradient diamond markers along the top edge at every distinct keyframe timestamp, keeping them visible when an open panel shrinks the timeline and clear of the centered trim handles and `⧓` markers.
+- **On-preview `TransformGizmo`:** active whenever a main clip is selected and the playhead is on it (except while `CropOverlay` is open, which also hides when the playhead leaves the clip). 1-finger drag moves; 2-finger pinch/twist scales and rotates continuously (unwrapped angle deltas). Magnetic snap guides (canvas center X/Y, rotated bounding-box edges, and 0°/90°/180°/270° with an angle pill) draw in the accent gradient with a haptic tick on snap; each gesture coalesces into one undo step.
+
+### Ratio & Background panel (VCLIP "Ratio")
+
+- **Ratio** dock item opens a two-tab panel (`Ratio | Background`) with tab-scoped Reset:
+  - **Ratio:** kit rounded aspect outlines (`Original`, 9:16, 16:9, 1:1, 4:5, 3:4, 4:3).
+  - **Background:** Color (swatches), Gradient (presets + angle slider), Blur (presets + strength slider), Image (image-only Photo Picker + blur slider). Resolution moves to the Phase 10 export sheet.
 
 ### Timeline (VCLIP "Timeline")
 

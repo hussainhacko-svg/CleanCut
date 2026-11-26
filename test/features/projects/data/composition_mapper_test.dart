@@ -268,5 +268,38 @@ void main() {
       expect(image.imageUri, 'content://bg');
       expect(image.blur, 0.5);
     });
+
+    test('uncroppedClipId renders that clip full-frame fitted, keeping flip '
+        'and rotation', () {
+      final p = withFirst(
+        (c) => c.copyWith(
+          fitMode: FitMode.fill,
+          crop: const CropRect(left: 0.2, top: 0.2, right: 0.8, bottom: 0.8),
+          border: const ClipBorder(width: 0.02, radius: 0.3),
+          transform: const ClipTransform(
+            flipX: true,
+            rotation: Animatable<double>.constant(45),
+            scale: Animatable<double>.constant(2),
+            opacity: Animatable<double>.constant(0.5),
+          ),
+        ),
+      );
+      final clipId = p.mainTrack.clips.single.id;
+      final style = compositionSpecOf(
+        p,
+        uncroppedClipId: clipId,
+      ).clips.single.style;
+      expect(style.fitMode, SpecFitMode.fit);
+      expect(
+        [style.cropLeft, style.cropTop, style.cropRight, style.cropBottom],
+        [0, 0, 1, 1],
+      );
+      expect(style.borderWidth, 0);
+      expect(style.borderRadius, 0);
+      expect(style.flipX, isTrue);
+      expect(style.transform.single.rotation, 45);
+      expect(style.transform.single.scale, 1);
+      expect(style.transform.single.opacity, 1);
+    });
   });
 }

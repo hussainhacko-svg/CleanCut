@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
-import 'package:cleancut/core/theme/accent_gradient.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart'
     show SpeedLimits;
 import 'package:cleancut/features/projects/domain/model/speed_curve.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/curve_widgets.dart';
+import 'package:cleancut/features/projects/presentation/editor/panels/panel_widgets.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/speed_scale.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/tool_panel.dart';
 import 'package:flutter/material.dart';
@@ -120,9 +120,21 @@ class _SpeedPanelState extends State<SpeedPanel> {
   }
 
   Future<void> _type() async {
-    final typed = await showDialog<double>(
-      context: context,
-      builder: (context) => _SpeedDialog(initial: widget.speed),
+    final l10n = AppLocalizations.of(context);
+    final speed = widget.speed;
+    final typed = await showValueDialog(
+      context,
+      title: l10n.speedTypeTitle,
+      label: l10n.speedTypeLabel,
+      invalidText: l10n.speedTypeInvalid,
+      initialText: speed == speed.roundToDouble()
+          ? speed.toStringAsFixed(0)
+          : speed.toString(),
+      parse: (text) {
+        final parsed = double.tryParse(text);
+        if (parsed == null || !SpeedLimits.contains(parsed)) return null;
+        return SpeedScale.round(parsed);
+      },
     );
     if (typed != null && mounted) _commit(typed);
   }
@@ -158,7 +170,7 @@ class _SpeedPanelState extends State<SpeedPanel> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (onCurve != null)
-            _Tabs(
+            PanelTabs(
               labels: [l10n.speedTabNormal, l10n.speedTabCurve],
               selected: curveTab ? 1 : 0,
               onSelect: (i) => setState(() {
@@ -268,7 +280,7 @@ class _SpeedPanelState extends State<SpeedPanel> {
                         top: 10,
                         width: 48,
                         child: Center(
-                          child: _Bubble(text: l10n.speedValue(speed)),
+                          child: ValueBubble(text: l10n.speedValue(speed)),
                         ),
                       ),
                     ],
@@ -298,7 +310,7 @@ class _SpeedPanelState extends State<SpeedPanel> {
                             padding: const EdgeInsets.symmetric(horizontal: 2),
                             child: FittedBox(
                               fit: BoxFit.scaleDown,
-                              child: _MarkLabel(
+                              child: PanelLabel(
                                 text: l10n.speedValue(mark),
                                 selected: mark == speed,
                                 fontSize: width < 360 ? 12 : 14,
@@ -314,129 +326,6 @@ class _SpeedPanelState extends State<SpeedPanel> {
           ],
         );
       },
-    );
-  }
-}
-
-/// The panel's text tabs (kit "Filters"): the selected one bold in the
-/// accent gradient, the others muted. Each is a 48dp target.
-class _Tabs extends StatelessWidget {
-  const new({
-    required this.labels,
-    required this.selected,
-    required this.onSelect,
-  });
-
-  final List<String> labels;
-  final int selected;
-  final ValueChanged<int> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(start: 22),
-      child: Row(
-        children: [
-          for (final (i, label) in labels.indexed)
-            Semantics(
-              selected: i == selected,
-              button: true,
-              child: InkWell(
-                onTap: () => onSelect(i),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 48),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Center(
-                      widthFactor: 1,
-                      child: _MarkLabel(
-                        text: label,
-                        selected: i == selected,
-                        muted: scheme.outline,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The white value bubble over the ruler (kit "1/4×").
-class _Bubble extends StatelessWidget {
-  const new({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Container(
-      constraints: const BoxConstraints(minWidth: 26),
-      height: 26,
-      padding: const EdgeInsetsDirectional.symmetric(horizontal: 5),
-      decoration: BoxDecoration(
-        color: scheme.onSurface,
-        borderRadius: BorderRadius.circular(13),
-      ),
-      // widthFactor 1: as wide as the text (a circle for "1×"), not as wide
-      // as the slot the bubble rides in.
-      child: Center(
-        widthFactor: 1,
-        child: Text(
-          text,
-          maxLines: 1,
-          style: theme.textTheme.labelSmall?.copyWith(
-            fontSize: 9,
-            fontWeight: FontWeight.w700,
-            color: scheme.surface,
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A speed label under the ruler; the current one in the accent gradient.
-class _MarkLabel extends StatelessWidget {
-  const new({
-    required this.text,
-    required this.selected,
-    this.fontSize = 14,
-    this.muted,
-  });
-
-  final String text;
-  final bool selected;
-  final double fontSize;
-
-  /// Colour when not selected (default: on-surface).
-  final Color? muted;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final style = theme.textTheme.bodyMedium?.copyWith(
-      fontSize: fontSize,
-      fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-      color: selected
-          ? theme.colorScheme.onSurface
-          : (muted ?? theme.colorScheme.onSurface),
-    );
-    final label = Text(text, textAlign: TextAlign.center, style: style);
-    if (!selected) return label;
-    final gradient = AccentGradient.of(context).linear;
-    return ShaderMask(
-      blendMode: BlendMode.srcIn,
-      shaderCallback: gradient.createShader,
-      child: label,
     );
   }
 }
@@ -483,86 +372,4 @@ class _RulerPainter extends CustomPainter {
   @override
   bool shouldRepaint(_RulerPainter old) =>
       old.inset != inset || old.color != color || old.markerX != markerX;
-}
-
-/// Types an exact speed; completes with it, or null when cancelled.
-class _SpeedDialog extends StatefulWidget {
-  const new({required this.initial});
-
-  final double initial;
-
-  @override
-  State<_SpeedDialog> createState() => _SpeedDialogState();
-}
-
-class _SpeedDialogState extends State<_SpeedDialog> {
-  late final TextEditingController _controller = TextEditingController(
-    text: _format(widget.initial),
-  );
-
-  static String _format(double speed) => speed == speed.roundToDouble()
-      ? speed.toStringAsFixed(0)
-      : speed.toString();
-
-  double? get _value {
-    final parsed = double.tryParse(
-      _controller.text.trim().replaceAll(',', '.'),
-    );
-    if (parsed == null || !SpeedLimits.contains(parsed)) return null;
-    return SpeedScale.round(parsed);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _controller.selection = TextSelection(
-      baseOffset: 0,
-      extentOffset: _controller.text.length,
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final value = _value;
-    if (value != null) Navigator.of(context).pop(value);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return AlertDialog(
-      title: Text(l10n.speedTypeTitle),
-      content: ValueListenableBuilder(
-        valueListenable: _controller,
-        builder: (context, _, _) => TextField(
-          controller: _controller,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: l10n.speedTypeLabel,
-            errorText: _value == null ? l10n.speedTypeInvalid : null,
-          ),
-          onSubmitted: (_) => _submit(),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.commonCancel),
-        ),
-        ValueListenableBuilder(
-          valueListenable: _controller,
-          builder: (context, _, _) => FilledButton(
-            onPressed: _value == null ? null : _submit,
-            child: Text(l10n.commonSave),
-          ),
-        ),
-      ],
-    );
-  }
 }
