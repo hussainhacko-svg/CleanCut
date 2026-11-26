@@ -45,6 +45,7 @@ Neither branch has a PR yet; the owner decides when to push/open them.
 | `a42d7fe` | Engine plays curves: `ClipSpec.speedSteps` → `ItemSpeedProvider`. |
 | `5f6520d` | UI: "Normal \| Curve" tabs, preset tiles, `CurveEditor`. |
 | `3760610` | Emulator fix: curve points drag inside the scrolling panel (eager point recognizer); tapping a point no longer records an empty undo step. |
+| `22c5f5a` | Your speed-curves audit fixes (reviewed and committed by Claude; the new UI tests fail against the old code): Normal tab clears curves at stored speed, `CurveEditor` IEEE-754 clamp crash / cancel-vs-commit / mid-drag reset / 2× text scale, `SpeedCurve` NaN/`splitAt` & zero-duration guards, `_ClipSpeedPanel` `clipStartUs` + hide Curve tab on stills, `CompositionPlan` flat-step collapse. |
 
 ### Speed curves — how they work (read before touching speed/time code)
 
@@ -83,6 +84,8 @@ presets, curve editing and playback, v1→v2 migration of existing projects.
   moves the ruler but not the playhead line.
 - With the curve editor open, the phone timeline shrinks to its 80 dp
   minimum; owner may want a shorter graph.
+- Stills no longer show the Curve tab (they only have a length); a still
+  that already had a curve keeps it until a Normal speed is set.
 
 ## Design source
 
