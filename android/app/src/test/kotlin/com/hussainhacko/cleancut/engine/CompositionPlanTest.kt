@@ -13,10 +13,11 @@ class CompositionPlanTest {
         uri: String = "content://v",
         speed: Double = 1.0,
         keepPitch: Boolean = true,
-    ) = ClipSpec(uri, SpecMediaKind.VIDEO, durationUs, inUs, outUs, speed, keepPitch)
+        steps: List<SpeedStepSpec> = emptyList(),
+    ) = ClipSpec(uri, SpecMediaKind.VIDEO, durationUs, inUs, outUs, speed, keepPitch, steps)
 
     private fun image(inUs: Long, outUs: Long, speed: Double = 1.0) =
-        ClipSpec("content://i", SpecMediaKind.IMAGE, 3_000_000, inUs, outUs, speed, true)
+        ClipSpec("content://i", SpecMediaKind.IMAGE, 3_000_000, inUs, outUs, speed, true, emptyList())
 
     private fun spec(vararg clips: ClipSpec, w: Long = 1080, h: Long = 1920, fps: Long = 30) =
         CompositionSpec(clips.toList(), w, h, fps)
@@ -65,6 +66,46 @@ class CompositionPlanTest {
         assertEquals(1f, item.speed)
         assertFalse(item.hasSpeedChange)
         assertEquals(2_000_000, item.timelineDurationUs)
+    }
+
+    @Test
+    fun `curve steps set the speed over the clip and its length`() {
+        // 4 s of source: 2 s at 2x, then 2 s at 0.5x -> 1 s + 4 s.
+        val steps = listOf(SpeedStepSpec(0, 2.0), SpeedStepSpec(2_000_000, 0.5))
+        val item = CompositionPlan.of(spec(video(1_000_000, 5_000_000, steps = steps))).items.single()
+        assertTrue(item.hasSpeedChange)
+        assertEquals(5_000_000, item.timelineDurationUs)
+        assertEquals(2f, item.speedAt(0))
+        assertEquals(2f, item.speedAt(1_999_999))
+        assertEquals(0.5f, item.speedAt(2_000_000))
+        assertEquals(0.5f, item.speedAt(9_000_000))
+        assertEquals(2_000_000L, item.nextSpeedChangeUs(0))
+        assertEquals(null, item.nextSpeedChangeUs(2_000_000))
+    }
+
+    @Test
+    fun `curve steps are cleaned up`() {
+        val steps = listOf(
+            SpeedStepSpec(3_000_000, 4.0),
+            SpeedStepSpec(500_000, Double.NaN),
+            SpeedStepSpec(500_000, 3.0),
+            SpeedStepSpec(9_000_000, 2.0), // past the 4 s clip
+            SpeedStepSpec(-5, 2.0),
+        )
+        val item = CompositionPlan.of(spec(video(0, 4_000_000, steps = steps))).items.single()
+        // Sorted, deduplicated, inside the clip, first stretched to 0, speeds usable.
+        assertEquals(listOf(SpeedStep(0, 1f), SpeedStep(3_000_000, 4f)), item.speedSteps)
+    }
+
+    @Test
+    fun `images ignore curve steps`() {
+        val image = ClipSpec(
+            "content://i", SpecMediaKind.IMAGE, 3_000_000, 0, 2_000_000, 1.0, true,
+            listOf(SpeedStepSpec(0, 4.0)),
+        )
+        val item = CompositionPlan.of(spec(image)).items.single()
+        assertTrue(item.speedSteps.isEmpty())
+        assertFalse(item.hasSpeedChange)
     }
 
     @Test

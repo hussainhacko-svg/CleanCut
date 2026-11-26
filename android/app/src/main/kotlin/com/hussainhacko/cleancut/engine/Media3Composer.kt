@@ -54,16 +54,20 @@ object Media3Composer {
             .apply { if (item.isImage) setFrameRate(frameRate) }
             .apply {
                 if (item.hasSpeedChange) {
-                    setSpeed(SpeedParameters(ConstantSpeedProvider(item.speed), item.keepPitch))
+                    setSpeed(SpeedParameters(ItemSpeedProvider(item), item.keepPitch))
                 }
             }
             .build()
     }
 }
 
-/** Plays a whole clip at one [speed] (Flow without a curve). */
-internal class ConstantSpeedProvider(private val speed: Float) : SpeedProvider {
-    override fun getSpeed(timeUs: Long): Float = speed
+/**
+ * Plays a clip at its constant speed or along its speed-curve steps (Flow).
+ * Media3 passes source times measured from the clip's trim start.
+ */
+internal class ItemSpeedProvider(private val item: PlannedItem) : SpeedProvider {
+    override fun getSpeed(timeUs: Long): Float = item.speedAt(timeUs)
 
-    override fun getNextSpeedChangeTimeUs(timeUs: Long): Long = C.TIME_UNSET
+    override fun getNextSpeedChangeTimeUs(timeUs: Long): Long =
+        item.nextSpeedChangeUs(timeUs) ?: C.TIME_UNSET
 }

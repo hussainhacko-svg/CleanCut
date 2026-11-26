@@ -232,6 +232,52 @@ enum class PlaybackStatus(val raw: Int) {
 }
 
 /**
+ * A constant-speed piece of a speed curve: from [startUs] (measured from
+ * the clip's trim start, in source time) until the next step's start.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class SpeedStepSpec (
+  val startUs: Long,
+  val speed: Double
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): SpeedStepSpec {
+      val startUs = pigeonVar_list[0] as Long
+      val speed = pigeonVar_list[1] as Double
+      return SpeedStepSpec(startUs, speed)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      startUs,
+      speed,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as SpeedStepSpec
+    return EngineApiPigeonUtils.deepEquals(this.startUs, other.startUs) && EngineApiPigeonUtils.deepEquals(this.speed, other.speed)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.startUs)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.speed)
+    return result
+  }
+  override fun toString(): String {
+    return "SpeedStepSpec(startUs=$startUs, speed=$speed)"
+  }
+}
+
+/**
  * One clip of the main sequence. Times are microseconds.
  *
  * Generated class from Pigeon that represents data sent in messages.
@@ -253,7 +299,12 @@ data class ClipSpec (
    */
   val speed: Double,
   /** Whether sped-up or slowed-down audio keeps its pitch. */
-  val keepPitch: Boolean
+  val keepPitch: Boolean,
+  /**
+   * A speed curve as constant-speed steps (sorted, the first at 0); when
+   * not empty it replaces [speed]. Empty for images.
+   */
+  val speedSteps: List<SpeedStepSpec>
 )
  {
   companion object {
@@ -265,7 +316,8 @@ data class ClipSpec (
       val sourceOutUs = pigeonVar_list[4] as Long
       val speed = pigeonVar_list[5] as Double
       val keepPitch = pigeonVar_list[6] as Boolean
-      return ClipSpec(uri, kind, sourceDurationUs, sourceInUs, sourceOutUs, speed, keepPitch)
+      val speedSteps = pigeonVar_list[7] as List<SpeedStepSpec>
+      return ClipSpec(uri, kind, sourceDurationUs, sourceInUs, sourceOutUs, speed, keepPitch, speedSteps)
     }
   }
   fun toList(): List<Any?> {
@@ -277,6 +329,7 @@ data class ClipSpec (
       sourceOutUs,
       speed,
       keepPitch,
+      speedSteps,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -287,7 +340,7 @@ data class ClipSpec (
       return true
     }
     val other = other as ClipSpec
-    return EngineApiPigeonUtils.deepEquals(this.uri, other.uri) && EngineApiPigeonUtils.deepEquals(this.kind, other.kind) && EngineApiPigeonUtils.deepEquals(this.sourceDurationUs, other.sourceDurationUs) && EngineApiPigeonUtils.deepEquals(this.sourceInUs, other.sourceInUs) && EngineApiPigeonUtils.deepEquals(this.sourceOutUs, other.sourceOutUs) && EngineApiPigeonUtils.deepEquals(this.speed, other.speed) && EngineApiPigeonUtils.deepEquals(this.keepPitch, other.keepPitch)
+    return EngineApiPigeonUtils.deepEquals(this.uri, other.uri) && EngineApiPigeonUtils.deepEquals(this.kind, other.kind) && EngineApiPigeonUtils.deepEquals(this.sourceDurationUs, other.sourceDurationUs) && EngineApiPigeonUtils.deepEquals(this.sourceInUs, other.sourceInUs) && EngineApiPigeonUtils.deepEquals(this.sourceOutUs, other.sourceOutUs) && EngineApiPigeonUtils.deepEquals(this.speed, other.speed) && EngineApiPigeonUtils.deepEquals(this.keepPitch, other.keepPitch) && EngineApiPigeonUtils.deepEquals(this.speedSteps, other.speedSteps)
   }
 
   override fun hashCode(): Int {
@@ -299,10 +352,11 @@ data class ClipSpec (
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.sourceOutUs)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.speed)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.keepPitch)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.speedSteps)
     return result
   }
   override fun toString(): String {
-    return "ClipSpec(uri=$uri, kind=$kind, sourceDurationUs=$sourceDurationUs, sourceInUs=$sourceInUs, sourceOutUs=$sourceOutUs, speed=$speed, keepPitch=$keepPitch)"
+    return "ClipSpec(uri=$uri, kind=$kind, sourceDurationUs=$sourceDurationUs, sourceInUs=$sourceInUs, sourceOutUs=$sourceOutUs, speed=$speed, keepPitch=$keepPitch, speedSteps=$speedSteps)"
   }
 }
 
@@ -484,20 +538,25 @@ private open class EngineApiPigeonCodec : StandardMessageCodec() {
       }
       131.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          ClipSpec.fromList(it)
+          SpeedStepSpec.fromList(it)
         }
       }
       132.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          CompositionSpec.fromList(it)
+          ClipSpec.fromList(it)
         }
       }
       133.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          PlayerStateEvent.fromList(it)
+          CompositionSpec.fromList(it)
         }
       }
       134.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          PlayerStateEvent.fromList(it)
+        }
+      }
+      135.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
           WaveformData.fromList(it)
         }
@@ -515,20 +574,24 @@ private open class EngineApiPigeonCodec : StandardMessageCodec() {
         stream.write(130)
         writeValue(stream, value.raw.toLong())
       }
-      is ClipSpec -> {
+      is SpeedStepSpec -> {
         stream.write(131)
         writeValue(stream, value.toList())
       }
-      is CompositionSpec -> {
+      is ClipSpec -> {
         stream.write(132)
         writeValue(stream, value.toList())
       }
-      is PlayerStateEvent -> {
+      is CompositionSpec -> {
         stream.write(133)
         writeValue(stream, value.toList())
       }
-      is WaveformData -> {
+      is PlayerStateEvent -> {
         stream.write(134)
+        writeValue(stream, value.toList())
+      }
+      is WaveformData -> {
+        stream.write(135)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
