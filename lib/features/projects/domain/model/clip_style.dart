@@ -30,17 +30,22 @@ abstract class CropRect with _$CropRect {
   /// The largest centered crop of [aspect] inside a source whose displayed
   /// width-to-height ratio is [sourceRatio].
   ///
+  /// For sources so extreme that the crop would be thinner than [minSide],
+  /// that side is clamped to [minSide]; the rectangle then no longer matches
+  /// [aspect] exactly, which only remains as the handles' lock.
+  ///
   /// Throws an [ArgumentError] for a non-positive [sourceRatio].
   factory centered(CanvasAspect aspect, double sourceRatio) {
     if (!(sourceRatio > 0) || !sourceRatio.isFinite) {
       throw ArgumentError.value(sourceRatio, 'sourceRatio', 'must be > 0');
     }
     // Width as a fraction of the source width when the crop is full height.
-    final w = aspect.ratio / sourceRatio;
-    if (w <= 1) {
+    final ratio = aspect.ratio / sourceRatio;
+    if (ratio <= 1) {
+      final w = ratio < minSide ? minSide : ratio;
       return CropRect(left: (1 - w) / 2, right: (1 + w) / 2, aspect: aspect);
     }
-    final h = 1 / w;
+    final h = (1 / ratio) < minSide ? minSide : (1 / ratio);
     return CropRect(top: (1 - h) / 2, bottom: (1 + h) / 2, aspect: aspect);
   }
 
@@ -61,8 +66,9 @@ abstract class CropRect with _$CropRect {
 
   /// Broken invariants, empty when the crop is valid.
   List<String> validate() => [
-    if (left < 0 || top < 0 || right > 1 || bottom > 1) 'outside the frame',
-    if (width < minSide - 1e-9 || height < minSide - 1e-9) 'too small',
+    if (!(left >= 0 && top >= 0 && right <= 1 && bottom <= 1))
+      'outside the frame',
+    if (!(width >= minSide - 1e-9 && height >= minSide - 1e-9)) 'too small',
   ];
 }
 

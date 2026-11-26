@@ -173,7 +173,7 @@ void main() {
       expect(style.borderRadius, 0.3);
     });
 
-    test('keyframes are sampled per frame, at each keyframe and the end', () {
+    test('keyframes sample per frame on eased spans, not flat/linear ones', () {
       final p = withFirst(
         (c) => c.copyWith(
           transform: ClipTransform(
@@ -190,13 +190,43 @@ void main() {
       expect(times, contains(1010000));
       expect(times.last, 2000000);
       expect(times, orderedEquals([...times]..sort()));
-      // 61 frame times (every 33 333 µs below 2 s), the keyframe, the end.
-      expect(times.length, 63);
+      // 31 frame times across the eased span [0, 1.01 s), the keyframe, and
+      // the clip end (no redundant frames on the flat tail).
+      expect(times.length, 33);
       final atKeyframe = samples.firstWhere((s) => s.timeUs == 1010000);
       expect(atKeyframe.scale, 3);
       // Eased, not linear: a quarter of the way in is below a quarter.
       final quarter = samples.firstWhere((s) => s.timeUs >= 250000);
       expect(quarter.scale, lessThan(1 + 2 * quarter.timeUs / 1010000));
+    });
+
+    test('linear keyframes emit only endpoints and keyframe times', () {
+      final t = ClipTransform(
+        scale: Animatable.keyframed([
+          Keyframe(timeUs: 1000000, value: 1),
+          Keyframe(timeUs: 5000000, value: 2),
+        ]),
+      );
+      expect(transformSampleTimes(t, 600000000, 60), [
+        0,
+        1000000,
+        5000000,
+        600000000,
+      ]);
+    });
+
+    test('huge fps is clamped instead of looping forever', () {
+      final t = ClipTransform(
+        scale: Animatable.keyframed([
+          Keyframe(timeUs: 0, value: 1, easing: Easing.easeInOut),
+          Keyframe(timeUs: 100000, value: 2),
+        ]),
+      );
+      final times = transformSampleTimes(t, 100000, 10000000);
+      expect(times.first, 0);
+      expect(times.last, 100000);
+      // 240 fps cap => ~25 samples for 0.1 s.
+      expect(times.length, lessThan(30));
     });
 
     test('sample times ignore keyframes past the clip end', () {

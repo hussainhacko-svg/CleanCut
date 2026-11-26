@@ -63,9 +63,25 @@ void main() {
       );
     });
 
-    test('validate catches out-of-frame and tiny crops', () {
+    test('centered clamps extreme aspect ratios to minSide', () {
+      // Very wide panorama cropped to 9:16.
+      final narrow = CropRect.centered(CanvasAspect.portrait9x16, 100);
+      expect(narrow.width, closeTo(CropRect.minSide, 1e-9));
+      expect(narrow.validate(), isEmpty);
+
+      // Very tall scrolling screenshot cropped to 16:9.
+      final wide = CropRect.centered(CanvasAspect.landscape16x9, 0.04);
+      expect(wide.height, closeTo(CropRect.minSide, 1e-9));
+      expect(wide.validate(), isEmpty);
+    });
+
+    test('validate catches out-of-frame, NaN and tiny crops', () {
       expect(const CropRect(left: -0.1).validate(), isNotEmpty);
       expect(const CropRect(bottom: 1.1).validate(), isNotEmpty);
+      expect(const CropRect(left: double.nan).validate(), isNotEmpty);
+      expect(const CropRect(top: double.nan).validate(), isNotEmpty);
+      expect(const CropRect(right: double.nan).validate(), isNotEmpty);
+      expect(const CropRect(bottom: double.nan).validate(), isNotEmpty);
       expect(const CropRect(left: 0.5, right: 0.52).validate(), isNotEmpty);
       expect(const CropRect(left: 0.5, right: 0.55).validate(), isEmpty);
       // Inverted rectangles are too small (negative size).
@@ -111,9 +127,26 @@ void main() {
       }
     });
 
-    test('validate checks blur ranges and the image uri', () {
+    test('validate checks blur ranges, gradient angles and the image uri', () {
       expect(const CanvasBackground.blur(amount: 1.5).validate(), isNotEmpty);
+      expect(
+        const CanvasBackground.gradient(
+          startArgb: 0xFF000000,
+          endArgb: 0xFFFFFFFF,
+          angleDegrees: double.nan,
+        ).validate(),
+        isNotEmpty,
+      );
+      expect(
+        const CanvasBackground.gradient(
+          startArgb: 0xFF000000,
+          endArgb: 0xFFFFFFFF,
+          angleDegrees: double.infinity,
+        ).validate(),
+        isNotEmpty,
+      );
       expect(const CanvasBackground.image(uri: '').validate(), isNotEmpty);
+      expect(const CanvasBackground.image(uri: '   ').validate(), isNotEmpty);
       expect(
         const CanvasBackground.image(uri: 'u', blur: -1).validate(),
         isNotEmpty,
@@ -269,9 +302,13 @@ void main() {
         const SetClipCropCommand('a', crop).coalesceKey,
         isNot(const SetClipCropCommand('b', crop).coalesceKey),
       );
+      expect(
+        const SetClipCropCommand('a', crop, coalesce: false).coalesceKey,
+        isNull,
+      );
     });
 
-    test('border is validated', () {
+    test('border is validated and supports non-coalescing taps', () {
       final p = base();
       const border = ClipBorder(width: 0.02, radius: 0.1);
       expect(
@@ -287,6 +324,36 @@ void main() {
           const ClipBorder(width: 1),
         ).apply(p),
         throwsA(isA<InvalidEditException>()),
+      );
+      expect(
+        const SetClipBorderCommand('a', border, coalesce: false).coalesceKey,
+        isNull,
+      );
+    });
+
+    test('transform commands separate different timestamps and opt-out', () {
+      expect(
+        const SetClipTransformValuesCommand('a', atUs: 0, scale: 2).coalesceKey,
+        const SetClipTransformValuesCommand('a', atUs: 0, scale: 3).coalesceKey,
+      );
+      expect(
+        const SetClipTransformValuesCommand('a', atUs: 0, scale: 2).coalesceKey,
+        isNot(
+          const SetClipTransformValuesCommand(
+            'a',
+            atUs: 500000,
+            scale: 2,
+          ).coalesceKey,
+        ),
+      );
+      expect(
+        const SetClipTransformValuesCommand(
+          'a',
+          atUs: 0,
+          scale: 2,
+          coalesce: false,
+        ).coalesceKey,
+        isNull,
       );
     });
 

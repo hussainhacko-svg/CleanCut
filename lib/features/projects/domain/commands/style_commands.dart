@@ -62,10 +62,11 @@ final class SetClipFitModeCommand extends EditCommand {
       _updateClip(project, clipId, (c) => c.copyWith(fitMode: fitMode));
 }
 
-/// Sets the crop of clip [clipId]. A whole handle drag is one undo step.
+/// Sets the crop of clip [clipId]. A whole handle drag is one undo step; pass
+/// `coalesce: false` for discrete preset taps.
 final class SetClipCropCommand extends EditCommand {
   /// Creates the command.
-  const new(this.clipId, this.crop);
+  const new(this.clipId, this.crop, {this.coalesce = true});
 
   /// Target clip.
   final String clipId;
@@ -73,8 +74,11 @@ final class SetClipCropCommand extends EditCommand {
   /// The new crop; must pass `CropRect.validate`.
   final CropRect crop;
 
+  /// Whether consecutive crop edits of this clip merge into one undo step.
+  final bool coalesce;
+
   @override
-  Object? get coalesceKey => (SetClipCropCommand, clipId);
+  Object? get coalesceKey => coalesce ? (SetClipCropCommand, clipId) : null;
 
   @override
   Project apply(Project project) =>
@@ -82,10 +86,11 @@ final class SetClipCropCommand extends EditCommand {
 }
 
 /// Sets the border and corner radius of clip [clipId]. Slider drags
-/// coalesce into one undo step.
+/// coalesce into one undo step; pass `coalesce: false` for discrete swatch
+/// taps.
 final class SetClipBorderCommand extends EditCommand {
   /// Creates the command.
-  const new(this.clipId, this.border);
+  const new(this.clipId, this.border, {this.coalesce = true});
 
   /// Target clip.
   final String clipId;
@@ -93,8 +98,11 @@ final class SetClipBorderCommand extends EditCommand {
   /// The new border; must pass `ClipBorder.validate`.
   final ClipBorder border;
 
+  /// Whether consecutive border edits of this clip merge into one undo step.
+  final bool coalesce;
+
   @override
-  Object? get coalesceKey => (SetClipBorderCommand, clipId);
+  Object? get coalesceKey => coalesce ? (SetClipBorderCommand, clipId) : null;
 
   @override
   Project apply(Project project) =>
@@ -106,8 +114,9 @@ final class SetClipBorderCommand extends EditCommand {
 /// keyframed ones get or update a keyframe there (see
 /// `ClipTransform.withValuesAt`). Values are clamped into range.
 ///
-/// Consecutive commands for one clip coalesce, so a gesture on the
-/// preview or a slider drag is one undo step.
+/// Consecutive commands for one clip at the same [atUs] coalesce, so a
+/// gesture on the preview or a slider drag is one undo step; pass
+/// `coalesce: false` for discrete edits (e.g. reset or typed values).
 final class SetClipTransformValuesCommand extends EditCommand {
   /// Creates the command. Null values are left unchanged.
   const new(
@@ -117,6 +126,7 @@ final class SetClipTransformValuesCommand extends EditCommand {
     this.scale,
     this.rotation,
     this.opacity,
+    this.coalesce = true,
   });
 
   /// Target clip.
@@ -137,8 +147,12 @@ final class SetClipTransformValuesCommand extends EditCommand {
   /// New opacity.
   final double? opacity;
 
+  /// Whether consecutive edits at [atUs] merge into one undo step.
+  final bool coalesce;
+
   @override
-  Object? get coalesceKey => (SetClipTransformValuesCommand, clipId);
+  Object? get coalesceKey =>
+      coalesce ? (SetClipTransformValuesCommand, clipId, atUs) : null;
 
   @override
   Project apply(Project project) => _updateClip(
@@ -202,8 +216,8 @@ final class RotateClipQuarterCommand extends EditCommand {
   Project apply(Project project) => _updateClip(project, clipId, (c) {
     final at = _clampToClip(c, atUs);
     final current = c.transform.at(at).rotation;
-    // Next multiple of 90 strictly after the current angle (with a little
-    // slack so 89.9999 goes to 180, not 90).
+    // Next multiple of 90 strictly after the current angle (with 1e-6 slack
+    // so float noise right below a multiple, like 89.9999999, advances to 180).
     final next = ((current + 1e-6) / 90).floorToDouble() * 90 + 90;
     return c.copyWith(
       transform: c.transform.withValuesAt(

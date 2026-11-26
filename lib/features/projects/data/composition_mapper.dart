@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:cleancut/engine/media_engine.dart';
+import 'package:cleancut/features/projects/domain/model/animatable.dart';
 import 'package:cleancut/features/projects/domain/model/canvas_background.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart';
 import 'package:cleancut/features/projects/domain/model/clip_transform.dart';
@@ -93,21 +96,44 @@ ClipStyleSpec clipStyleSpecOf(Clip clip, {required int fps}) {
 }
 
 /// Times at which an animated [transform] is sampled within a clip of
-/// [durationUs]: every frame at [fps], every keyframe inside the clip and
-/// the end. A constant transform needs only time 0.
+/// [durationUs]: `0`, every keyframe inside the clip, [durationUs], plus
+/// per-frame samples at [fps] (clamped to `1..240`) across any interval
+/// whose easing is non-linear. Constant and linear segments need no extra
+/// samples because the engine interpolates linearly between samples.
 List<int> transformSampleTimes(
   ClipTransform transform,
   int durationUs,
   int fps,
 ) {
   if (!transform.isAnimated || durationUs <= 0) return const [0];
-  final step = Micros.perSecond ~/ (fps <= 0 ? 30 : fps);
-  return {
-    for (var t = 0; t < durationUs; t += step) t,
+  final clampedFps = fps <= 0 ? 30 : fps.clamp(1, 240);
+  final step = math.max(1, Micros.perSecond ~/ clampedFps);
+  final times = <int>{
+    0,
     for (final k in transform.keyframeTimes)
-      if (k <= durationUs) k,
+      if (k >= 0 && k <= durationUs) k,
     durationUs,
-  }.toList()..sort();
+  };
+  void sampleEased(Animatable<Object?> property) {
+    if (property is! KeyframedAnimatable<Object?>) return;
+    final keyframes = property.keyframes;
+    for (var i = 0; i < keyframes.length - 1; i++) {
+      final from = keyframes[i];
+      if (from.easing.isLinear) continue;
+      final start = math.max(0, from.timeUs);
+      final end = math.min(durationUs, keyframes[i + 1].timeUs);
+      if (start >= end) continue;
+      for (var t = start; t < end; t += step) {
+        times.add(t);
+      }
+    }
+  }
+
+  sampleEased(transform.position);
+  sampleEased(transform.scale);
+  sampleEased(transform.rotation);
+  sampleEased(transform.opacity);
+  return times.toList()..sort();
 }
 
 TransformSampleSpec _sample(int timeUs, ResolvedTransform t) =>

@@ -42,12 +42,15 @@ sealed class CanvasBackground with _$CanvasBackground {
 
   /// Broken invariants, empty when the background is valid.
   List<String> validate() => switch (this) {
-    ColorBackground() || GradientBackground() => const [],
+    ColorBackground() => const [],
+    GradientBackground(:final angleDegrees) => [
+      if (!angleDegrees.isFinite) 'gradient angle not finite',
+    ],
     BlurBackground(:final amount) => [
       if (!(amount >= 0 && amount <= 1)) 'blur amount out of range',
     ],
     ImageBackground(:final uri, :final blur) => [
-      if (uri.isEmpty) 'empty image uri',
+      if (uri.trim().isEmpty) 'empty image uri',
       if (!(blur >= 0 && blur <= 1)) 'blur amount out of range',
     ],
   };
