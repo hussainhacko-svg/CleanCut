@@ -62,8 +62,9 @@ class CurvePresetRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final selected = curve?.preset;
+    final labelHeight = MediaQuery.textScalerOf(context).scale(16) + 12;
     return SizedBox(
-      height: 104,
+      height: _PresetTile._tile + 6 + labelHeight,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsetsDirectional.symmetric(horizontal: 30),
@@ -293,9 +294,12 @@ class _CurveEditorState extends State<CurveEditor> {
   @override
   void didUpdateWidget(CurveEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.curve != widget.curve &&
-        (_selected ?? 0) >= widget.curve.points.length) {
-      _selected = null;
+    if (oldWidget.curve != widget.curve) {
+      _dragPoints = null;
+      _dragIndex = null;
+      if ((_selected ?? 0) >= widget.curve.points.length) {
+        _selected = null;
+      }
     }
   }
 
@@ -330,10 +334,11 @@ class _CurveEditorState extends State<CurveEditor> {
     speed = speed.clamp(SpeedLimits.min, SpeedLimits.max);
     var x = points[i].x;
     if (i > 0 && i < points.length - 1) {
-      x = ((local.dx - _inset) / (width - 2 * _inset)).clamp(
-        points[i - 1].x + SpeedCurve.minGap,
-        points[i + 1].x - SpeedCurve.minGap,
-      );
+      final lo = points[i - 1].x + SpeedCurve.minGap;
+      final hi = points[i + 1].x - SpeedCurve.minGap;
+      if (lo < hi) {
+        x = ((local.dx - _inset) / (width - 2 * _inset)).clamp(lo, hi);
+      }
     }
     setState(() {
       _dragPoints = [...points]..[i] = CurvePoint(x: x, speed: speed);
@@ -363,6 +368,7 @@ class _CurveEditorState extends State<CurveEditor> {
 
   void _endDrag() {
     final points = _dragPoints;
+    if (points == null && _dragIndex == null) return;
     setState(() {
       _dragPoints = null;
       _dragIndex = null;
@@ -371,6 +377,14 @@ class _CurveEditorState extends State<CurveEditor> {
     if (points != null && !listEquals(points, widget.curve.points)) {
       widget.onChanged(widget.curve.copyWith(points: points));
     }
+  }
+
+  void _cancelDrag() {
+    if (_dragPoints == null && _dragIndex == null) return;
+    setState(() {
+      _dragPoints = null;
+      _dragIndex = null;
+    });
   }
 
   /// Index where a point at the playhead could be added, or null.
@@ -450,7 +464,8 @@ class _CurveEditorState extends State<CurveEditor> {
                           ..onStart = ((global) => _startDrag(global, width))
                           ..onUpdate = ((global) =>
                               _dragTo(_toGraph(global), width))
-                          ..onEnd = _endDrag,
+                          ..onEnd = _endDrag
+                          ..onCancel = _cancelDrag,
                       ),
                   TapGestureRecognizer:
                       GestureRecognizerFactoryWithHandlers<
@@ -546,6 +561,7 @@ final class _PointDragRecognizer extends OneSequenceGestureRecognizer {
   ValueChanged<Offset>? onStart;
   ValueChanged<Offset>? onUpdate;
   VoidCallback? onEnd;
+  VoidCallback? onCancel;
 
   bool _active = false;
 
@@ -565,22 +581,25 @@ final class _PointDragRecognizer extends OneSequenceGestureRecognizer {
   void handleEvent(PointerEvent event) {
     if (event is PointerMoveEvent) {
       onUpdate?.call(event.position);
-    } else if (event is PointerUpEvent || event is PointerCancelEvent) {
-      _finish();
+    } else if (event is PointerUpEvent) {
+      _finish(commit: true);
+      stopTrackingPointer(event.pointer);
+    } else if (event is PointerCancelEvent) {
+      _finish(commit: false);
       stopTrackingPointer(event.pointer);
     }
   }
 
   @override
   void rejectGesture(int pointer) {
-    _finish();
+    _finish(commit: false);
     super.rejectGesture(pointer);
   }
 
-  void _finish() {
+  void _finish({required bool commit}) {
     if (!_active) return;
     _active = false;
-    onEnd?.call();
+    (commit ? onEnd : onCancel)?.call();
   }
 
   @override

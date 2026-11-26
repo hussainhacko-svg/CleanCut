@@ -71,7 +71,13 @@ data class CompositionPlan(
                 .map { SpeedStep(it.startUs, speedOf(it.speed)) }
             if (inside.isEmpty()) return emptyList()
             // The first step must start the clip; stretch it back to 0 if needed.
-            return listOf(inside.first().copy(startUs = 0)) + inside.drop(1)
+            val normalized = listOf(inside.first().copy(startUs = 0)) + inside.drop(1)
+            // Collapse adjacent equal-speed steps so flat stretches add no extra boundaries.
+            return buildList {
+                for (step in normalized) {
+                    if (isEmpty() || last().speed != step.speed) add(step)
+                }
+            }
         }
 
         /** A usable speed: NaN and non-positive speeds play normally, others are clamped. */
@@ -118,7 +124,8 @@ data class PlannedItem(
         }
 
     /** Whether the item plays at a speed other than 1. */
-    val hasSpeedChange: Boolean get() = speedSteps.isNotEmpty() || speed != 1f
+    val hasSpeedChange: Boolean
+        get() = if (speedSteps.isNotEmpty()) speedSteps.any { it.speed != 1f } else speed != 1f
 
     /** Speed at [timeUs] (source time from the trim start), following [speedSteps] if any. */
     fun speedAt(timeUs: Long): Float {

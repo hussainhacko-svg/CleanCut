@@ -165,6 +165,27 @@ void main() {
         ).validate(),
         isNotEmpty,
       );
+      for (final badX in [double.nan, double.infinity, -double.infinity]) {
+        expect(
+          SpeedCurve(
+            preset: SpeedCurvePreset.custom,
+            points: [
+              const CurvePoint(x: 0, speed: 1),
+              CurvePoint(x: badX, speed: 1),
+              const CurvePoint(x: 1, speed: 1),
+            ],
+          ).validate(),
+          isNotEmpty,
+          reason: '$badX',
+        );
+      }
+    });
+
+    test('splitAt rejects cuts outside (0, 1)', () {
+      final c = SpeedCurvePreset.montage.curve;
+      for (final bad in [-0.1, 0.0, 1.0, 1.5, double.nan]) {
+        expect(() => c.splitAt(bad), throwsArgumentError, reason: '$bad');
+      }
     });
   });
 
@@ -197,6 +218,27 @@ void main() {
             .validate(),
         isNotEmpty,
       );
+    });
+
+    test('zero-duration fast tiny clip does not throw on offset or retime', () {
+      final base = project(mainSeconds: [1]);
+      final tiny = base.mainTrack.clips.single.copyWith(
+        sourceInUs: 0,
+        sourceOutUs: 4,
+        speed: 10,
+        speedCurve: flat(10),
+        transform: ClipTransform(
+          opacity: Animatable<double>.keyframed([
+            Keyframe(timeUs: 0, value: 0),
+            Keyframe(timeUs: 1000, value: 1),
+          ]),
+        ),
+      );
+      expect(tiny.durationUs, 0);
+      expect(tiny.sourceOffsetAt(0), 0);
+      final p = base.copyWith(mainTrack: MainTrack(clips: [tiny]));
+      final slowed = const SetClipSpeedCommand('m0', speed: 1).apply(p);
+      expect(slowed.mainTrack.clips.single.durationUs, 4);
     });
   });
 

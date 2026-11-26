@@ -98,6 +98,29 @@ class CompositionPlanTest {
     }
 
     @Test
+    fun `adjacent equal-speed steps collapse and a flat 1x curve has no speed change`() {
+        val flat = listOf(
+            SpeedStepSpec(0, 1.0),
+            SpeedStepSpec(1_000_000, 1.0),
+            SpeedStepSpec(2_000_000, 1.0),
+        )
+        val flatItem = CompositionPlan.of(spec(video(0, 3_000_000, steps = flat))).items.single()
+        assertEquals(listOf(SpeedStep(0, 1f)), flatItem.speedSteps)
+        assertFalse(flatItem.hasSpeedChange)
+
+        val ramp = listOf(
+            SpeedStepSpec(0, 1.0),
+            SpeedStepSpec(1_000_000, 1.0),
+            SpeedStepSpec(2_000_000, 2.0),
+            SpeedStepSpec(3_000_000, 2.0),
+        )
+        val rampItem = CompositionPlan.of(spec(video(0, 4_000_000, steps = ramp))).items.single()
+        assertEquals(listOf(SpeedStep(0, 1f), SpeedStep(2_000_000, 2f)), rampItem.speedSteps)
+        assertTrue(rampItem.hasSpeedChange)
+        assertEquals(3_000_000, rampItem.timelineDurationUs)
+    }
+
+    @Test
     fun `images ignore curve steps`() {
         val image = ClipSpec(
             "content://i", SpecMediaKind.IMAGE, 3_000_000, 0, 2_000_000, 1.0, true,

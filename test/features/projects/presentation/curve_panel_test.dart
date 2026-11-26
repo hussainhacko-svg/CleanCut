@@ -113,6 +113,40 @@ void main() {
       await tester.tap(find.text('Reset'));
       expect(curves, [SpeedCurvePreset.hero.curve]);
     });
+
+    testWidgets('Normal tab clears a curve even at the stored speed', (
+      tester,
+    ) async {
+      await pumpPanel(tester, curve: SpeedCurvePreset.montage.curve);
+      await tester.tap(find.text('Normal'));
+      await tester.pump();
+      // Reset must be enabled because a curve is active.
+      await tester.tap(find.text('Reset'));
+      expect(speeds, [1]);
+      // Tapping the 1x label directly must also clear the curve.
+      await tester.tap(find.text('1×').last);
+      expect(speeds, [1, 1]);
+    });
+
+    testWidgets('CurvePresetRow does not overflow at 2x text scale', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        localizedApp(
+          MediaQuery(
+            data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+            child: Scaffold(
+              body: CurvePresetRow(
+                curve: SpeedCurvePreset.hero.curve,
+                onSelect: (_) {},
+                onEdit: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('CurveEditor', () {
@@ -311,6 +345,86 @@ void main() {
         matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
       );
       expect(tester.getSize(button).height, greaterThanOrEqualTo(48));
+    });
+
+    testWidgets('dragging a point tightly between neighbors does not throw', (
+      tester,
+    ) async {
+      // IEEE 754: 0.54 + 0.02 > 0.58 - 0.02, which previously crashed clamp().
+      const tight = SpeedCurve(
+        preset: SpeedCurvePreset.custom,
+        points: [
+          CurvePoint(x: 0, speed: 1),
+          CurvePoint(x: 0.54, speed: 1),
+          CurvePoint(x: 0.56, speed: 1),
+          CurvePoint(x: 0.58, speed: 1),
+          CurvePoint(x: 1, speed: 1),
+        ],
+      );
+      expect(tight.validate(), isEmpty);
+      await pumpEditor(tester, tight);
+      final gesture = await tester.startGesture(
+        pointAt(tester, tight.points[2]),
+      );
+      await gesture.moveBy(const Offset(5, -20));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(changes, hasLength(1));
+      expect(changes.single.points[2].x, 0.56);
+      expect(changes.single.points[2].speed, greaterThan(1.2));
+    });
+
+    testWidgets('cancelling a point drag discards the edit', (tester) async {
+      final curve = SpeedCurvePreset.custom.curve;
+      await pumpEditor(tester, curve);
+      final gesture = await tester.startGesture(
+        pointAt(tester, curve.points[2]),
+      );
+      await gesture.moveBy(const Offset(0, -30));
+      await tester.pump();
+      await gesture.cancel();
+      await tester.pump();
+      expect(changes, isEmpty);
+    });
+
+    testWidgets('external curve update mid-drag cancels the active drag', (
+      tester,
+    ) async {
+      var shown = SpeedCurvePreset.hero.curve;
+      late StateSetter rebuild;
+      changes = [];
+      await tester.pumpWidget(
+        localizedApp(
+          Scaffold(
+            body: Center(
+              child: StatefulBuilder(
+                builder: (context, setState) {
+                  rebuild = setState;
+                  return CurveEditor(
+                    curve: shown,
+                    playheadProgress: null,
+                    onChanged: changes.add,
+                    onBack: () {},
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      final gesture = await tester.startGesture(
+        pointAt(tester, shown.points[2]),
+      );
+      await gesture.moveBy(const Offset(0, -30));
+      await tester.pump();
+      // External Reset/Undo swaps in a different curve mid-drag.
+      rebuild(() => shown = SpeedCurvePreset.custom.curve);
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+      expect(changes, isEmpty);
     });
   });
 }

@@ -91,6 +91,7 @@ abstract class Clip with _$Clip {
   /// clip on the timeline.
   int sourceOffsetAt(int timelineOffsetUs) => switch (speedCurve) {
     null => (timelineOffsetUs * speed).round(),
+    _ when durationUs <= 0 => 0,
     final curve =>
       (sourceDurationUs * curve.progressAt(timelineOffsetUs / durationUs))
           .round(),
@@ -100,6 +101,7 @@ abstract class Clip with _$Clip {
   /// [sourceInUs]) plays.
   int timelineOffsetOf(int sourceOffsetUs) => switch (speedCurve) {
     null => Micros.scaledBySpeed(sourceOffsetUs, speed),
+    _ when sourceDurationUs <= 0 => 0,
     final curve =>
       (durationUs * curve.timelineFractionAt(sourceOffsetUs / sourceDurationUs))
           .round(),

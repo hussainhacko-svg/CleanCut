@@ -101,8 +101,10 @@ abstract class SpeedCurve with _$SpeedCurve {
     if (points.length > maxPoints) 'more than $maxPoints points',
     if (points.isNotEmpty && points.first.x != 0) 'first point not at 0',
     if (points.isNotEmpty && points.last.x != 1) 'last point not at 1',
+    for (final p in points)
+      if (!p.x.isFinite) 'non-finite x ${p.x}',
     for (var i = 1; i < points.length; i++)
-      if (points[i].x - points[i - 1].x < minGap - 1e-9)
+      if (!(points[i].x - points[i - 1].x >= minGap - 1e-9))
         'points $i-1 and $i closer than $minGap',
     for (final p in points)
       if (!SpeedLimits.contains(p.speed)) 'speed ${p.speed} out of range',
@@ -181,7 +183,12 @@ abstract class SpeedCurve with _$SpeedCurve {
   /// The two halves of this curve when its clip is cut at source progress
   /// [x] (0 < x < 1), each stretched back to 0–1. Both halves meet at the
   /// speed at the cut.
-  (SpeedCurve, SpeedCurve) splitAt(double x) => (_part(0, x), _part(x, 1));
+  (SpeedCurve, SpeedCurve) splitAt(double x) {
+    if (!(x > 0 && x < 1)) {
+      throw ArgumentError.value(x, 'x', 'must be strictly between 0 and 1');
+    }
+    return (_part(0, x), _part(x, 1));
+  }
 
   /// This curve between progress [from] and [to], stretched to 0–1.
   ///

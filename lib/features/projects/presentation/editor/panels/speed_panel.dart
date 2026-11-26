@@ -114,7 +114,9 @@ class _SpeedPanelState extends State<SpeedPanel> {
 
   void _commit(double speed) {
     setState(() => _dragSpeed = null);
-    if (speed != widget.speed) widget.onChanged(speed);
+    if (speed != widget.speed || widget.curve != null) {
+      widget.onChanged(speed);
+    }
   }
 
   Future<void> _type() async {
@@ -140,7 +142,10 @@ class _SpeedPanelState extends State<SpeedPanel> {
           ? null
           : () => onCurve(curve.preset.curve);
     } else {
-      reset = widget.speed == SpeedScale.normal && _dragSpeed == null
+      reset =
+          widget.speed == SpeedScale.normal &&
+              widget.curve == null &&
+              _dragSpeed == null
           ? null
           : () => _commit(SpeedScale.normal);
     }

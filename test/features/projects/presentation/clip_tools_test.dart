@@ -449,5 +449,29 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(ids(tester), ['m1']);
     });
+
+    testWidgets('Speed panel hides Curve tab for still images', (tester) async {
+      env = TestEnv(
+        projects: [
+          project().copyWith(
+            mainTrack: MainTrack(
+              clips: [Clip.fromMedia(id: 'i0', media: image())],
+            ),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: env.overrides,
+          child: localizedApp(const ProjectScreen(projectId: 'p1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await selectClip(tester, 0);
+      await tapTool(tester, 'Speed');
+      expect(find.byType(SpeedPanel), findsOneWidget);
+      expect(find.text('Curve'), findsNothing);
+      expect(find.byKey(SpeedPanel.rulerKey), findsOneWidget);
+    });
   });
 }

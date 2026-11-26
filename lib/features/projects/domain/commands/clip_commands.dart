@@ -26,9 +26,14 @@ Project _withClips(Project project, List<Clip> clips) =>
 /// Re-times [clip]'s keyframes after its timeline length changed from
 /// [clip]'s to [updated]'s (speed or curve change), so they stay on the
 /// same frames.
-Clip _retimed(Clip clip, Clip updated) => updated.copyWith(
-  transform: clip.transform.scaledInTime(updated.durationUs / clip.durationUs),
-);
+Clip _retimed(Clip clip, Clip updated) =>
+    clip.durationUs <= 0 || updated.durationUs <= 0
+    ? updated
+    : updated.copyWith(
+        transform: clip.transform.scaledInTime(
+          updated.durationUs / clip.durationUs,
+        ),
+      );
 
 /// Sets the used source range `[sourceInUs, sourceOutUs)` of clip [clipId].
 ///

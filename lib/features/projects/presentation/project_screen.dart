@@ -231,12 +231,18 @@ class _Editor extends ConsumerWidget {
   Widget? _toolPanel(WidgetRef ref, TimelineSelection selection) {
     final kind = ref.watch(openToolPanelProvider(projectId));
     if (kind == null || selection is! MainClipSelection) return null;
-    final clip = project.mainTrack.clips
-        .where((c) => c.id == selection.clipId)
-        .firstOrNull;
-    if (clip == null) return null;
+    final index = project.mainTrack.clips.indexWhere(
+      (c) => c.id == selection.clipId,
+    );
+    if (index < 0) return null;
+    final clip = project.mainTrack.clips[index];
+    final clipStartUs = project.mainTrack.startOf(index);
     return switch (kind) {
-      ToolPanelKind.speed => _ClipSpeedPanel(projectId: projectId, clip: clip),
+      ToolPanelKind.speed => _ClipSpeedPanel(
+        projectId: projectId,
+        clip: clip,
+        clipStartUs: clipStartUs,
+      ),
     };
   }
 
@@ -369,10 +375,15 @@ class _Editor extends ConsumerWidget {
 
 /// [SpeedPanel] bound to [clip]: each change is its own undo step.
 class _ClipSpeedPanel extends ConsumerWidget {
-  const new({required this.projectId, required this.clip});
+  const new({
+    required this.projectId,
+    required this.clip,
+    required this.clipStartUs,
+  });
 
   final String projectId;
   final Clip clip;
+  final int clipStartUs;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -387,15 +398,7 @@ class _ClipSpeedPanel extends ConsumerWidget {
     // rebuilds when that changes, not on every position tick elsewhere.
     final progress = ref.watch(
       playbackPositionProvider(projectId).select((positionUs) {
-        final project = ref
-            .read(projectSessionProvider(projectId))
-            .value
-            ?.history
-            .present;
-        final index =
-            project?.mainTrack.clips.indexWhere((c) => c.id == clip.id) ?? -1;
-        if (project == null || index < 0) return null;
-        final offset = positionUs - project.mainTrack.startOf(index);
+        final offset = positionUs - clipStartUs;
         if (offset < 0 || offset > clip.durationUs) return null;
         return (clip.sourceOffsetAt(offset) / clip.sourceDurationUs * 1000)
                 .round() /
@@ -403,15 +406,17 @@ class _ClipSpeedPanel extends ConsumerWidget {
       }),
     );
 
+    final isImage = clip.media.kind == MediaKind.image;
     return SpeedPanel(
       speed: clip.speed,
       keepPitch: clip.keepPitch,
-      curve: clip.speedCurve,
+      curve: isImage ? null : clip.speedCurve,
       playheadProgress: progress,
       onChanged: (speed) => apply(SetClipSpeedCommand(clip.id, speed: speed)),
-      onCurveChanged: (curve) =>
-          apply(SetClipSpeedCurveCommand(clip.id, curve)),
-      onKeepPitchChanged: clip.media.kind == MediaKind.image
+      onCurveChanged: isImage
+          ? null
+          : (curve) => apply(SetClipSpeedCurveCommand(clip.id, curve)),
+      onKeepPitchChanged: isImage
           ? null
           : (keep) => apply(SetClipKeepPitchCommand(clip.id, keepPitch: keep)),
       onClose: ref.read(openToolPanelProvider(projectId).notifier).close,
