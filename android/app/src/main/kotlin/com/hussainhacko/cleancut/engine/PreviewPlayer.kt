@@ -29,7 +29,11 @@ class PreviewPlayer(
     private val producer: TextureRegistry.SurfaceProducer,
     private val listener: PreviewListener,
 ) {
-    private val player = CompositionPlayer.Builder(context).build()
+    private val player = CompositionPlayer.Builder(context)
+        // Keeps the last frame so a look change while paused can be redrawn
+        // (experimentalRedrawLastFrame() requires it).
+        .experimentalSetEnableReplayableCache(true)
+        .build()
     private val handler = Handler(Looper.getMainLooper())
     private var size = Size(CompositionPlan.MIN_SIDE, CompositionPlan.MIN_SIDE)
     private var hasComposition = false
@@ -106,17 +110,10 @@ class PreviewPlayer(
         ) {
             // Only looks changed (a slider or gesture): swap them in place, no rebuild.
             current.updateLooks(plan)
-            // A paused player shows a stale frame; seeking in place redraws it.
-            // Clamp inside the last millisecond so STATE_ENDED also redraws.
-            if (!player.isPlaying) {
-                val durationMs = player.duration
-                val posMs = if (durationMs != C.TIME_UNSET && durationMs > 0) {
-                    player.currentPosition.coerceIn(0L, durationMs - 1)
-                } else {
-                    player.currentPosition.coerceAtLeast(0L)
-                }
-                player.seekTo(posMs)
-            }
+            // Re-run the last frame through the effects immediately: while paused
+            // seeking in place doesn't redraw, and while playing a sparse/static
+            // video might not deliver a new decoded frame for seconds.
+            player.experimentalRedrawLastFrame()
             return
         }
         val keepMs = if (hasComposition) player.currentPosition else 0L
