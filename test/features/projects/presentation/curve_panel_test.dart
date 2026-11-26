@@ -235,6 +235,74 @@ void main() {
       expect(find.text('Delete point'), findsOneWidget);
     });
 
+    testWidgets('a point drags inside a scrolling panel; the panel stays', (
+      tester,
+    ) async {
+      // Regression (emulator): on a phone the open panel scrolls, and its
+      // scroll view took vertical point drags, scrolling instead of editing.
+      final curve = SpeedCurvePreset.hero.curve;
+      final scroll = ScrollController();
+      addTearDown(scroll.dispose);
+      var shown = curve;
+      changes = [];
+      await tester.pumpWidget(
+        localizedApp(
+          Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: SizedBox(
+                height: 150,
+                child: SingleChildScrollView(
+                  controller: scroll,
+                  child: Column(
+                    children: [
+                      StatefulBuilder(
+                        builder: (context, setState) => CurveEditor(
+                          curve: shown,
+                          playheadProgress: null,
+                          onChanged: (c) => setState(() {
+                            changes.add(c);
+                            shown = c;
+                          }),
+                          onBack: () {},
+                        ),
+                      ),
+                      const SizedBox(height: 200),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final start = pointAt(tester, curve.points[2]);
+      final gesture = await tester.startGesture(start);
+      for (var i = 0; i < 4; i++) {
+        await gesture.moveBy(const Offset(0, -10));
+        await tester.pump();
+      }
+      await gesture.up();
+      await tester.pump();
+      expect(scroll.offset, 0);
+      expect(changes, hasLength(1));
+      expect(changes.single.points[2].speed, greaterThan(0.25));
+    });
+
+    testWidgets('tapping a point selects it without an edit', (tester) async {
+      final curve = SpeedCurvePreset.custom.curve;
+      await pumpEditor(tester, curve);
+      await tester.tapAt(pointAt(tester, curve.points[2]));
+      await tester.pump();
+      expect(changes, isEmpty);
+      expect(find.text('Delete point'), findsOneWidget);
+      // A tap off the points clears the selection.
+      final rect = tester.getRect(find.byKey(CurveEditor.graphKey));
+      await tester.tapAt(rect.topLeft + const Offset(10, 10));
+      await tester.pump();
+      expect(find.text('Delete point'), findsNothing);
+    });
+
     testWidgets('buttons are 48dp targets', (tester) async {
       await pumpEditor(tester, SpeedCurvePreset.custom.curve, playhead: 0.6);
       expect(tester.getSize(find.text('Add point')).height, lessThan(48));

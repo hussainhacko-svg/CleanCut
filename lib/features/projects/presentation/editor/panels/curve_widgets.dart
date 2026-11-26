@@ -6,7 +6,8 @@ import 'package:cleancut/core/theme/app_tokens.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart'
     show SpeedLimits;
 import 'package:cleancut/features/projects/domain/model/speed_curve.dart';
-import 'package:flutter/gestures.dart' show DragStartBehavior;
+import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -286,6 +287,9 @@ class _CurveEditorState extends State<CurveEditor> {
 
   List<CurvePoint> get _points => _dragPoints ?? widget.curve.points;
 
+  /// The graph's box, to turn global drag positions into graph positions.
+  final GlobalKey _graphBox = GlobalKey();
+
   @override
   void didUpdateWidget(CurveEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -336,13 +340,35 @@ class _CurveEditorState extends State<CurveEditor> {
     });
   }
 
+  /// [global] in the graph's coordinates.
+  Offset _toGraph(Offset global) {
+    final box = _graphBox.currentContext?.findRenderObject();
+    return box is RenderBox ? box.globalToLocal(global) : global;
+  }
+
+  /// Index of the point under [global], if any.
+  int? _graphHit(Offset global, double width) => _hit(_toGraph(global), width);
+
+  /// Starts dragging (and selects) the point under [global].
+  void _startDrag(Offset global, double width) {
+    final i = _graphHit(global, width);
+    if (i == null) return;
+    setState(() {
+      _dragIndex = i;
+      _selected = i;
+      _dragPoints = [...widget.curve.points];
+      _snapped = false;
+    });
+  }
+
   void _endDrag() {
     final points = _dragPoints;
     setState(() {
       _dragPoints = null;
       _dragIndex = null;
     });
-    if (points != null && points != widget.curve.points) {
+    // A tap on a point only selects it: no change, no undo step.
+    if (points != null && !listEquals(points, widget.curve.points)) {
       widget.onChanged(widget.curve.copyWith(points: points));
     }
   }
@@ -403,28 +429,41 @@ class _CurveEditorState extends State<CurveEditor> {
             final width = constraints.maxWidth;
             return Semantics(
               label: l10n.curveGraph,
-              child: GestureDetector(
+              // A finger on a point claims the gesture at once, so the
+              // panel's scroll view (on short screens) can't steal a
+              // vertical drag; touches that miss a point still scroll.
+              child: RawGestureDetector(
                 key: CurveEditor.graphKey,
                 behavior: HitTestBehavior.opaque,
-                // Hit-test the point where the finger went down, not where
-                // the drag was recognized (a quick drag would miss it).
-                dragStartBehavior: DragStartBehavior.down,
-                onTapUp: (d) =>
-                    setState(() => _selected = _hit(d.localPosition, width)),
-                onPanStart: (d) {
-                  final i = _hit(d.localPosition, width);
-                  if (i == null) return;
-                  setState(() {
-                    _dragIndex = i;
-                    _selected = i;
-                    _dragPoints = [...widget.curve.points];
-                    _snapped = false;
-                  });
+                gestures: {
+                  _PointDragRecognizer:
+                      GestureRecognizerFactoryWithHandlers<
+                        _PointDragRecognizer
+                      >(
+                        () => _PointDragRecognizer(
+                          hitsPoint: (global) =>
+                              _graphHit(global, width) != null,
+                        ),
+                        (r) => r
+                          ..hitsPoint = ((global) =>
+                              _graphHit(global, width) != null)
+                          ..onStart = ((global) => _startDrag(global, width))
+                          ..onUpdate = ((global) =>
+                              _dragTo(_toGraph(global), width))
+                          ..onEnd = _endDrag,
+                      ),
+                  TapGestureRecognizer:
+                      GestureRecognizerFactoryWithHandlers<
+                        TapGestureRecognizer
+                      >(
+                        TapGestureRecognizer.new,
+                        // A tap off the points clears the selection.
+                        (r) =>
+                            r.onTapUp = (_) => setState(() => _selected = null),
+                      ),
                 },
-                onPanUpdate: (d) => _dragTo(d.localPosition, width),
-                onPanEnd: (_) => _endDrag(),
-                onPanCancel: _endDrag,
                 child: SizedBox(
+                  key: _graphBox,
                   height: _height,
                   child: CustomPaint(
                     painter: _GraphPainter(
@@ -492,6 +531,63 @@ class _CurveEditorState extends State<CurveEditor> {
       ],
     );
   }
+}
+
+/// Drags a curve point. Unlike the standard drag recognizers it claims
+/// the gesture as soon as a finger lands on a point (before any movement),
+/// so a surrounding scroll view never takes a vertical point drag. Touches
+/// elsewhere are not tracked at all.
+final class _PointDragRecognizer extends OneSequenceGestureRecognizer {
+  new({required this.hitsPoint});
+
+  /// Whether a finger at this global position is on a point.
+  bool Function(Offset global) hitsPoint;
+
+  ValueChanged<Offset>? onStart;
+  ValueChanged<Offset>? onUpdate;
+  VoidCallback? onEnd;
+
+  bool _active = false;
+
+  @override
+  bool isPointerAllowed(PointerDownEvent event) =>
+      !_active && hitsPoint(event.position) && super.isPointerAllowed(event);
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    super.addAllowedPointer(event);
+    _active = true;
+    resolve(GestureDisposition.accepted);
+    onStart?.call(event.position);
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    if (event is PointerMoveEvent) {
+      onUpdate?.call(event.position);
+    } else if (event is PointerUpEvent || event is PointerCancelEvent) {
+      _finish();
+      stopTrackingPointer(event.pointer);
+    }
+  }
+
+  @override
+  void rejectGesture(int pointer) {
+    _finish();
+    super.rejectGesture(pointer);
+  }
+
+  void _finish() {
+    if (!_active) return;
+    _active = false;
+    onEnd?.call();
+  }
+
+  @override
+  void didStopTrackingLastPointer(int pointer) {}
+
+  @override
+  String get debugDescription => 'curve point drag';
 }
 
 class _GraphPainter extends CustomPainter {
