@@ -75,6 +75,17 @@ void main() {
       ThemePreference.values[19 % ThemePreference.values.length],
     );
   });
+
+  test('delete waits for an in-flight save on the same project', () async {
+    final repo = FileProjectRepository(dir, clock: () => testTime);
+    final p = project();
+    await Future.wait([
+      for (var i = 0; i < 10; i++) repo.save(p.copyWith(name: 'n$i')),
+      repo.delete(p.id),
+    ]);
+    expect(await repo.loadAll(), isEmpty);
+    expect(Directory('${dir.path}/${p.id}').existsSync(), isFalse);
+  });
 }
 
 Map<String, dynamic> _firstClip(Map<String, dynamic> projectJson) {

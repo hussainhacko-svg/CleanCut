@@ -90,6 +90,46 @@ void main() {
       await playback.load(project(mainSeconds: [3]));
       expect(engine.specs, hasLength(2));
     });
+
+    test('a failed load can be retried with the same composition', () async {
+      final playback = await start();
+      final p = project(mainSeconds: [2]);
+      engine.failNextSet = true;
+      await expectLater(playback.load(p), throwsStateError);
+      await playback.load(p);
+      expect(engine.specs, hasLength(1));
+    });
+
+    test('a superseded load while preview is starting is skipped', () async {
+      engine.createGate = Completer<void>();
+      container.listen(playbackProvider('p1'), (_, _) {});
+      final playback = container.read(playbackProvider('p1').notifier);
+      final first = playback.load(project(mainSeconds: [1]));
+      final second = playback.load(project(mainSeconds: [2, 3]));
+      engine.createGate!.complete();
+      await Future.wait([first, second]);
+      expect(engine.specs, hasLength(1));
+      expect(engine.specs.single.clips, hasLength(2));
+    });
+  });
+
+  group('ClipThumbnails', () {
+    test('a failed batch completes and is not retried', () async {
+      final engine = FakeMediaEngine()..failThumbnails = true;
+      final container = ProviderContainer(
+        overrides: [mediaEngineProvider.overrideWithValue(engine)],
+      );
+      addTearDown(container.dispose);
+      final provider = clipThumbnailsProvider('content://a', 120);
+      container.listen(provider, (_, _) {});
+      final notifier = container.read(provider.notifier);
+
+      await notifier.ensure([0, 1000000]);
+      expect(container.read(provider), {0: null, 1000000: null});
+
+      await notifier.ensure([0, 1000000]);
+      expect(engine.thumbnailBatches, hasLength(1));
+    });
   });
 
   group('Editor screen', () {

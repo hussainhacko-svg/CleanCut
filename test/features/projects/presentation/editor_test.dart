@@ -283,11 +283,10 @@ void main() {
 
     testWidgets('the timeline follows playback', (tester) async {
       final env = await pumpEditor(tester);
-      final scrollable = find.descendant(
-        of: find.byType(TimelineView),
-        matching: find.byType(Scrollable),
+      final scrollable = find.byWidgetPredicate(
+        (w) => w is Scrollable && w.axisDirection == AxisDirection.right,
       );
-      final position = tester.state<ScrollableState>(scrollable).position;
+      final position = tester.state<ScrollableState>(scrollable.first).position;
       expect(position.pixels, 0);
       env.engine.emitPosition(5000000);
       await tester.pump();
@@ -361,6 +360,219 @@ void main() {
       await tester.tap(find.byType(MainClipView).first);
       await tester.pump();
       expect(find.text('0:02'), findsOneWidget);
+    });
+
+    testWidgets(
+      'PropertiesPanel tolerates a stale selection without throwing',
+      (tester) async {
+        await tester.pumpWidget(
+          localizedApp(
+            Scaffold(
+              body: PropertiesPanel(
+                project: project(mainSeconds: [2]),
+                selection: const MainClipSelection('deleted'),
+              ),
+            ),
+          ),
+        );
+        expect(
+          find.text('Select a clip on the timeline to edit it.'),
+          findsOneWidget,
+        );
+      },
+    );
+  });
+
+  group('Timeline audit regressions', () {
+    testWidgets('short audio and overlay pills render without overflow', (
+      tester,
+    ) async {
+      final shortProject = project(mainSeconds: [2]).copyWith(
+        overlayTracks: [
+          LayerTrack(
+            id: 'o1',
+            items: [
+              PlacedClip(
+                startUs: 0,
+                clip: Clip.fromMedia(
+                  id: 'ov',
+                  media: image(),
+                  imageDurationUs: 500000,
+                ),
+              ),
+            ],
+          ),
+        ],
+        audioTracks: [
+          AudioTrack(
+            id: 'a1',
+            items: [
+              PlacedAudioClip(
+                startUs: 0,
+                clip: AudioClip(
+                  id: 'au',
+                  media: audio(),
+                  sourceInUs: 0,
+                  sourceOutUs: 500000,
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+      final env = TestEnv(projects: [shortProject]);
+      env.engine.waveformData = WaveformData(
+        peaks: Uint8List.fromList([10, 200, 100]),
+        peaksPerSecond: 2,
+        durationUs: 1500000,
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: env.overrides,
+          child: localizedApp(const ProjectScreen(projectId: 'p1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      // Selecting a short pill adds a 2px border; still no overflow.
+      await tester.tap(find.byType(LanePill).first);
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('many lanes scroll vertically without overflow', (
+      tester,
+    ) async {
+      final tallProject = project(mainSeconds: [3]).copyWith(
+        overlayTracks: [
+          for (var i = 0; i < 5; i++)
+            LayerTrack(
+              id: 'o$i',
+              items: [
+                PlacedClip(
+                  startUs: 0,
+                  clip: Clip.fromMedia(id: 'ov$i', media: image()),
+                ),
+              ],
+            ),
+        ],
+        audioTracks: [
+          for (var i = 0; i < 4; i++)
+            AudioTrack(
+              id: 'a$i',
+              items: [
+                PlacedAudioClip(
+                  startUs: 0,
+                  clip: AudioClip(
+                    id: 'au$i',
+                    media: audio(),
+                    sourceInUs: 0,
+                    sourceOutUs: 2000000,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      );
+      final env = TestEnv(projects: [tallProject]);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: env.overrides,
+          child: localizedApp(const ProjectScreen(projectId: 'p1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('tapping empty space below lanes deselects the clip', (
+      tester,
+    ) async {
+      final env = TestEnv(
+        projects: [
+          project(mainSeconds: [2]),
+        ],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: env.overrides,
+          child: localizedApp(const ProjectScreen(projectId: 'p1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(MainClipView).first);
+      await tester.pump();
+      expect(
+        tester.widget<MainClipView>(find.byType(MainClipView).first).selected,
+        isTrue,
+      );
+      final box = tester.getRect(find.byType(TimelineView));
+      // Tap near the bottom of the TimelineView, below the audio lane.
+      await tester.tapAt(Offset(box.center.dx, box.bottom - 8));
+      await tester.pump();
+      expect(
+        tester.widget<MainClipView>(find.byType(MainClipView).first).selected,
+        isFalse,
+      );
+    });
+
+    testWidgets('pinching after a drag starts cancels scrub without seeking', (
+      tester,
+    ) async {
+      final env = TestEnv(projects: [richProject()]);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: env.overrides,
+          child: localizedApp(const ProjectScreen(projectId: 'p1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      env.engine.emitState(durationUs: 5000000);
+      await tester.pump();
+
+      final center = tester.getCenter(find.byType(TimelineView));
+      final a = await tester.startGesture(center - const Offset(10, 0));
+      await a.moveBy(const Offset(-30, 0));
+      await tester.pump();
+      env.engine.seeks.clear();
+
+      final b = await tester.startGesture(center + const Offset(20, 0));
+      await tester.pump();
+      await a.moveBy(const Offset(-20, 0));
+      await b.moveBy(const Offset(20, 0));
+      await tester.pump();
+      await a.up();
+      await b.up();
+      await tester.pumpAndSettle();
+      expect(env.engine.seeks, isEmpty);
+    });
+
+    testWidgets('ThumbnailStrip batches frame requests per clip', (
+      tester,
+    ) async {
+      final env = TestEnv(
+        projects: [
+          project(mainSeconds: [30]),
+        ],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: env.overrides,
+          child: localizedApp(const ProjectScreen(projectId: 'p1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(env.engine.thumbnailBatches, hasLength(1));
+      expect(env.engine.thumbnailBatches.single.length, greaterThan(1));
+    });
+
+    test('sliceWaveformPeaks slices to [sourceInUs, sourceOutUs)', () {
+      final data = WaveformData(
+        peaks: Uint8List.fromList([10, 20, 30, 40, 50]),
+        peaksPerSecond: 1,
+        durationUs: 5000000,
+      );
+      expect(sliceWaveformPeaks(data, 1000000, 3000000), [20, 30]);
+      expect(sliceWaveformPeaks(data, 0, 5000000), [10, 20, 30, 40, 50]);
     });
   });
 

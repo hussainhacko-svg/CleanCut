@@ -289,29 +289,41 @@ class PropertiesPanel extends StatelessWidget {
       case NoSelection():
         return (l10n.panelTitle, l10n.panelNothingSelected);
       case MainClipSelection(:final clipId):
-        final clip = project.mainTrack.clips.firstWhere((c) => c.id == clipId);
-        return (
-          clip.media.displayName ?? l10n.panelClip,
-          formatDurationUs(clip.durationUs),
-        );
+        for (final clip in project.mainTrack.clips) {
+          if (clip.id == clipId) {
+            return (
+              clip.media.displayName ?? l10n.panelClip,
+              formatDurationUs(clip.durationUs),
+            );
+          }
+        }
+        return (l10n.panelTitle, l10n.panelNothingSelected);
       case OverlaySelection(:final trackId, :final clipId):
-        final item = project.overlayTracks
-            .firstWhere((t) => t.id == trackId)
-            .items
-            .firstWhere((i) => i.clip.id == clipId);
-        return (
-          item.clip.media.displayName ?? l10n.laneOverlay,
-          formatDurationUs(item.clip.durationUs),
-        );
+        for (final track in project.overlayTracks) {
+          if (track.id != trackId) continue;
+          for (final item in track.items) {
+            if (item.clip.id == clipId) {
+              return (
+                item.clip.media.displayName ?? l10n.laneOverlay,
+                formatDurationUs(item.clip.durationUs),
+              );
+            }
+          }
+        }
+        return (l10n.panelTitle, l10n.panelNothingSelected);
       case AudioSelection(:final trackId, :final clipId):
-        final item = project.audioTracks
-            .firstWhere((t) => t.id == trackId)
-            .items
-            .firstWhere((i) => i.clip.id == clipId);
-        return (
-          item.clip.media.displayName ?? l10n.laneAudio,
-          formatDurationUs(item.clip.durationUs),
-        );
+        for (final track in project.audioTracks) {
+          if (track.id != trackId) continue;
+          for (final item in track.items) {
+            if (item.clip.id == clipId) {
+              return (
+                item.clip.media.displayName ?? l10n.laneAudio,
+                formatDurationUs(item.clip.durationUs),
+              );
+            }
+          }
+        }
+        return (l10n.panelTitle, l10n.panelNothingSelected);
     }
   }
 }

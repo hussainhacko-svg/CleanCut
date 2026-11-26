@@ -126,9 +126,19 @@ class Playback extends _$Playback {
     // can't both send the same composition.
     if (spec == _loadedSpec) return;
     _loadedSpec = spec;
-    if (!await _ready()) return;
+    if (!await _ready()) {
+      if (_loadedSpec == spec) _loadedSpec = null;
+      return;
+    }
+    // A newer load arrived while waiting for the preview; let it win.
+    if (_loadedSpec != spec) return;
     state = state._copyWith(clearError: true);
-    await _engine.setComposition(spec);
+    try {
+      await _engine.setComposition(spec);
+    } on Object {
+      if (_loadedSpec == spec) _loadedSpec = null;
+      rethrow;
+    }
   }
 
   /// Plays, or pauses while playing.
@@ -201,4 +211,48 @@ Future<String?> clipThumbnail(
     timeUs,
   ], heightPx: heightPx);
   return paths.firstOrNull;
+}
+
+/// Batched frame cache for timeline thumbnail strips, keyed by timestamp (µs).
+///
+/// Call [ensure] with all timestamps currently needed by a clip's strip;
+/// missing frames are fetched in a single native `thumbnails` call (one
+/// `MediaMetadataRetriever` per batch instead of one per tile).
+@riverpod
+class ClipThumbnails extends _$ClipThumbnails {
+  final Set<int> _inFlight = {};
+
+  @override
+  Map<int, String?> build(String uri, int heightPx) => const {};
+
+  /// Fetches any timestamps in [timesUs] not yet cached or in flight.
+  Future<void> ensure(Iterable<int> timesUs) async {
+    final missing = <int>[];
+    for (final t in timesUs) {
+      if (!state.containsKey(t) && _inFlight.add(t)) {
+        missing.add(t);
+      }
+    }
+    if (missing.isEmpty) return;
+    final engine = ref.read(mediaEngineProvider);
+    try {
+      List<String?> paths;
+      try {
+        paths = await engine.thumbnails(uri, missing, heightPx: heightPx);
+      } on Object {
+        // E.g. the media's permission was revoked. Cache the frames as
+        // missing so scrolling doesn't retry the failing call; callers don't
+        // await ensure(), so a rethrow would be an unhandled error.
+        paths = const [];
+      }
+      if (!ref.mounted) return;
+      final updated = Map<int, String?>.of(state);
+      for (var i = 0; i < missing.length; i++) {
+        updated[missing[i]] = i < paths.length ? paths[i] : null;
+      }
+      state = updated;
+    } finally {
+      _inFlight.removeAll(missing);
+    }
+  }
 }

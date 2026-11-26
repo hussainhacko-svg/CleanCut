@@ -63,7 +63,7 @@ void main() {
     );
   });
 
-  test('a second call while the picker is open shares the first', () async {
+  test('a second call while the picker is open returns empty', () async {
     final api = _MockApi();
     final gate = Completer<List<PickedMedia>>();
     when(() => api.pickVisualMedia(allowMultiple: true))
@@ -72,9 +72,18 @@ void main() {
 
     final first = picker.pickVisualMedia();
     final second = picker.pickVisualMedia();
-    gate.complete(const []);
+    gate.complete([
+      PickedMedia(
+        uri: 'content://v',
+        kind: PickedMediaKind.video,
+        durationUs: 1000000,
+        width: 1920,
+        height: 1080,
+        rotationDegrees: 0,
+      ),
+    ]);
 
-    expect(await first, isEmpty);
+    expect(await first, hasLength(1));
     expect(await second, isEmpty);
     verify(() => api.pickVisualMedia(allowMultiple: true)).called(1);
 

@@ -130,12 +130,14 @@ class _Editor extends ConsumerWidget {
         try {
           media = await ref.read(mediaPickerProvider).pickVisualMedia();
         } on PlatformException {
-          messenger.showSnackBar(
-            SnackBar(content: Text(l10n.mediaPickerFailed)),
-          );
+          if (context.mounted) {
+            messenger.showSnackBar(
+              SnackBar(content: Text(l10n.mediaPickerFailed)),
+            );
+          }
           return;
         }
-        if (media.isEmpty) return;
+        if (media.isEmpty || !context.mounted) return;
         ref
             .read(projectSessionProvider(projectId).notifier)
             .apply(

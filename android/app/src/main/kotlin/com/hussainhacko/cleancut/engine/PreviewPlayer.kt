@@ -83,11 +83,12 @@ class PreviewPlayer(
             producer.setSize(plan.width, plan.height)
         }
         if (plan.items.isEmpty()) {
-            player.stop()
+            // Clear before stop() so any listener callback triggered by stop()
+            // also reports an empty timeline rather than stale duration/position.
             hasComposition = false
-            // A stopped player still reports the old timeline; report an empty
-            // one so the UI drops the stale duration.
-            listener.onState(PlayerStateEvent(textureId, PlaybackStatus.IDLE, false, 0, 0))
+            player.stop()
+            player.clearVideoSurface()
+            listener.onState(state())
             return
         }
         val keepMs = if (hasComposition) player.currentPosition else 0L
@@ -130,9 +131,12 @@ class PreviewPlayer(
         if (player.isPlaying) handler.post(ticker)
     }
 
-    private fun positionUs(): Long = player.currentPosition * 1000
+    private fun positionUs(): Long = player.currentPosition.coerceAtLeast(0L) * 1000
 
     private fun state(): PlayerStateEvent {
+        if (!hasComposition) {
+            return PlayerStateEvent(textureId, PlaybackStatus.IDLE, false, 0, 0)
+        }
         val durationMs = player.duration
         return PlayerStateEvent(
             textureId = textureId,

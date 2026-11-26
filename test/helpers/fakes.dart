@@ -77,10 +77,17 @@ class FakeMediaEngine implements MediaEngine {
   final calls = <String>[];
   final specs = <CompositionSpec>[];
   final seeks = <int>[];
+  final thumbnailBatches = <List<int>>[];
   int nextTextureId = 7;
 
   /// Paths returned by [thumbnails]; null means "no frame".
   String? thumbnailPath;
+
+  /// When true, [thumbnails] throws (e.g. the media's permission was revoked).
+  bool failThumbnails = false;
+
+  /// When true, the next [setComposition] throws once and resets this flag.
+  bool failNextSet = false;
 
   final _states = StreamController<PlayerStateEvent>.broadcast(sync: true);
   final _positions = StreamController<PositionUpdate>.broadcast(sync: true);
@@ -135,6 +142,10 @@ class FakeMediaEngine implements MediaEngine {
   @override
   Future<void> setComposition(CompositionSpec spec) async {
     calls.add('set');
+    if (failNextSet) {
+      failNextSet = false;
+      throw StateError('engine failed');
+    }
     specs.add(spec);
   }
 
@@ -160,7 +171,11 @@ class FakeMediaEngine implements MediaEngine {
     String uri,
     List<int> timesUs, {
     required int heightPx,
-  }) async => [for (final _ in timesUs) thumbnailPath];
+  }) async {
+    thumbnailBatches.add(List<int>.of(timesUs));
+    if (failThumbnails) throw StateError('thumbnails failed');
+    return [for (final _ in timesUs) thumbnailPath];
+  }
 
   /// Returned by [waveform].
   WaveformData? waveformData;

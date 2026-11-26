@@ -6,9 +6,11 @@ import 'dart:ui' as ui show Clip;
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/theme/timeline_colors.dart';
 import 'package:cleancut/core/widgets/app_icon.dart';
+import 'package:cleancut/engine/media_engine.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
+import 'package:cleancut/features/projects/domain/model/time.dart';
 import 'package:cleancut/features/projects/domain/timeline/ruler.dart';
 import 'package:cleancut/features/projects/domain/timeline/snapping.dart';
 import 'package:cleancut/features/projects/domain/timeline/timeline_scale.dart';
@@ -100,6 +102,10 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   }
 
   bool _onScroll(ScrollNotification n) {
+    // Only the horizontal timeline scroll scrubs; vertical lane scrolling does
+    // not move the playhead.
+    if (n.metrics.axis != Axis.horizontal) return false;
+    if (_pinchStartDistance != null) return false;
     if (n is ScrollStartNotification && n.dragDetails != null) {
       _userScrolling = true;
       _lastSnapUs = null;
@@ -121,9 +127,11 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
       unawaited(_playback.seekTo(snapped ?? raw));
     } else if (n is ScrollEndNotification && _userScrolling) {
       _userScrolling = false;
+      final resume = _resumeAfterScrub;
+      _resumeAfterScrub = false;
       // Settle exactly on the snapped edge.
       if (_lastSnapUs case final snap?) _jumpTo(snap);
-      if (_resumeAfterScrub) unawaited(_playback.play());
+      if (resume) unawaited(_playback.play());
     }
     return false;
   }
@@ -132,6 +140,16 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   void _onPointerDown(PointerDownEvent e) {
     _pointers[e.pointer] = e.position;
     if (_pointers.length == 2) {
+      // Cancel any in-progress 1-finger scrub so zoom adjustments via _jumpTo
+      // aren't treated as user scrubs.
+      if (_userScrolling) {
+        _userScrolling = false;
+        _lastSnapUs = null;
+        if (_resumeAfterScrub) {
+          _resumeAfterScrub = false;
+          unawaited(_playback.play());
+        }
+      }
       final [a, b] = _pointers.values.toList();
       _pinchStartDistance = (a - b).distance;
       _pinchStartScale = _scale;
@@ -179,7 +197,9 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
       ..listen(timelineZoomProvider(widget.projectId), (_, _) {
         // Keep the playhead on the same time while zooming.
         final position = ref.read(playbackPositionProvider(widget.projectId));
-        WidgetsBinding.instance.addPostFrameCallback((_) => _jumpTo(position));
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _jumpTo(position);
+        });
       });
 
     return Directionality(
@@ -190,6 +210,16 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
           final pad = viewport / 2;
           final contentWidth = scale.toPx(project.durationUs) + viewport;
           final layout = _LaneLayout.of(project);
+          final viewportHeight = constraints.maxHeight.isFinite
+              ? constraints.maxHeight
+              : layout.height;
+          final contentHeight = math.max(layout.height, viewportHeight);
+          final physics = _pinchStartDistance != null
+              ? const NeverScrollableScrollPhysics()
+              : const ClampingScrollPhysics();
+          const playheadTop = TimelineMetrics.rulerHeight + 4;
+          final lanesBottom =
+              layout.audioTops.last + TimelineMetrics.laneHeight;
 
           return Listener(
             onPointerDown: _onPointerDown,
@@ -198,35 +228,36 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
             onPointerCancel: _onPointerUp,
             child: Stack(
               children: [
-                NotificationListener<ScrollNotification>(
-                  onNotification: _onScroll,
-                  child: SingleChildScrollView(
-                    controller: _scroll,
-                    scrollDirection: Axis.horizontal,
-                    physics: _pinchStartDistance != null
-                        ? const NeverScrollableScrollPhysics()
-                        : const ClampingScrollPhysics(),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: ref
-                          .read(
-                            timelineSelectionControllerProvider(
-                              widget.projectId,
-                            ).notifier,
-                          )
-                          .clear,
-                      child: SizedBox(
-                        width: contentWidth,
-                        height: layout.height,
-                        child: _TimelineContent(
-                          projectId: widget.projectId,
-                          project: project,
-                          layout: layout,
-                          scale: scale,
-                          pad: pad,
-                          viewport: viewport,
-                          scroll: _scroll,
-                          selection: selection,
+                SingleChildScrollView(
+                  physics: physics,
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: _onScroll,
+                    child: SingleChildScrollView(
+                      controller: _scroll,
+                      scrollDirection: Axis.horizontal,
+                      physics: physics,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: ref
+                            .read(
+                              timelineSelectionControllerProvider(
+                                widget.projectId,
+                              ).notifier,
+                            )
+                            .clear,
+                        child: SizedBox(
+                          width: contentWidth,
+                          height: contentHeight,
+                          child: _TimelineContent(
+                            projectId: widget.projectId,
+                            project: project,
+                            layout: layout,
+                            scale: scale,
+                            pad: pad,
+                            viewport: viewport,
+                            scroll: _scroll,
+                            selection: selection,
+                          ),
                         ),
                       ),
                     ),
@@ -236,13 +267,10 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
                 // Spans the lanes only, as in the kit.
                 Positioned(
                   left: pad - 1,
-                  top: TimelineMetrics.rulerHeight + 4,
+                  top: playheadTop,
                   height: math.max(
                     0,
-                    layout.height -
-                        TimelineMetrics.rulerHeight -
-                        4 -
-                        TimelineMetrics.laneGap,
+                    math.min(lanesBottom, viewportHeight) - playheadTop,
                   ),
                   child: IgnorePointer(
                     child: Container(
@@ -288,7 +316,8 @@ class _LaneLayout {
       overlayTops: overlays,
       mainTop: main,
       audioTops: audio,
-      height: y,
+      // Extra 5dp below the last lane keeps the 48dp mute button inside bounds.
+      height: y + 5,
     );
   }
 
@@ -447,7 +476,11 @@ class _TimelineContent extends ConsumerWidget {
               selected: selection == sel,
               dimmed: dimOthers,
               onTap: () => selector.toggle(sel),
-              trailing: _Waveform(uri: item.clip.media.uri),
+              trailing: _Waveform(
+                uri: item.clip.media.uri,
+                sourceInUs: item.clip.sourceInUs,
+                sourceOutUs: item.clip.sourceOutUs,
+              ),
             ),
           ),
         );
@@ -677,6 +710,7 @@ class _ThumbnailStripState extends ConsumerState<ThumbnailStrip> {
     super.initState();
     widget.scroll.addListener(_update);
     _range = _compute();
+    _requestVisible();
   }
 
   @override
@@ -686,7 +720,13 @@ class _ThumbnailStripState extends ConsumerState<ThumbnailStrip> {
       oldWidget.scroll.removeListener(_update);
       widget.scroll.addListener(_update);
     }
-    _range = _compute();
+    final next = _compute();
+    final changed =
+        next != _range ||
+        oldWidget.clip != widget.clip ||
+        oldWidget.scale != widget.scale;
+    _range = next;
+    if (changed) _requestVisible();
   }
 
   @override
@@ -710,7 +750,36 @@ class _ThumbnailStripState extends ConsumerState<ThumbnailStrip> {
 
   void _update() {
     final next = _compute();
-    if (next != _range) setState(() => _range = next);
+    if (next != _range) {
+      setState(() => _range = next);
+      _requestVisible();
+    }
+  }
+
+  /// Requests all visible tile timestamps in a single batched engine call.
+  void _requestVisible() {
+    final (first, last) = _range;
+    if (last < first) return;
+    final clip = widget.clip;
+    final isImage = clip.media.kind == MediaKind.image;
+    final tile = _tileWidth;
+    final times = isImage
+        ? const [0]
+        : <int>{
+            for (var i = first; i <= last; i++) _sourceTimeAt((i + 0.5) * tile),
+          };
+    unawaited(
+      Future.microtask(() {
+        if (!mounted) return;
+        unawaited(
+          ref
+              .read(
+                clipThumbnailsProvider(clip.media.uri, _Tile.heightPx).notifier,
+              )
+              .ensure(times),
+        );
+      }),
+    );
   }
 
   @override
@@ -753,16 +822,18 @@ class _Tile extends ConsumerWidget {
   final int timeUs;
 
   /// Tiles are 60 dp tall; 2× for sharp pixels.
-  static const int _heightPx = 120;
+  static const int heightPx = 120;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final path = ref.watch(clipThumbnailProvider(uri, timeUs, _heightPx)).value;
+    final path = ref.watch(
+      clipThumbnailsProvider(uri, heightPx).select((m) => m[timeUs]),
+    );
     if (path == null) return const SizedBox.shrink();
     return Image.file(
       File(path),
       fit: BoxFit.cover,
-      cacheHeight: _heightPx,
+      cacheHeight: heightPx,
       gaplessPlayback: true,
       errorBuilder: (_, _, _) => const SizedBox.shrink(),
     );
@@ -837,26 +908,43 @@ class LanePill extends StatelessWidget {
                   ),
                   child: ClipRRect(
                     borderRadius: radius,
-                    child: Padding(
-                      padding: const EdgeInsetsDirectional.only(start: 10),
-                      child: Row(
-                        children: [
-                          AppIcon(icon, size: 10, color: scheme.onSurface),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textStyle,
-                            ),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Drop label / waveform on narrow pills so short or
+                        // zoomed-out clips never trigger a Row overflow.
+                        final showLabel = constraints.maxWidth >= 44;
+                        final showTrailing =
+                            trailing != null && constraints.maxWidth >= 72;
+                        return Padding(
+                          padding: EdgeInsetsDirectional.only(
+                            start: showLabel ? 10 : 0,
+                            end: showLabel ? 4 : 0,
                           ),
-                          if (trailing case final t?) ...[
-                            const SizedBox(width: 8),
-                            Expanded(child: t),
-                          ],
-                        ],
-                      ),
+                          child: Row(
+                            mainAxisAlignment: showLabel
+                                ? MainAxisAlignment.start
+                                : MainAxisAlignment.center,
+                            children: [
+                              AppIcon(icon, size: 10, color: scheme.onSurface),
+                              if (showLabel) ...[
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    label,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: textStyle,
+                                  ),
+                                ),
+                              ],
+                              if (trailing case final t? when showTrailing) ...[
+                                const SizedBox(width: 8),
+                                Expanded(child: t),
+                              ],
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -877,19 +965,46 @@ class LanePill extends StatelessWidget {
   }
 }
 
+/// Slices [data]'s peaks to the clip's `[sourceInUs, sourceOutUs)` range.
+List<int> sliceWaveformPeaks(
+  WaveformData data,
+  int sourceInUs,
+  int sourceOutUs,
+) {
+  final peaks = data.peaks;
+  if (peaks.isEmpty || data.peaksPerSecond <= 0 || sourceOutUs <= sourceInUs) {
+    return peaks;
+  }
+  final start = (sourceInUs * data.peaksPerSecond / Micros.perSecond)
+      .floor()
+      .clamp(0, peaks.length);
+  final end = (sourceOutUs * data.peaksPerSecond / Micros.perSecond)
+      .ceil()
+      .clamp(start, peaks.length);
+  return peaks.sublist(start, end);
+}
+
 /// White waveform bars of an audio clip (kit "Golden horses" lane).
 class _Waveform extends ConsumerWidget {
-  const new({required this.uri});
+  const new({
+    required this.uri,
+    required this.sourceInUs,
+    required this.sourceOutUs,
+  });
 
   final String uri;
+  final int sourceInUs;
+  final int sourceOutUs;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(clipWaveformProvider(uri)).value;
     if (data == null) return const SizedBox.shrink();
+    final peaks = sliceWaveformPeaks(data, sourceInUs, sourceOutUs);
+    if (peaks.isEmpty) return const SizedBox.shrink();
     return CustomPaint(
       painter: _WaveformPainter(
-        peaks: data.peaks,
+        peaks: peaks,
         color: Theme.of(context).colorScheme.onSurface,
       ),
     );

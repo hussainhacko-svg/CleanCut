@@ -73,6 +73,8 @@ final class FileProjectRepository implements ProjectRepository {
   @override
   Future<void> delete(String id) async {
     final dir = _dirOf(id);
-    if (dir.existsSync()) await dir.delete(recursive: true);
+    await AtomicFile.runExclusive(_fileOf(id), () async {
+      if (dir.existsSync()) await dir.delete(recursive: true);
+    });
   }
 }

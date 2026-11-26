@@ -12,9 +12,19 @@ abstract final class AtomicFile {
   static int _counter = 0;
 
   /// Replaces [target]'s contents with [contents].
-  static Future<void> writeString(File target, String contents) {
+  static Future<void> writeString(File target, String contents) =>
+      runExclusive(target, () => _write(target, contents));
+
+  /// Runs [action] serialized with all other operations targeting [target].
+  ///
+  /// Use this when deleting or moving a file that may have an in-flight
+  /// [writeString] queued for it.
+  static Future<void> runExclusive(
+    File target,
+    Future<void> Function() action,
+  ) {
     final key = target.absolute.path;
-    final next = _after(_queues[key], () => _write(target, contents));
+    final next = _after(_queues[key], action);
     _queues[key] = next;
     unawaited(_forget(key, next));
     return next;
