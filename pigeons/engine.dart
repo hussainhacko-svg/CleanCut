@@ -6,8 +6,7 @@ import 'package:pigeon/pigeon.dart';
   PigeonOptions(
     dartOut: 'lib/engine/engine_api.g.dart',
     dartPackageName: 'cleancut',
-    kotlinOut:
-        'android/app/src/main/kotlin/com/hussainhacko/cleancut/engine/EngineApi.g.kt',
+    kotlinOut: 'android/app/src/main/kotlin/com/hussainhacko/cleancut/engine/EngineApi.g.kt',
     kotlinOptions: KotlinOptions(package: 'com.hussainhacko.cleancut.engine'),
   ),
 )
