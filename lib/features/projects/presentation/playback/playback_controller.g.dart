@@ -415,7 +415,7 @@ final class ClipThumbnailsProvider
   }
 }
 
-String _$clipThumbnailsHash() => r'a4a5f78ff7f4be07d3a84e4a36847ba8d92aca17';
+String _$clipThumbnailsHash() => r'f3b114a9a81b24389b27b1ce2000f9e30e672177';
 
 /// Batched frame cache for timeline thumbnail strips, keyed by timestamp (µs).
 ///

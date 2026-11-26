@@ -9,6 +9,8 @@
   "commonRedo": "Redo",
   "commonRetry": "Retry",
   "commonBack": "Back",
+  "commonReset": "Reset",
+  "commonClose": "Close",
 
   "settingsTitle": "Settings",
   "settingsThemeSection": "Theme",
@@ -71,6 +73,7 @@
   "toolOverlay": "Overlay",
   "toolRatio": "Ratio",
   "toolSplit": "Split",
+  "toolDuplicate": "Duplicate",
   "toolFilters": "Filters",
   "toolCrop": "Crop",
   "toolAdjust": "Adjust",
@@ -86,5 +89,15 @@
 
   "panelTitle": "Properties",
   "panelNothingSelected": "Select a clip on the timeline to edit it.",
-  "panelClip": "Clip"
+  "panelClip": "Clip",
+
+  "editorSplitOutside": "Move the playhead over the selected clip to split it.",
+
+  "speedValue": "{value}×",
+  "@speedValue": {"description": "A playback speed, e.g. 0.5× or 2×.", "placeholders": {"value": {"type": "double", "format": "decimalPattern"}}},
+  "speedKeepPitch": "Keep pitch",
+  "speedTypeTitle": "Speed",
+  "speedTypeLabel": "Speed (0.1–10)",
+  "speedTypeInvalid": "Enter a speed from 0.1 to 10",
+  "speedTypeHint": "Tap to type an exact speed"
 }

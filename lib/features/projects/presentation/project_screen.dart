@@ -2,12 +2,16 @@ import 'dart:async';
 
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/widgets/app_icon.dart';
+import 'package:cleancut/features/projects/domain/commands/clip_commands.dart';
 import 'package:cleancut/features/projects/domain/commands/project_commands.dart';
+import 'package:cleancut/features/projects/domain/model/clip.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/model/project_canvas.dart';
 import 'package:cleancut/features/projects/domain/project_repository.dart';
+import 'package:cleancut/features/projects/domain/timeline/timeline_selection.dart';
 import 'package:cleancut/features/projects/presentation/editor/editor_state.dart';
+import 'package:cleancut/features/projects/presentation/editor/panels/speed_panel.dart';
 import 'package:cleancut/features/projects/presentation/editor/timeline/timeline_view.dart';
 import 'package:cleancut/features/projects/presentation/editor/tool_dock.dart';
 import 'package:cleancut/features/projects/presentation/playback/playback_controller.dart';
@@ -57,7 +61,14 @@ class ProjectScreen extends ConsumerWidget {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
-        if (!didPop) await leave();
+        if (didPop) return;
+        // Back closes an open tool panel before leaving the editor.
+        final panel = openToolPanelProvider(projectId);
+        if (ref.read(panel) != null) {
+          ref.read(panel.notifier).close();
+          return;
+        }
+        await leave();
       },
       child: _PlaybackBinding(
         projectId: projectId,
@@ -143,24 +154,85 @@ class _Editor extends ConsumerWidget {
             .apply(
               AppendMediaCommand(media, newId: ref.read(idGeneratorProvider)),
             );
+      case DockTool.split ||
+          DockTool.duplicate ||
+          DockTool.delete ||
+          DockTool.speed:
+        final selection = ref.read(
+          timelineSelectionControllerProvider(projectId),
+        );
+        // Overlay and audio clips get these tools with their phases.
+        if (selection is! MainClipSelection) {
+          _soon(messenger, l10n);
+          return;
+        }
+        _onClipTool(ref, messenger, l10n, tool, selection.clipId);
       case DockTool.music ||
           DockTool.voice ||
           DockTool.text ||
           DockTool.effect ||
           DockTool.overlay ||
           DockTool.ratio ||
-          DockTool.split ||
           DockTool.filters ||
           DockTool.crop ||
           DockTool.adjust ||
-          DockTool.speed ||
           DockTool.animation ||
-          DockTool.volume ||
-          DockTool.delete:
-        messenger
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(l10n.editorToolSoon)));
+          DockTool.volume:
+        _soon(messenger, l10n);
     }
+  }
+
+  void _soon(ScaffoldMessengerState messenger, AppLocalizations l10n) =>
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(l10n.editorToolSoon)));
+
+  /// Tools that act on the selected main-track clip [clipId].
+  void _onClipTool(
+    WidgetRef ref,
+    ScaffoldMessengerState messenger,
+    AppLocalizations l10n,
+    DockTool tool,
+    String clipId,
+  ) {
+    final session = ref.read(projectSessionProvider(projectId).notifier);
+    final newId = ref.read(idGeneratorProvider);
+    switch (tool) {
+      case DockTool.split:
+        final timeUs = ref.read(playbackPositionProvider(projectId));
+        if (!canSplitAt(project, clipId, timeUs)) {
+          messenger
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(content: Text(l10n.editorSplitOutside)));
+          return;
+        }
+        session.apply(SplitClipCommand(clipId, timeUs: timeUs, newId: newId));
+      case DockTool.duplicate:
+        session.apply(DuplicateClipCommand(clipId, newId: newId));
+      case DockTool.delete:
+        // Undoable, so no confirmation (AGENTS.md section 8).
+        session.apply(DeleteClipCommand(clipId));
+      case DockTool.speed:
+        ref
+            .read(openToolPanelProvider(projectId).notifier)
+            .open(ToolPanelKind.speed);
+      // Only clip tools are routed here.
+      case _:
+        _soon(messenger, l10n);
+    }
+  }
+
+  /// The open tool panel for the selected main clip, or null.
+  Widget? _toolPanel(WidgetRef ref, TimelineSelection selection) {
+    final kind = ref.watch(openToolPanelProvider(projectId));
+    if (kind == null || selection is! MainClipSelection) return null;
+    final clip = project.mainTrack.clips
+        .where((c) => c.id == selection.clipId)
+        .firstOrNull;
+    if (clip == null) return null;
+    return switch (kind) {
+      ToolPanelKind.speed => _ClipSpeedPanel(projectId: projectId, clip: clip),
+    };
   }
 
   @override
@@ -176,6 +248,7 @@ class _Editor extends ConsumerWidget {
     });
     final selection = ref.watch(timelineSelectionControllerProvider(projectId));
     final tools = dockToolsFor(selection);
+    final panel = _toolPanel(ref, selection);
     void onTool(DockTool t) => unawaited(_onTool(context, ref, t));
     final transport = TransportBar(
       projectId: projectId,
@@ -216,7 +289,24 @@ class _Editor extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    PropertiesPanel(project: project, selection: selection),
+                    if (panel != null)
+                      Padding(
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                          0,
+                          12,
+                          12,
+                          12,
+                        ),
+                        child: SizedBox(
+                          width: PropertiesPanel.width,
+                          child: Align(
+                            alignment: AlignmentDirectional.topCenter,
+                            child: SingleChildScrollView(child: panel),
+                          ),
+                        ),
+                      )
+                    else
+                      PropertiesPanel(project: project, selection: selection),
                   ],
                 ),
               ),
@@ -238,11 +328,46 @@ class _Editor extends ConsumerWidget {
             transport,
             const SizedBox(height: 6),
             Expanded(child: timeline),
-            ToolDock(tools: tools, onTool: onTool),
-            const SizedBox(height: 4),
+            // An open tool panel slides over the dock (kit "Speed").
+            if (panel != null)
+              panel
+            else ...[
+              ToolDock(tools: tools, onTool: onTool),
+              const SizedBox(height: 4),
+            ],
           ],
         );
       },
+    );
+  }
+}
+
+/// [SpeedPanel] bound to [clip]: each change is its own undo step.
+class _ClipSpeedPanel extends ConsumerWidget {
+  const new({required this.projectId, required this.clip});
+
+  final String projectId;
+  final Clip clip;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.read(projectSessionProvider(projectId).notifier);
+    void apply(SetClipSpeedCommand command) {
+      session
+        ..apply(command)
+        ..seal();
+    }
+
+    return SpeedPanel(
+      speed: clip.speed,
+      keepPitch: clip.keepPitch,
+      onChanged: (speed) => apply(SetClipSpeedCommand(clip.id, speed: speed)),
+      onKeepPitchChanged: clip.media.kind == MediaKind.image
+          ? null
+          : (keep) => apply(
+              SetClipSpeedCommand(clip.id, speed: clip.speed, keepPitch: keep),
+            ),
+      onClose: ref.read(openToolPanelProvider(projectId).notifier).close,
     );
   }
 }

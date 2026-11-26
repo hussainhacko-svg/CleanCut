@@ -136,6 +136,18 @@ abstract class AppLocalizations {
   /// **'Back'**
   String get commonBack;
 
+  /// No description provided for @commonReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get commonReset;
+
+  /// No description provided for @commonClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get commonClose;
+
   /// No description provided for @settingsTitle.
   ///
   /// In en, this message translates to:
@@ -424,6 +436,12 @@ abstract class AppLocalizations {
   /// **'Split'**
   String get toolSplit;
 
+  /// No description provided for @toolDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate'**
+  String get toolDuplicate;
+
   /// No description provided for @toolFilters.
   ///
   /// In en, this message translates to:
@@ -507,6 +525,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clip'**
   String get panelClip;
+
+  /// No description provided for @editorSplitOutside.
+  ///
+  /// In en, this message translates to:
+  /// **'Move the playhead over the selected clip to split it.'**
+  String get editorSplitOutside;
+
+  /// A playback speed, e.g. 0.5× or 2×.
+  ///
+  /// In en, this message translates to:
+  /// **'{value}×'**
+  String speedValue(double value);
+
+  /// No description provided for @speedKeepPitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep pitch'**
+  String get speedKeepPitch;
+
+  /// No description provided for @speedTypeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get speedTypeTitle;
+
+  /// No description provided for @speedTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed (0.1–10)'**
+  String get speedTypeLabel;
+
+  /// No description provided for @speedTypeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a speed from 0.1 to 10'**
+  String get speedTypeInvalid;
+
+  /// No description provided for @speedTypeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to type an exact speed'**
+  String get speedTypeHint;
 }
 
 class _AppLocalizationsDelegate

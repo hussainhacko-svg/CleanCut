@@ -57,6 +57,9 @@ enum AppIcons {
   /// Clip tool: split at the playhead.
   toolSplit('tool_split'),
 
+  /// Clip tool: duplicate (not in the kit; drawn in its style).
+  toolDuplicate('tool_duplicate'),
+
   /// Clip tool: filters.
   toolFilters('tool_filters'),
 
