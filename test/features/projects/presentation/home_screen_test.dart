@@ -139,6 +139,35 @@ void main() {
     expect(env.repo.projects, contains('p1'));
   });
 
+  testWidgets('undoing a delete keeps the project in its old place', (
+    tester,
+  ) async {
+    final env = TestEnv(
+      projects: [
+        project(id: 'old').copyWith(name: 'Older'),
+        project(id: 'new').copyWith(
+          name: 'Newer',
+          updatedAt: testTime.add(const Duration(days: 1)),
+        ),
+      ],
+    );
+    await env.pumpApp(tester);
+    // Time passes before the user deletes and undoes.
+    env.repo.now = testTime.add(const Duration(days: 9));
+
+    await openMenu(tester, 'Older');
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+
+    final names = tester
+        .widgetList<ProjectCard>(find.byType(ProjectCard))
+        .map((c) => c.project.name);
+    expect(names, ['Newer', 'Older']);
+    expect(env.repo.projects['old']!.updatedAt, testTime);
+  });
+
   testWidgets('delete snackbar dismisses itself', (tester) async {
     final env = TestEnv(projects: [project()]);
     await env.pumpApp(tester);

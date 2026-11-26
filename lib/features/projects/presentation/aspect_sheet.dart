@@ -1,5 +1,6 @@
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/theme/app_tokens.dart';
+import 'package:cleancut/core/widgets/app_icon.dart';
 import 'package:cleancut/features/projects/domain/model/project_canvas.dart';
 import 'package:flutter/material.dart';
 
@@ -51,7 +52,16 @@ class AspectSheet extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const CloseButton(),
+                  // VCLIP panel close mark.
+                  IconButton(
+                    tooltip: MaterialLocalizations.of(context)
+                        .closeButtonTooltip,
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: AppIcon(
+                      AppIcons.close,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
                 ],
               ),
             ),

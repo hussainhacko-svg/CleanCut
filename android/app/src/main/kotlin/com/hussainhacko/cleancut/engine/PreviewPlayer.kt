@@ -15,8 +15,8 @@ import io.flutter.view.TextureRegistry
 /** Receives the preview's events on the main thread. */
 interface PreviewListener {
     fun onState(state: PlayerStateEvent)
-    fun onPosition(positionUs: Long)
-    fun onError(code: String, message: String)
+    fun onPosition(textureId: Long, positionUs: Long)
+    fun onError(textureId: Long, code: String, message: String)
 }
 
 /**
@@ -37,7 +37,7 @@ class PreviewPlayer(
 
     private val ticker = object : Runnable {
         override fun run() {
-            listener.onPosition(positionUs())
+            listener.onPosition(textureId, positionUs())
             handler.postDelayed(this, POSITION_INTERVAL_MS)
         }
     }
@@ -59,7 +59,7 @@ class PreviewPlayer(
                 }
 
                 override fun onPlayerError(error: PlaybackException) {
-                    listener.onError(error.errorCodeName, error.message.orEmpty())
+                    listener.onError(textureId, error.errorCodeName, error.message.orEmpty())
                 }
             },
         )
@@ -83,8 +83,11 @@ class PreviewPlayer(
             producer.setSize(plan.width, plan.height)
         }
         if (plan.items.isEmpty()) {
-            player.stop()
+            // Clear before stop() so any listener callback triggered by stop()
+            // also reports an empty timeline rather than stale duration/position.
             hasComposition = false
+            player.stop()
+            player.clearVideoSurface()
             listener.onState(state())
             return
         }
@@ -128,11 +131,15 @@ class PreviewPlayer(
         if (player.isPlaying) handler.post(ticker)
     }
 
-    private fun positionUs(): Long = player.currentPosition * 1000
+    private fun positionUs(): Long = player.currentPosition.coerceAtLeast(0L) * 1000
 
     private fun state(): PlayerStateEvent {
+        if (!hasComposition) {
+            return PlayerStateEvent(textureId, PlaybackStatus.IDLE, false, 0, 0)
+        }
         val durationMs = player.duration
         return PlayerStateEvent(
+            textureId = textureId,
             status = when (player.playbackState) {
                 Player.STATE_BUFFERING -> PlaybackStatus.BUFFERING
                 Player.STATE_READY -> PlaybackStatus.READY

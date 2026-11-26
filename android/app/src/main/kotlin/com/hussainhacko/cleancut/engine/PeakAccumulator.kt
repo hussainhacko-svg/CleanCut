@@ -39,6 +39,18 @@ class PeakAccumulator(
         }
     }
 
+    /** Adds [count] interleaved float samples (full scale = ±1.0, clamped). */
+    fun addFloats(samples: FloatArray, count: Int = samples.size) {
+        for (i in 0 until count) {
+            val v = (abs(samples[i]).coerceAtMost(1f) * 32768f).toInt()
+            if (v > max) max = v
+            if (++channelIndex == channels) {
+                channelIndex = 0
+                if (++framesInPeak == framesPerPeak) flushPeak()
+            }
+        }
+    }
+
     /** Returns all peaks, including a final partial one. */
     fun finish(): ByteArray {
         if (framesInPeak > 0 || channelIndex > 0) flushPeak()
@@ -75,7 +87,10 @@ object WaveformFile {
             if (it.readInt() != VERSION) return null
             val pps = it.readInt()
             val duration = it.readLong()
-            val peaks = ByteArray(it.readInt())
+            val count = it.readInt()
+            // A corrupt count must not allocate a huge or negative array.
+            if (count < 0 || count > it.available()) return null
+            val peaks = ByteArray(count)
             it.readFully(peaks)
             WaveformData(peaks, pps.toLong(), duration)
         }

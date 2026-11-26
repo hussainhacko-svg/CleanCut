@@ -11,10 +11,17 @@ export 'package:cleancut/engine/engine_api.g.dart'
         SpecMediaKind,
         WaveformData;
 
+/// A playback position, tagged with the texture id of its preview.
+typedef PositionUpdate = ({int textureId, int positionUs});
+
 /// A playback error reported by the native engine.
 final class EngineError {
-  /// Creates an error with a Media3 error [code] and a [message].
-  const new(this.code, this.message);
+  /// Creates an error of preview [textureId] with a Media3 error [code] and
+  /// a [message].
+  const new(this.textureId, this.code, this.message);
+
+  /// The preview that failed.
+  final int textureId;
 
   /// Media3 error code name, e.g. `ERROR_CODE_IO_FILE_NOT_FOUND`.
   final String code;
@@ -23,18 +30,17 @@ final class EngineError {
   final String message;
 
   @override
-  String toString() => 'EngineError($code, $message)';
+  String toString() => 'EngineError($textureId, $code, $message)';
 }
 
 /// The native media engine: one preview player plus thumbnail and waveform
 /// extraction. Pixels come only from here (AGENTS.md §3).
 abstract interface class MediaEngine {
-  /// Player status changes.
+  /// Player status changes (tagged with their preview's texture id).
   Stream<PlayerStateEvent> get states;
 
-  /// Playback position in microseconds, about 30 times a second while
-  /// playing.
-  Stream<int> get positions;
+  /// Playback positions, about 30 times a second while playing.
+  Stream<PositionUpdate> get positions;
 
   /// Playback errors.
   Stream<EngineError> get errors;
@@ -79,14 +85,14 @@ final class PlatformMediaEngine implements MediaEngine, EngineFlutterApi {
 
   final EngineHostApi _api;
   final _states = StreamController<PlayerStateEvent>.broadcast(sync: true);
-  final _positions = StreamController<int>.broadcast(sync: true);
+  final _positions = StreamController<PositionUpdate>.broadcast(sync: true);
   final _errors = StreamController<EngineError>.broadcast(sync: true);
 
   @override
   Stream<PlayerStateEvent> get states => _states.stream;
 
   @override
-  Stream<int> get positions => _positions.stream;
+  Stream<PositionUpdate> get positions => _positions.stream;
 
   @override
   Stream<EngineError> get errors => _errors.stream;
@@ -95,11 +101,12 @@ final class PlatformMediaEngine implements MediaEngine, EngineFlutterApi {
   void onPlayerState(PlayerStateEvent state) => _states.add(state);
 
   @override
-  void onPosition(int positionUs) => _positions.add(positionUs);
+  void onPosition(int textureId, int positionUs) =>
+      _positions.add((textureId: textureId, positionUs: positionUs));
 
   @override
-  void onError(String code, String message) =>
-      _errors.add(EngineError(code, message));
+  void onError(int textureId, String code, String message) =>
+      _errors.add(EngineError(textureId, code, message));
 
   @override
   Future<int> createPreview() => _api.createPreview();

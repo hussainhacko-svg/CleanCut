@@ -118,7 +118,10 @@ abstract class AudioClip with _$AudioClip {
     if (!SpeedLimits.contains(speed)) 'speed out of range',
     if (volume < 0) 'volume < 0',
     if (fadeInUs < 0 || fadeOutUs < 0) 'negative fade',
+    // Only measure the clip when its length and speed are valid;
+    // scaledBySpeed throws on a speed <= 0.
     if (sourceOutUs > sourceInUs &&
+        SpeedLimits.contains(speed) &&
         fadeInUs + fadeOutUs > Micros.scaledBySpeed(sourceDurationUs, speed))
       'fades longer than clip',
   ];

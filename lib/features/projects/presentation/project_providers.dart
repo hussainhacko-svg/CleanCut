@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cleancut/core/storage/app_directories.dart';
+import 'package:cleancut/features/media_import/domain/media_picker.dart';
 import 'package:cleancut/features/projects/data/file_project_repository.dart';
 import 'package:cleancut/features/projects/domain/commands/project_commands.dart';
 import 'package:cleancut/features/projects/domain/history/edit_command.dart';
@@ -22,6 +23,15 @@ Future<ProjectRepository> projectRepository(Ref ref) async {
     clock: ref.watch(clockProvider),
   );
 }
+
+/// The device media picker used to create projects and add clips.
+///
+/// Features may only depend on another feature's domain (AGENTS.md §3), so
+/// the platform implementation is plugged in by the app (`main.dart`) and
+/// by fakes in tests.
+@Riverpod(keepAlive: true)
+MediaPicker mediaPicker(Ref ref) =>
+    throw UnimplementedError('mediaPickerProvider is provided by the app');
 
 /// Source of new unique ids.
 @Riverpod(keepAlive: true)
@@ -100,7 +110,7 @@ class ProjectList extends _$ProjectList {
 
   /// Stores a project previously returned by [delete].
   Future<void> restore(Project project) async {
-    upsert(await (await _repo).save(project));
+    upsert(await (await _repo).save(project, keepUpdatedAt: true));
   }
 
   /// Inserts or replaces [project] in the list, keeping the sort order.

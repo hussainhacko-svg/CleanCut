@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cleancut/features/media_import/data/media_picker_api.g.dart';
 import 'package:cleancut/features/media_import/data/platform_media_picker.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
@@ -59,5 +61,36 @@ void main() {
       await PlatformMediaPicker(api: api).pickVisualMedia(allowMultiple: false),
       isEmpty,
     );
+  });
+
+  test('a second call while the picker is open returns empty', () async {
+    final api = _MockApi();
+    final gate = Completer<List<PickedMedia>>();
+    when(() => api.pickVisualMedia(allowMultiple: true))
+        .thenAnswer((_) => gate.future);
+    final picker = PlatformMediaPicker(api: api);
+
+    final first = picker.pickVisualMedia();
+    final second = picker.pickVisualMedia();
+    gate.complete([
+      PickedMedia(
+        uri: 'content://v',
+        kind: PickedMediaKind.video,
+        durationUs: 1000000,
+        width: 1920,
+        height: 1080,
+        rotationDegrees: 0,
+      ),
+    ]);
+
+    expect(await first, hasLength(1));
+    expect(await second, isEmpty);
+    verify(() => api.pickVisualMedia(allowMultiple: true)).called(1);
+
+    // Once closed, the picker can open again.
+    when(() => api.pickVisualMedia(allowMultiple: true))
+        .thenAnswer((_) async => const []);
+    await picker.pickVisualMedia();
+    verify(() => api.pickVisualMedia(allowMultiple: true)).called(1);
   });
 }

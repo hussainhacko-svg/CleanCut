@@ -107,7 +107,7 @@ final class PlaybackProvider
   }
 }
 
-String _$playbackHash() => r'5ee253134e25dfa87876024ae0dcb967528fdcc6';
+String _$playbackHash() => r'158599faff77aa59526ca02152c8c01d02b99bb3';
 
 /// Drives the preview player of one open project.
 
@@ -348,4 +348,136 @@ final class ClipThumbnailFamily extends $Family
 
   @override
   String toString() => r'clipThumbnailProvider';
+}
+
+/// Batched frame cache for timeline thumbnail strips, keyed by timestamp (µs).
+///
+/// Call [ensure] with all timestamps currently needed by a clip's strip;
+/// missing frames are fetched in a single native `thumbnails` call (one
+/// `MediaMetadataRetriever` per batch instead of one per tile).
+
+@ProviderFor(ClipThumbnails)
+final clipThumbnailsProvider = ClipThumbnailsFamily._();
+
+/// Batched frame cache for timeline thumbnail strips, keyed by timestamp (µs).
+///
+/// Call [ensure] with all timestamps currently needed by a clip's strip;
+/// missing frames are fetched in a single native `thumbnails` call (one
+/// `MediaMetadataRetriever` per batch instead of one per tile).
+final class ClipThumbnailsProvider
+    extends $NotifierProvider<ClipThumbnails, Map<int, String?>> {
+  /// Batched frame cache for timeline thumbnail strips, keyed by timestamp (µs).
+  ///
+  /// Call [ensure] with all timestamps currently needed by a clip's strip;
+  /// missing frames are fetched in a single native `thumbnails` call (one
+  /// `MediaMetadataRetriever` per batch instead of one per tile).
+  ClipThumbnailsProvider._({
+    required ClipThumbnailsFamily super.from,
+    required (String, int) super.argument,
+  }) : super(
+         retry: null,
+         name: r'clipThumbnailsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$clipThumbnailsHash();
+
+  @override
+  String toString() {
+    return r'clipThumbnailsProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  ClipThumbnails create() => ClipThumbnails();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(Map<int, String?> value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<Map<int, String?>>(value),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is ClipThumbnailsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$clipThumbnailsHash() => r'a4a5f78ff7f4be07d3a84e4a36847ba8d92aca17';
+
+/// Batched frame cache for timeline thumbnail strips, keyed by timestamp (µs).
+///
+/// Call [ensure] with all timestamps currently needed by a clip's strip;
+/// missing frames are fetched in a single native `thumbnails` call (one
+/// `MediaMetadataRetriever` per batch instead of one per tile).
+
+final class ClipThumbnailsFamily extends $Family
+    with
+        $ClassFamilyOverride<
+          ClipThumbnails,
+          Map<int, String?>,
+          Map<int, String?>,
+          Map<int, String?>,
+          (String, int)
+        > {
+  ClipThumbnailsFamily._()
+    : super(
+        retry: null,
+        name: r'clipThumbnailsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Batched frame cache for timeline thumbnail strips, keyed by timestamp (µs).
+  ///
+  /// Call [ensure] with all timestamps currently needed by a clip's strip;
+  /// missing frames are fetched in a single native `thumbnails` call (one
+  /// `MediaMetadataRetriever` per batch instead of one per tile).
+
+  ClipThumbnailsProvider call(String uri, int heightPx) =>
+      ClipThumbnailsProvider._(argument: (uri, heightPx), from: this);
+
+  @override
+  String toString() => r'clipThumbnailsProvider';
+}
+
+/// Batched frame cache for timeline thumbnail strips, keyed by timestamp (µs).
+///
+/// Call [ensure] with all timestamps currently needed by a clip's strip;
+/// missing frames are fetched in a single native `thumbnails` call (one
+/// `MediaMetadataRetriever` per batch instead of one per tile).
+
+abstract class _$ClipThumbnails extends $Notifier<Map<int, String?>> {
+  late final _$args = ref.$arg as (String, int);
+  String get uri => _$args.$1;
+  int get heightPx => _$args.$2;
+
+  Map<int, String?> build(String uri, int heightPx);
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<Map<int, String?>, Map<int, String?>>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<Map<int, String?>, Map<int, String?>>,
+              Map<int, String?>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, () => build(_$args.$1, _$args.$2));
+  }
 }

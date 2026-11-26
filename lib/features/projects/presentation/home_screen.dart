@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/theme/app_tokens.dart';
-import 'package:cleancut/features/media_import/presentation/media_picker_provider.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/model/project_canvas.dart';
@@ -136,7 +135,9 @@ class HomeScreen extends ConsumerWidget {
     try {
       media = await ref.read(mediaPickerProvider).pickVisualMedia();
     } on PlatformException {
-      messenger.showSnackBar(SnackBar(content: Text(l10n.mediaPickerFailed)));
+      if (context.mounted) {
+        messenger.showSnackBar(SnackBar(content: Text(l10n.mediaPickerFailed)));
+      }
       return;
     }
     if (media.isEmpty || !context.mounted) return;
@@ -157,7 +158,11 @@ class HomeScreen extends ConsumerWidget {
           );
       if (context.mounted) unawaited(context.push(projectRoute(project.id)));
     } on Exception {
-      messenger.showSnackBar(SnackBar(content: Text(l10n.projectActionFailed)));
+      if (context.mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.projectActionFailed)),
+        );
+      }
     }
   }
 
@@ -184,6 +189,7 @@ class HomeScreen extends ConsumerWidget {
           );
         case ProjectAction.delete:
           final deleted = await notifier.delete(project.id);
+          if (!context.mounted) return;
           messenger
             ..hideCurrentSnackBar()
             ..showSnackBar(
@@ -200,7 +206,11 @@ class HomeScreen extends ConsumerWidget {
             );
       }
     } on Exception {
-      messenger.showSnackBar(SnackBar(content: Text(l10n.projectActionFailed)));
+      if (context.mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.projectActionFailed)),
+        );
+      }
     }
   }
 }

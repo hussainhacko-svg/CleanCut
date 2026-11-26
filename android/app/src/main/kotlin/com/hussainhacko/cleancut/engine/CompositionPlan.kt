@@ -67,4 +67,7 @@ data class PlannedItem(
     val clipEndUs: Long,
 ) {
     val clippedDurationUs: Long get() = clipEndUs - clipStartUs
+
+    /** Display length of a still in whole ms; Media3 rejects 0, so at least 1. */
+    val imageDurationMs: Long get() = (sourceDurationUs / 1000).coerceAtLeast(1L)
 }

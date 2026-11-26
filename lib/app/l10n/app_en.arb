@@ -60,5 +60,31 @@
   "editorTimecode": "{position} / {duration}",
   "@editorTimecode": {"description": "Playback readout under the preview, e.g. 00:06 / 00:12.", "placeholders": {"position": {"type": "String"}, "duration": {"type": "String"}}},
   "editorPlaybackFailed": "Couldn't play this project's media.",
-  "editorSeek": "Playback position"
+  "editorSeek": "Playback position",
+  "editorToolSoon": "Coming in a later update.",
+
+  "toolAdd": "Add media",
+  "toolMusic": "Music",
+  "toolVoice": "Voice",
+  "toolText": "Text",
+  "toolEffect": "Effect",
+  "toolOverlay": "Overlay",
+  "toolRatio": "Ratio",
+  "toolSplit": "Split",
+  "toolFilters": "Filters",
+  "toolCrop": "Crop",
+  "toolAdjust": "Adjust",
+  "toolSpeed": "Speed",
+  "toolAnimation": "Animation",
+  "toolVolume": "Volume",
+  "toolDelete": "Delete",
+
+  "laneOverlay": "Overlay",
+  "laneAudio": "Audio",
+  "timelineTransition": "Transition",
+  "timelineMuteOriginal": "Mute original audio",
+
+  "panelTitle": "Properties",
+  "panelNothingSelected": "Select a clip on the timeline to edit it.",
+  "panelClip": "Clip"
 }

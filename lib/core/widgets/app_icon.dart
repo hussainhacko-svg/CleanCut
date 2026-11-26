@@ -28,11 +28,78 @@ enum AppIcons {
   exitFullscreen('exit_fullscreen'),
 
   /// Close a panel or overlay.
-  close('close');
+  close('close'),
 
-  new(this._file);
+  /// Dock: add media (white circle).
+  dockAdd('dock_add', multicolor: true),
+
+  /// Dock: leave the clip tools (white circle with a chevron).
+  dockBack('dock_back', multicolor: true),
+
+  /// Dock: music.
+  dockMusic('dock_music'),
+
+  /// Dock: record a voiceover.
+  dockVoice('dock_voice'),
+
+  /// Dock: text.
+  dockText('dock_text'),
+
+  /// Dock: effects.
+  dockEffect('dock_effect'),
+
+  /// Dock: overlay.
+  dockOverlay('dock_overlay'),
+
+  /// Dock: canvas ratio.
+  dockRatio('dock_ratio'),
+
+  /// Clip tool: split at the playhead.
+  toolSplit('tool_split'),
+
+  /// Clip tool: filters.
+  toolFilters('tool_filters'),
+
+  /// Clip tool: crop.
+  toolCrop('tool_crop'),
+
+  /// Clip tool: adjustments.
+  toolAdjust('tool_adjust'),
+
+  /// Clip tool: speed.
+  toolSpeed('tool_speed'),
+
+  /// Clip tool: animation.
+  toolAnimation('tool_animation'),
+
+  /// Clip tool: volume.
+  toolVolume('tool_volume'),
+
+  /// Clip tool: delete.
+  toolDelete('tool_delete'),
+
+  /// Timeline: transition marker between clips (white circle).
+  transition('transition', multicolor: true),
+
+  /// Timeline: mute the original audio.
+  mute('mute'),
+
+  /// Lane pill glyph: overlay.
+  laneOverlay('lane_overlay'),
+
+  /// Lane pill glyph: effect.
+  laneEffect('lane_effect'),
+
+  /// Lane pill glyph: audio.
+  laneAudio('lane_audio');
+
+  new(this._file, {this.multicolor = false});
 
   final String _file;
+
+  /// Drawn in its own colors (e.g. a white disc with a dark glyph); never
+  /// tinted.
+  final bool multicolor;
 
   /// Asset path of the SVG.
   String get asset => 'assets/icons/$_file.svg';
@@ -55,7 +122,7 @@ class AppIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tint = color ?? IconTheme.of(context).color;
+    final tint = icon.multicolor ? null : color ?? IconTheme.of(context).color;
     return SizedBox.square(
       dimension: size,
       child: SvgPicture.asset(

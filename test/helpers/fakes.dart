@@ -5,7 +5,6 @@ import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/app/theme/app_theme.dart';
 import 'package:cleancut/engine/media_engine.dart';
 import 'package:cleancut/features/media_import/domain/media_picker.dart';
-import 'package:cleancut/features/media_import/presentation/media_picker_provider.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/project_repository.dart';
@@ -40,9 +39,9 @@ class InMemoryProjectRepository implements ProjectRepository {
       projects[id] ?? (throw ProjectNotFoundException(id));
 
   @override
-  Future<Project> save(Project project) async {
+  Future<Project> save(Project project, {bool keepUpdatedAt = false}) async {
     saveCount++;
-    final stored = project.copyWith(updatedAt: now);
+    final stored = keepUpdatedAt ? project : project.copyWith(updatedAt: now);
     projects[project.id] = stored;
     return stored;
   }
@@ -78,22 +77,39 @@ class FakeMediaEngine implements MediaEngine {
   final calls = <String>[];
   final specs = <CompositionSpec>[];
   final seeks = <int>[];
+  final thumbnailBatches = <List<int>>[];
   int nextTextureId = 7;
 
   /// Paths returned by [thumbnails]; null means "no frame".
   String? thumbnailPath;
 
+  /// When true, [thumbnails] throws (e.g. the media's permission was revoked).
+  bool failThumbnails = false;
+
+  /// When true, the next [setComposition] throws once and resets this flag.
+  bool failNextSet = false;
+
   final _states = StreamController<PlayerStateEvent>.broadcast(sync: true);
-  final _positions = StreamController<int>.broadcast(sync: true);
+  final _positions = StreamController<PositionUpdate>.broadcast(sync: true);
   final _errors = StreamController<EngineError>.broadcast(sync: true);
 
+  /// Gate for [createPreview]; complete it to hand out the texture.
+  Completer<void>? createGate;
+
+  /// Gate for [seekTo]; while set, seeks wait for it.
+  Completer<void>? seekGate;
+
+  /// Events default to the current preview; pass [textureId] to fake
+  /// another one.
   void emitState({
+    int? textureId,
     PlaybackStatus status = PlaybackStatus.ready,
     bool isPlaying = false,
     int durationUs = 12000000,
     int positionUs = 0,
   }) => _states.add(
     PlayerStateEvent(
+      textureId: textureId ?? nextTextureId,
       status: status,
       isPlaying: isPlaying,
       durationUs: durationUs,
@@ -101,15 +117,17 @@ class FakeMediaEngine implements MediaEngine {
     ),
   );
 
-  void emitPosition(int us) => _positions.add(us);
+  void emitPosition(int us, {int? textureId}) =>
+      _positions.add((textureId: textureId ?? nextTextureId, positionUs: us));
 
-  void emitError() => _errors.add(const EngineError('ERROR', 'boom'));
+  void emitError({int? textureId}) =>
+      _errors.add(EngineError(textureId ?? nextTextureId, 'ERROR', 'boom'));
 
   @override
   Stream<PlayerStateEvent> get states => _states.stream;
 
   @override
-  Stream<int> get positions => _positions.stream;
+  Stream<PositionUpdate> get positions => _positions.stream;
 
   @override
   Stream<EngineError> get errors => _errors.stream;
@@ -117,12 +135,17 @@ class FakeMediaEngine implements MediaEngine {
   @override
   Future<int> createPreview() async {
     calls.add('create');
+    await createGate?.future;
     return nextTextureId;
   }
 
   @override
   Future<void> setComposition(CompositionSpec spec) async {
     calls.add('set');
+    if (failNextSet) {
+      failNextSet = false;
+      throw StateError('engine failed');
+    }
     specs.add(spec);
   }
 
@@ -136,6 +159,7 @@ class FakeMediaEngine implements MediaEngine {
   Future<void> seekTo(int positionUs) async {
     calls.add('seek');
     seeks.add(positionUs);
+    await seekGate?.future;
   }
 
   @override
@@ -147,11 +171,18 @@ class FakeMediaEngine implements MediaEngine {
     String uri,
     List<int> timesUs, {
     required int heightPx,
-  }) async => [for (final _ in timesUs) thumbnailPath];
+  }) async {
+    thumbnailBatches.add(List<int>.of(timesUs));
+    if (failThumbnails) throw StateError('thumbnails failed');
+    return [for (final _ in timesUs) thumbnailPath];
+  }
+
+  /// Returned by [waveform].
+  WaveformData? waveformData;
 
   @override
   Future<WaveformData?> waveform(String uri, {int peaksPerSecond = 50}) async =>
-      null;
+      waveformData;
 }
 
 /// Test doubles wired into a [ProviderScope].

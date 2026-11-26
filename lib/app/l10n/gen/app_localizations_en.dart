@@ -178,4 +178,74 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editorSeek => 'Playback position';
+
+  @override
+  String get editorToolSoon => 'Coming in a later update.';
+
+  @override
+  String get toolAdd => 'Add media';
+
+  @override
+  String get toolMusic => 'Music';
+
+  @override
+  String get toolVoice => 'Voice';
+
+  @override
+  String get toolText => 'Text';
+
+  @override
+  String get toolEffect => 'Effect';
+
+  @override
+  String get toolOverlay => 'Overlay';
+
+  @override
+  String get toolRatio => 'Ratio';
+
+  @override
+  String get toolSplit => 'Split';
+
+  @override
+  String get toolFilters => 'Filters';
+
+  @override
+  String get toolCrop => 'Crop';
+
+  @override
+  String get toolAdjust => 'Adjust';
+
+  @override
+  String get toolSpeed => 'Speed';
+
+  @override
+  String get toolAnimation => 'Animation';
+
+  @override
+  String get toolVolume => 'Volume';
+
+  @override
+  String get toolDelete => 'Delete';
+
+  @override
+  String get laneOverlay => 'Overlay';
+
+  @override
+  String get laneAudio => 'Audio';
+
+  @override
+  String get timelineTransition => 'Transition';
+
+  @override
+  String get timelineMuteOriginal => 'Mute original audio';
+
+  @override
+  String get panelTitle => 'Properties';
+
+  @override
+  String get panelNothingSelected =>
+      'Select a clip on the timeline to edit it.';
+
+  @override
+  String get panelClip => 'Clip';
 }

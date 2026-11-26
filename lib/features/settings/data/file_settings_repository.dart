@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cleancut/core/storage/atomic_file.dart';
+
 import 'package:cleancut/features/settings/domain/app_settings.dart';
 
 /// Stores [AppSettings] as a JSON file.
@@ -25,9 +27,6 @@ final class FileSettingsRepository implements SettingsRepository {
 
   @override
   Future<void> save(AppSettings settings) async {
-    await file.parent.create(recursive: true);
-    final temp = File('${file.path}.tmp');
-    await temp.writeAsString(jsonEncode(settings.toJson()), flush: true);
-    await temp.rename(file.path);
+    await AtomicFile.writeString(file, jsonEncode(settings.toJson()));
   }
 }

@@ -13,8 +13,9 @@ abstract interface class ProjectRepository {
   Future<Project> load(String id);
 
   /// Creates or overwrites [project]. Returns the stored project, whose
-  /// `updatedAt` is set to the save time.
-  Future<Project> save(Project project);
+  /// `updatedAt` is set to the save time unless [keepUpdatedAt] (used when
+  /// undoing a delete, so the project returns to its old place).
+  Future<Project> save(Project project, {bool keepUpdatedAt = false});
 
   /// Deletes the project with [id]; does nothing when it does not exist.
   Future<void> delete(String id);

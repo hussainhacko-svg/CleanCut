@@ -1,5 +1,6 @@
 import 'package:cleancut/core/theme/accent_gradient.dart';
 import 'package:cleancut/core/theme/app_tokens.dart';
+import 'package:cleancut/core/theme/timeline_colors.dart';
 import 'package:flutter/material.dart';
 
 /// Themes for CleanCut, following the VCLIP design kit (see DESIGN.md §5).
@@ -69,7 +70,17 @@ abstract final class AppTheme {
       borderRadius: BorderRadius.all(Radius.circular(AppTokens.cardRadius)),
     );
     return base.copyWith(
-      extensions: const [AccentGradient(start: _orange, end: _pink)],
+      extensions: const [
+        AccentGradient(start: _orange, end: _pink),
+        // Lane colors sampled from the VCLIP "Timeline" / "Video" frames.
+        TimelineColors(
+          effect: Color(0xFF808080),
+          text: Color(0xFF43418E),
+          overlay: Color(0xFFD158D9),
+          audio: Color(0xFFE86F48),
+          selectionTint: Color(0xFFEDDB93),
+        ),
+      ],
       scaffoldBackgroundColor: scheme.surface,
       appBarTheme: AppBarTheme(
         backgroundColor: scheme.surface,

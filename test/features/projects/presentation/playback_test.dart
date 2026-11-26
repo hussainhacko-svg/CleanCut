@@ -120,11 +120,12 @@ void main() {
 
     testWidgets('shows the preview texture and the timecode', (tester) async {
       final env = await pumpEditor(tester);
-      expect(tester.widget<Texture>(find.byType(Texture)).textureId, 7);
+      // The texture shows once the player reports loaded media.
       env.engine
         ..emitState()
         ..emitPosition(6000000);
       await tester.pump();
+      expect(tester.widget<Texture>(find.byType(Texture)).textureId, 7);
       expect(find.text('00:06 / 00:12'), findsOneWidget);
     });
 
@@ -204,15 +205,16 @@ void main() {
     test('forwards native events to its streams', () async {
       final engine = PlatformMediaEngine(api: _NoopHostApi());
       addTearDown(engine.dispose);
-      final positions = <int>[];
+      final positions = <PositionUpdate>[];
       final errors = <EngineError>[];
       engine.positions.listen(positions.add);
       engine.errors.listen(errors.add);
       engine
-        ..onPosition(42)
-        ..onError('E', 'msg');
-      expect(positions, [42]);
+        ..onPosition(3, 42)
+        ..onError(3, 'E', 'msg');
+      expect(positions, [(textureId: 3, positionUs: 42)]);
       expect(errors.single.code, 'E');
+      expect(errors.single.textureId, 3);
     });
 
     test('delegates calls to the host API', () async {

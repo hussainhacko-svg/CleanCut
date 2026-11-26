@@ -8,11 +8,21 @@ final class PlatformMediaPicker implements MediaPicker {
   new({MediaPickerHostApi? api}) : _api = api ?? MediaPickerHostApi();
 
   final MediaPickerHostApi _api;
+  bool _open = false;
 
+  /// A second call while the picker is still open (e.g. a double tap)
+  /// returns an empty list instead of failing natively or delivering the
+  /// picked files to two callers.
   @override
   Future<List<MediaRef>> pickVisualMedia({bool allowMultiple = true}) async {
-    final picked = await _api.pickVisualMedia(allowMultiple: allowMultiple);
-    return [for (final p in picked) toMediaRef(p)];
+    if (_open) return const [];
+    _open = true;
+    try {
+      final picked = await _api.pickVisualMedia(allowMultiple: allowMultiple);
+      return [for (final p in picked) toMediaRef(p)];
+    } finally {
+      _open = false;
+    }
   }
 
   /// Converts a platform result into the model type.

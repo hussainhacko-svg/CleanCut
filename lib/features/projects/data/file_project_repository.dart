@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:cleancut/core/storage/atomic_file.dart';
+
 import 'package:cleancut/features/projects/data/project_codec.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/project_repository.dart';
@@ -60,20 +62,19 @@ final class FileProjectRepository implements ProjectRepository {
   }
 
   @override
-  Future<Project> save(Project project) async {
-    final stored = project.copyWith(updatedAt: _clock().toUtc());
-    final dir = _dirOf(project.id);
-    await dir.create(recursive: true);
-    final target = _fileOf(project.id);
-    final temp = File('${target.path}.tmp');
-    await temp.writeAsString(_codec.encode(stored), flush: true);
-    await temp.rename(target.path);
+  Future<Project> save(Project project, {bool keepUpdatedAt = false}) async {
+    final stored = keepUpdatedAt
+        ? project
+        : project.copyWith(updatedAt: _clock().toUtc());
+    await AtomicFile.writeString(_fileOf(project.id), _codec.encode(stored));
     return stored;
   }
 
   @override
   Future<void> delete(String id) async {
     final dir = _dirOf(id);
-    if (dir.existsSync()) await dir.delete(recursive: true);
+    await AtomicFile.runExclusive(_fileOf(id), () async {
+      if (dir.existsSync()) await dir.delete(recursive: true);
+    });
   }
 }

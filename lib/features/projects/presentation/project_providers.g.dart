@@ -54,6 +54,64 @@ final class ProjectRepositoryProvider
 
 String _$projectRepositoryHash() => r'87a20030cb09b15d719cb8b7882bff90f3df6c97';
 
+/// The device media picker used to create projects and add clips.
+///
+/// Features may only depend on another feature's domain (AGENTS.md §3), so
+/// the platform implementation is plugged in by the app (`main.dart`) and
+/// by fakes in tests.
+
+@ProviderFor(mediaPicker)
+final mediaPickerProvider = MediaPickerProvider._();
+
+/// The device media picker used to create projects and add clips.
+///
+/// Features may only depend on another feature's domain (AGENTS.md §3), so
+/// the platform implementation is plugged in by the app (`main.dart`) and
+/// by fakes in tests.
+
+final class MediaPickerProvider
+    extends $FunctionalProvider<MediaPicker, MediaPicker, MediaPicker>
+    with $Provider<MediaPicker> {
+  /// The device media picker used to create projects and add clips.
+  ///
+  /// Features may only depend on another feature's domain (AGENTS.md §3), so
+  /// the platform implementation is plugged in by the app (`main.dart`) and
+  /// by fakes in tests.
+  MediaPickerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'mediaPickerProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$mediaPickerHash();
+
+  @$internal
+  @override
+  $ProviderElement<MediaPicker> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  MediaPicker create(Ref ref) {
+    return mediaPicker(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(MediaPicker value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<MediaPicker>(value),
+    );
+  }
+}
+
+String _$mediaPickerHash() => r'a784302632d6c39d4b212143886cc43162f18ee5';
+
 /// Source of new unique ids.
 
 @ProviderFor(idGenerator)
@@ -180,7 +238,7 @@ final class ProjectListProvider
   ProjectList create() => ProjectList();
 }
 
-String _$projectListHash() => r'd8d6c4dfd6a5eb76e9a6f983a02158c0422579dc';
+String _$projectListHash() => r'5eb895378dc64384889de5e6595fa7effda5cdac';
 
 /// All projects, most recently edited first.
 

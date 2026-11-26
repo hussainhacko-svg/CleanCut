@@ -369,6 +369,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Playback position'**
   String get editorSeek;
+
+  /// No description provided for @editorToolSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming in a later update.'**
+  String get editorToolSoon;
+
+  /// No description provided for @toolAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add media'**
+  String get toolAdd;
+
+  /// No description provided for @toolMusic.
+  ///
+  /// In en, this message translates to:
+  /// **'Music'**
+  String get toolMusic;
+
+  /// No description provided for @toolVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice'**
+  String get toolVoice;
+
+  /// No description provided for @toolText.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get toolText;
+
+  /// No description provided for @toolEffect.
+  ///
+  /// In en, this message translates to:
+  /// **'Effect'**
+  String get toolEffect;
+
+  /// No description provided for @toolOverlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Overlay'**
+  String get toolOverlay;
+
+  /// No description provided for @toolRatio.
+  ///
+  /// In en, this message translates to:
+  /// **'Ratio'**
+  String get toolRatio;
+
+  /// No description provided for @toolSplit.
+  ///
+  /// In en, this message translates to:
+  /// **'Split'**
+  String get toolSplit;
+
+  /// No description provided for @toolFilters.
+  ///
+  /// In en, this message translates to:
+  /// **'Filters'**
+  String get toolFilters;
+
+  /// No description provided for @toolCrop.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop'**
+  String get toolCrop;
+
+  /// No description provided for @toolAdjust.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust'**
+  String get toolAdjust;
+
+  /// No description provided for @toolSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get toolSpeed;
+
+  /// No description provided for @toolAnimation.
+  ///
+  /// In en, this message translates to:
+  /// **'Animation'**
+  String get toolAnimation;
+
+  /// No description provided for @toolVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume'**
+  String get toolVolume;
+
+  /// No description provided for @toolDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get toolDelete;
+
+  /// No description provided for @laneOverlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Overlay'**
+  String get laneOverlay;
+
+  /// No description provided for @laneAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get laneAudio;
+
+  /// No description provided for @timelineTransition.
+  ///
+  /// In en, this message translates to:
+  /// **'Transition'**
+  String get timelineTransition;
+
+  /// No description provided for @timelineMuteOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute original audio'**
+  String get timelineMuteOriginal;
+
+  /// No description provided for @panelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Properties'**
+  String get panelTitle;
+
+  /// No description provided for @panelNothingSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a clip on the timeline to edit it.'**
+  String get panelNothingSelected;
+
+  /// No description provided for @panelClip.
+  ///
+  /// In en, this message translates to:
+  /// **'Clip'**
+  String get panelClip;
 }
 
 class _AppLocalizationsDelegate

@@ -65,14 +65,20 @@ final class PlaybackState {
 class Playback extends _$Playback {
   late MediaEngine _engine;
   late Future<int> _textureId;
+
+  /// The preview's texture id once known; events of other previews (e.g.
+  /// one still closing during a route transition) are ignored.
+  int? _id;
+  CompositionSpec? _loadedSpec;
   int? _pendingSeekUs;
-  bool _seeking = false;
+  Future<void>? _seekLoop;
 
   @override
   PlaybackState build(String projectId) {
     _engine = ref.watch(mediaEngineProvider);
     final subs = [
       _engine.states.listen((e) {
+        if (e.textureId != _id) return;
         state = state._copyWith(
           status: e.status,
           isPlaying: e.isPlaying,
@@ -80,14 +86,19 @@ class Playback extends _$Playback {
         );
         _setPosition(e.positionUs);
       }),
-      _engine.positions.listen(_setPosition),
-      _engine.errors.listen(
-        (e) => state = state._copyWith(error: e, isPlaying: false),
-      ),
+      _engine.positions.listen((u) {
+        if (u.textureId == _id) _setPosition(u.positionUs);
+      }),
+      _engine.errors.listen((e) {
+        if (e.textureId == _id) {
+          state = state._copyWith(error: e, isPlaying: false);
+        }
+      }),
     ];
     _textureId = _engine.createPreview();
     unawaited(
       _textureId.then((id) {
+        _id = id;
         if (ref.mounted) state = state._copyWith(textureId: id);
       }),
     );
@@ -100,30 +111,54 @@ class Playback extends _$Playback {
     return const PlaybackState();
   }
 
-  /// Loads [project] into the preview (call again after every edit).
-  Future<void> load(Project project) async {
+  /// Waits for the preview; false when this controller was disposed in the
+  /// meantime (its native preview may already be gone).
+  Future<bool> _ready() async {
     await _textureId;
-    if (!ref.mounted) return;
+    return ref.mounted;
+  }
+
+  /// Loads [project] into the preview. Edits that don't change what the
+  /// engine plays (e.g. a rename) don't reload it.
+  Future<void> load(Project project) async {
+    final spec = compositionSpecOf(project);
+    // Checked and recorded before awaiting, so two loads started together
+    // can't both send the same composition.
+    if (spec == _loadedSpec) return;
+    _loadedSpec = spec;
+    if (!await _ready()) {
+      if (_loadedSpec == spec) _loadedSpec = null;
+      return;
+    }
+    // A newer load arrived while waiting for the preview; let it win.
+    if (_loadedSpec != spec) return;
     state = state._copyWith(clearError: true);
-    await _engine.setComposition(compositionSpecOf(project));
+    try {
+      await _engine.setComposition(spec);
+    } on Object {
+      if (_loadedSpec == spec) _loadedSpec = null;
+      rethrow;
+    }
   }
 
   /// Plays, or pauses while playing.
   Future<void> togglePlay() async {
-    await _textureId;
+    if (!await _ready()) return;
+    await _seekLoop;
+    if (!ref.mounted) return;
     await (state.isPlaying ? _engine.pause() : _engine.play());
   }
 
-  /// Starts playback.
+  /// Starts playback, after any seek still in flight has been sent.
   Future<void> play() async {
-    await _textureId;
-    await _engine.play();
+    if (!await _ready()) return;
+    await _seekLoop;
+    if (ref.mounted) await _engine.play();
   }
 
   /// Pauses playback.
   Future<void> pause() async {
-    await _textureId;
-    await _engine.pause();
+    if (await _ready()) await _engine.pause();
   }
 
   void _setPosition(int positionUs) =>
@@ -133,24 +168,19 @@ class Playback extends _$Playback {
   ///
   /// While a seek is in flight only the latest target is kept, so a fast
   /// scrub never queues up stale seeks.
-  Future<void> seekTo(int positionUs) async {
+  Future<void> seekTo(int positionUs) {
     final clamped = positionUs.clamp(0, state.durationUs);
     _setPosition(clamped);
     _pendingSeekUs = clamped;
-    if (_seeking) return;
-    _seeking = true;
-    try {
-      await _textureId;
-      for (
-        var target = _pendingSeekUs;
-        target != null;
-        target = _pendingSeekUs
-      ) {
-        _pendingSeekUs = null;
-        await _engine.seekTo(target);
-      }
-    } finally {
-      _seeking = false;
+    return _seekLoop ??= _runSeeks().whenComplete(() => _seekLoop = null);
+  }
+
+  Future<void> _runSeeks() async {
+    if (!await _ready()) return;
+    for (var target = _pendingSeekUs; target != null; target = _pendingSeekUs) {
+      _pendingSeekUs = null;
+      if (!ref.mounted) return;
+      await _engine.seekTo(target);
     }
   }
 }
@@ -181,4 +211,48 @@ Future<String?> clipThumbnail(
     timeUs,
   ], heightPx: heightPx);
   return paths.firstOrNull;
+}
+
+/// Batched frame cache for timeline thumbnail strips, keyed by timestamp (µs).
+///
+/// Call [ensure] with all timestamps currently needed by a clip's strip;
+/// missing frames are fetched in a single native `thumbnails` call (one
+/// `MediaMetadataRetriever` per batch instead of one per tile).
+@riverpod
+class ClipThumbnails extends _$ClipThumbnails {
+  final Set<int> _inFlight = {};
+
+  @override
+  Map<int, String?> build(String uri, int heightPx) => const {};
+
+  /// Fetches any timestamps in [timesUs] not yet cached or in flight.
+  Future<void> ensure(Iterable<int> timesUs) async {
+    final missing = <int>[];
+    for (final t in timesUs) {
+      if (!state.containsKey(t) && _inFlight.add(t)) {
+        missing.add(t);
+      }
+    }
+    if (missing.isEmpty) return;
+    final engine = ref.read(mediaEngineProvider);
+    try {
+      List<String?> paths;
+      try {
+        paths = await engine.thumbnails(uri, missing, heightPx: heightPx);
+      } on Object {
+        // E.g. the media's permission was revoked. Cache the frames as
+        // missing so scrolling doesn't retry the failing call; callers don't
+        // await ensure(), so a rethrow would be an unhandled error.
+        paths = const [];
+      }
+      if (!ref.mounted) return;
+      final updated = Map<int, String?>.of(state);
+      for (var i = 0; i < missing.length; i++) {
+        updated[missing[i]] = i < paths.length ? paths[i] : null;
+      }
+      state = updated;
+    } finally {
+      _inFlight.removeAll(missing);
+    }
+  }
 }

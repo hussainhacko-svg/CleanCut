@@ -1,0 +1,317 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'editor_state.dart';
+
+// **************************************************************************
+// RiverpodGenerator
+// **************************************************************************
+
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+/// Horizontal zoom of a project's timeline.
+
+@ProviderFor(TimelineZoom)
+final timelineZoomProvider = TimelineZoomFamily._();
+
+/// Horizontal zoom of a project's timeline.
+final class TimelineZoomProvider
+    extends $NotifierProvider<TimelineZoom, TimelineScale> {
+  /// Horizontal zoom of a project's timeline.
+  TimelineZoomProvider._({
+    required TimelineZoomFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'timelineZoomProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$timelineZoomHash();
+
+  @override
+  String toString() {
+    return r'timelineZoomProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  TimelineZoom create() => TimelineZoom();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(TimelineScale value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<TimelineScale>(value),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is TimelineZoomProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$timelineZoomHash() => r'ba403cb00851f50e086197c7f8104ccb5b4bba08';
+
+/// Horizontal zoom of a project's timeline.
+
+final class TimelineZoomFamily extends $Family
+    with
+        $ClassFamilyOverride<
+          TimelineZoom,
+          TimelineScale,
+          TimelineScale,
+          TimelineScale,
+          String
+        > {
+  TimelineZoomFamily._()
+    : super(
+        retry: null,
+        name: r'timelineZoomProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Horizontal zoom of a project's timeline.
+
+  TimelineZoomProvider call(String projectId) =>
+      TimelineZoomProvider._(argument: projectId, from: this);
+
+  @override
+  String toString() => r'timelineZoomProvider';
+}
+
+/// Horizontal zoom of a project's timeline.
+
+abstract class _$TimelineZoom extends $Notifier<TimelineScale> {
+  late final _$args = ref.$arg as String;
+  String get projectId => _$args;
+
+  TimelineScale build(String projectId);
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<TimelineScale, TimelineScale>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<TimelineScale, TimelineScale>,
+              TimelineScale,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, () => build(_$args));
+  }
+}
+
+/// What is selected on a project's timeline. Drops the selection when its
+/// item disappears (delete, undo).
+
+@ProviderFor(TimelineSelectionController)
+final timelineSelectionControllerProvider =
+    TimelineSelectionControllerFamily._();
+
+/// What is selected on a project's timeline. Drops the selection when its
+/// item disappears (delete, undo).
+final class TimelineSelectionControllerProvider
+    extends $NotifierProvider<TimelineSelectionController, TimelineSelection> {
+  /// What is selected on a project's timeline. Drops the selection when its
+  /// item disappears (delete, undo).
+  TimelineSelectionControllerProvider._({
+    required TimelineSelectionControllerFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'timelineSelectionControllerProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$timelineSelectionControllerHash();
+
+  @override
+  String toString() {
+    return r'timelineSelectionControllerProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  TimelineSelectionController create() => TimelineSelectionController();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(TimelineSelection value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<TimelineSelection>(value),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is TimelineSelectionControllerProvider &&
+        other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$timelineSelectionControllerHash() =>
+    r'ad072c7a47508ee7f55178106c9ddf4f03cb3ff2';
+
+/// What is selected on a project's timeline. Drops the selection when its
+/// item disappears (delete, undo).
+
+final class TimelineSelectionControllerFamily extends $Family
+    with
+        $ClassFamilyOverride<
+          TimelineSelectionController,
+          TimelineSelection,
+          TimelineSelection,
+          TimelineSelection,
+          String
+        > {
+  TimelineSelectionControllerFamily._()
+    : super(
+        retry: null,
+        name: r'timelineSelectionControllerProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// What is selected on a project's timeline. Drops the selection when its
+  /// item disappears (delete, undo).
+
+  TimelineSelectionControllerProvider call(String projectId) =>
+      TimelineSelectionControllerProvider._(argument: projectId, from: this);
+
+  @override
+  String toString() => r'timelineSelectionControllerProvider';
+}
+
+/// What is selected on a project's timeline. Drops the selection when its
+/// item disappears (delete, undo).
+
+abstract class _$TimelineSelectionController
+    extends $Notifier<TimelineSelection> {
+  late final _$args = ref.$arg as String;
+  String get projectId => _$args;
+
+  TimelineSelection build(String projectId);
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<TimelineSelection, TimelineSelection>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<TimelineSelection, TimelineSelection>,
+              TimelineSelection,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, () => build(_$args));
+  }
+}
+
+/// Audio peaks of [uri] for an audio lane (null when it has no audio).
+
+@ProviderFor(clipWaveform)
+final clipWaveformProvider = ClipWaveformFamily._();
+
+/// Audio peaks of [uri] for an audio lane (null when it has no audio).
+
+final class ClipWaveformProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<WaveformData?>,
+          WaveformData?,
+          FutureOr<WaveformData?>
+        >
+    with $FutureModifier<WaveformData?>, $FutureProvider<WaveformData?> {
+  /// Audio peaks of [uri] for an audio lane (null when it has no audio).
+  ClipWaveformProvider._({
+    required ClipWaveformFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'clipWaveformProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$clipWaveformHash();
+
+  @override
+  String toString() {
+    return r'clipWaveformProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<WaveformData?> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<WaveformData?> create(Ref ref) {
+    final argument = this.argument as String;
+    return clipWaveform(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is ClipWaveformProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$clipWaveformHash() => r'3513bafc7ba9a6ed9dbd55fff99c45929f71e112';
+
+/// Audio peaks of [uri] for an audio lane (null when it has no audio).
+
+final class ClipWaveformFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<WaveformData?>, String> {
+  ClipWaveformFamily._()
+    : super(
+        retry: null,
+        name: r'clipWaveformProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Audio peaks of [uri] for an audio lane (null when it has no audio).
+
+  ClipWaveformProvider call(String uri) =>
+      ClipWaveformProvider._(argument: uri, from: this);
+
+  @override
+  String toString() => r'clipWaveformProvider';
+}

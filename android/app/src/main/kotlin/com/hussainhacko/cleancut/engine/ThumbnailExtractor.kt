@@ -8,6 +8,7 @@ import android.media.ExifInterface
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -26,13 +27,21 @@ class ThumbnailExtractor(private val context: Context) {
             require(heightPx in 16..1080) { "heightPx must be in 16..1080" }
             dir.mkdirs()
             val parsed = Uri.parse(uri)
-            val isImage = context.contentResolver.getType(parsed)?.startsWith("image/") == true
+            val isImage = runCatching { context.contentResolver.getType(parsed) }
+                .getOrNull()?.startsWith("image/") == true
             val files = timesUs.map { File(dir, CacheKeys.thumbnail(uri, it, heightPx, isImage)) }
             if (files.all { it.isFile }) return@withContext files.map { it.path }
 
             if (isImage) {
                 val file = files.firstOrNull() ?: return@withContext emptyList()
-                if (!file.isFile) decodeImage(parsed, heightPx)?.let { write(it, file) }
+                try {
+                    if (!file.isFile) decodeImage(parsed, heightPx)?.let { write(it, file) }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Revoked access, a deleted file or unreadable EXIF: no frame.
+                    Log.w(TAG, "Could not read image $uri", e)
+                }
                 return@withContext files.map { if (it.isFile) it.path else null }
             }
 
@@ -52,7 +61,10 @@ class ThumbnailExtractor(private val context: Context) {
                     }
                     if (file.isFile) file.path else null
                 }
-            } catch (e: RuntimeException) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Includes IOException from writing the cache file.
                 Log.w(TAG, "Could not read frames of $uri", e)
                 files.map { if (it.isFile) it.path else null }
             } finally {
@@ -70,7 +82,22 @@ class ThumbnailExtractor(private val context: Context) {
         val decoded = resolver.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
         } ?: return null
-        val degrees = resolver.openInputStream(uri)?.use {
+        // Unreadable EXIF means "no rotation", not "no thumbnail".
+        val degrees = runCatching { exifDegrees(uri) }.getOrDefault(0)
+        val matrix = Matrix().apply {
+            postRotate(degrees.toFloat())
+            val rotatedHeight = if (degrees % 180 == 0) decoded.height else decoded.width
+            val scale = heightPx.toFloat() / rotatedHeight
+            postScale(scale, scale)
+        }
+        val result = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
+        // createBitmap usually returns a new bitmap; free the full-size decode.
+        if (result !== decoded) decoded.recycle()
+        return result
+    }
+
+    private fun exifDegrees(uri: Uri): Int =
+        context.contentResolver.openInputStream(uri)?.use {
             when (ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
                 ExifInterface.ORIENTATION_ROTATE_90, ExifInterface.ORIENTATION_TRANSPOSE -> 90
                 ExifInterface.ORIENTATION_ROTATE_180, ExifInterface.ORIENTATION_FLIP_VERTICAL -> 180
@@ -78,21 +105,18 @@ class ThumbnailExtractor(private val context: Context) {
                 else -> 0
             }
         } ?: 0
-        val matrix = Matrix().apply {
-            postRotate(degrees.toFloat())
-            val rotatedHeight = if (degrees % 180 == 0) decoded.height else decoded.width
-            val scale = heightPx.toFloat() / rotatedHeight
-            postScale(scale, scale)
-        }
-        return Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
-    }
 
     private fun write(bitmap: Bitmap, file: File) {
-        // Write to a temp file first so a half-written thumbnail is never cached.
-        val tmp = File(file.path + ".tmp")
-        tmp.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it) }
-        if (!tmp.renameTo(file)) tmp.delete()
-        bitmap.recycle()
+        // A unique temp file per write: concurrent requests for the same frame
+        // can't truncate each other, and a half-written file is never cached.
+        val tmp = File.createTempFile("thumb", ".tmp", dir)
+        try {
+            tmp.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it) }
+            if (!tmp.renameTo(file)) tmp.delete()
+        } finally {
+            if (tmp.exists()) tmp.delete()
+            bitmap.recycle()
+        }
     }
 
     private companion object {

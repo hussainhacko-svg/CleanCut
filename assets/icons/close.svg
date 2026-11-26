@@ -1,4 +1,7 @@
-<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-<!-- Drawn to match the VCLIP "Full screen" frame's close mark (white, round caps). -->
-<path d="M1 1L13 13M13 1L1 13" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Mask group">
+<g>
+<path id="Union" d="M16.9497 7.05026C16.5592 6.65973 15.9656 6.62016 15.6239 6.96187L12 10.5858L8.37606 6.96187C8.03435 6.62016 7.44076 6.65973 7.05024 7.05026C6.65971 7.44078 6.62014 8.03437 6.96185 8.37608L10.5858 12L6.96185 15.6239C6.62014 15.9656 6.65971 16.5592 7.05024 16.9498C7.44076 17.3403 8.03435 17.3798 8.37606 17.0381L12 13.4142L15.6239 17.0381C15.9656 17.3798 16.5592 17.3403 16.9497 16.9498C17.3403 16.5592 17.3798 15.9656 17.0381 15.6239L13.4142 12L17.0381 8.37608C17.3798 8.03437 17.3403 7.44078 16.9497 7.05026Z" fill-rule="evenodd" clip-rule="evenodd" fill="#606060"/>
+</g>
+</g>
 </svg>

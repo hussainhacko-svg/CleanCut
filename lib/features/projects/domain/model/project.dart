@@ -80,10 +80,14 @@ abstract class Project with _$Project {
         if (item.startUs < 0) problems.add('$path.items[$i]: startUs < 0');
         problems.addAll(item.clip.validate().map((p) => '$path.items[$i]: $p'));
       }
-      for (final (a, b) in findOverlaps([
-        for (final i in track.items) i.range,
-      ])) {
-        problems.add('$path: items $a and $b overlap');
+      // Only valid items have a time range (an invalid speed or length
+      // would throw); their own problems are reported above.
+      final valid = [
+        for (final (i, item) in track.items.indexed)
+          if (item.clip.validate().isEmpty) (i, item.range),
+      ];
+      for (final (a, b) in findOverlaps([for (final (_, r) in valid) r])) {
+        problems.add('$path: items ${valid[a].$1} and ${valid[b].$1} overlap');
       }
     }
 
@@ -95,10 +99,14 @@ abstract class Project with _$Project {
         if (item.startUs < 0) problems.add('$path.items[$i]: startUs < 0');
         problems.addAll(item.clip.validate().map((p) => '$path.items[$i]: $p'));
       }
-      for (final (a, b) in findOverlaps([
-        for (final i in track.items) i.range,
-      ])) {
-        problems.add('$path: items $a and $b overlap');
+      // Only valid items have a time range (an invalid speed or length
+      // would throw); their own problems are reported above.
+      final valid = [
+        for (final (i, item) in track.items.indexed)
+          if (item.clip.validate().isEmpty) (i, item.range),
+      ];
+      for (final (a, b) in findOverlaps([for (final (_, r) in valid) r])) {
+        problems.add('$path: items ${valid[a].$1} and ${valid[b].$1} overlap');
       }
     }
     return problems;

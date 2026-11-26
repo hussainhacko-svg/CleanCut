@@ -55,14 +55,29 @@ When a tool opens, a **tool panel** (max 40% height) slides up over the dock and
 
 **Medium (600–839dp)** uses the phone layout with a wider preview. The tool panel becomes a side sheet in landscape.
 
-## 3. Tool dock content
+**Tablet (≥ 840dp)** has no VCLIP frame; it keeps this rail + properties panel layout with the kit's tokens (owner decision). In Phase 3 the panel shows the selected clip's name and length; tool controls move into it as their phases land.
+
+## 3. Tool dock content (VCLIP "Timeline" / "Video" / "Edit")
+
+Phone dock: a horizontally scrolling row; items 52dp apart, 24px icon + 8px label at 50% opacity; the first item is a white disc (⊕ add, or ‹ back) without a label. Tablet: the same items in the left rail.
 
 | State | Dock items |
 |---|---|
-| Nothing selected | Edit · Audio · Text · Photo/Overlay · Filters · Canvas (ratio, bg) · Effects |
-| Video/photo clip selected | Split · Trim · Flow (speed) · Crop · Transform (rotate/position/size/mirror/flip/fill) · Filter · Adjust · Blur · Mask · Border · Opacity · Volume · Motion (photo) · Duplicate · Delete |
-| Text selected | Edit text · Style · Motion · Transform · Opacity · Duplicate · Delete |
-| Audio selected | Split · Volume · Fade · Speed · Duplicate · Delete |
+| Nothing selected | ⊕ Add media · Music · Voice · Text · Effect · Overlay · Ratio |
+| Video/photo or overlay clip selected | ‹ Back · Split · Filters · Crop · Adjust · Speed · Animation · Volume · Delete |
+| Text selected (Phase 8, kit "Edit") | ‹ Back · Split · Edit · Delete · Color · Font · Align |
+| Audio selected | ‹ Back · Split · Volume · Speed · Delete |
+
+Tools whose phase hasn't shipped show "Coming in a later update." Icons that exist as vectors in the kit come from it; the clip tools (split, filters, crop, adjust, speed, animation, volume, delete, mute) were redrawn from the kit's flattened "Icons" sheet and are marked inside their SVGs.
+
+### Timeline (VCLIP "Timeline")
+
+- Ruler: labels every major step (5 s at the default zoom of 22.8 px/s) in 12px at 50% white, 4 dots between labels. Steps adapt to zoom so labels stay ≥ 90px apart.
+- Playhead: a 2px white line fixed in the middle, spanning the lanes only. Dragging the timeline scrubs; within 8px of a clip edge it snaps there with a haptic tick; playback resumes after the drag if it was playing. Two-finger pinch zooms around the playhead.
+- Rows, top to bottom: effect · text · overlay lanes (30px pills, radius 18.5, 10px label with a small glyph), the main video strip (60px thumbnails, radius 10, 4px visual gap between clips, ⧓ transition marker on each boundary), audio lanes (orange pills with a white waveform). The "mute original audio" speaker sits left of 0 s on the first audio row.
+- Lane colors (`TimelineColors`): effect `#808080`, text `#43418E`, overlay `#D158D9`, audio `#E86F48`.
+- Selection: tap a clip to select, tap it again or empty space (or ‹ Back) to deselect. A selected main clip gets a cream `#EDDB93` tint (85%), a 2px white border and 4×14 white trim handles; the other lanes drop to 60% opacity. A selected pill gets a 50% fill, a 2px outline and handles in its lane color. Selection is UI state (not undoable) and clears when its clip disappears.
+- The ⧓ marker is decorative until transitions ship: a 48dp target would cover short clips (a 2 s clip is 45px wide at the default zoom).
 
 ## 4. Gestures
 

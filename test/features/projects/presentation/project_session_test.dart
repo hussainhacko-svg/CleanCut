@@ -1,5 +1,6 @@
 import 'package:cleancut/features/projects/domain/commands/project_commands.dart';
 import 'package:cleancut/features/projects/domain/history/history.dart';
+import 'package:cleancut/features/projects/domain/model/project_canvas.dart';
 import 'package:cleancut/features/projects/presentation/project_providers.dart';
 import 'package:cleancut/features/projects/presentation/project_screen.dart';
 import 'package:cleancut/features/projects/presentation/project_session.dart';
@@ -85,28 +86,30 @@ void main() {
     final container = ProviderScope.containerOf(
       tester.element(find.byType(ProjectScreen)),
     );
-    String name() => container
+    CanvasAspect aspect() => container
         .read(projectSessionProvider('p1'))
         .value!
         .history
         .present
-        .name;
+        .canvas
+        .aspect;
+    final before = aspect();
     container
         .read(projectSessionProvider('p1').notifier)
-        .apply(const RenameProjectCommand('Renamed'));
+        .apply(const SetCanvasAspectCommand(CanvasAspect.square));
     await tester.pump();
-    expect(name(), 'Renamed');
-    // Every edit reloads the preview.
+    expect(aspect(), CanvasAspect.square);
+    // An edit that changes what plays reloads the preview.
     expect(env.engine.specs, hasLength(2));
 
     await tester.tap(find.byTooltip('Undo'));
     await tester.pump();
-    expect(name(), 'Test project');
+    expect(aspect(), before);
     expect(env.engine.specs, hasLength(3));
 
     // Let the debounced autosave run so no timer is left pending.
     await tester.pump(const Duration(seconds: 1));
-    expect(env.repo.projects['p1']!.name, 'Test project');
+    expect(env.repo.projects['p1']!.canvas.aspect, before);
   });
 
   testWidgets('unknown project shows a message', (tester) async {

@@ -28,7 +28,8 @@ final class ProjectCodec {
 
   /// Parses a project file.
   ///
-  /// Throws a [FormatException] for malformed files and an
+  /// Throws a [FormatException] for malformed files or projects that fail
+  /// `Project.validate`, and an
   /// [UnsupportedSchemaException] for files newer than [currentVersion].
   Project decode(String source) {
     final decoded = jsonDecode(source);
@@ -36,12 +37,20 @@ final class ProjectCodec {
       throw const FormatException('Project file is not a JSON object');
     }
     final migrated = migrate(decoded);
+    final Project project;
     try {
-      return Project.fromJson(migrated);
+      project = Project.fromJson(migrated);
     } on Object catch (e) {
       // json_serializable reports missing or mistyped fields as TypeError.
       throw FormatException('Invalid project file: $e');
     }
+    // Well-formed JSON can still break invariants (speed 0, negative
+    // lengths) that would crash playback later; refuse it here.
+    final problems = project.validate();
+    if (problems.isNotEmpty) {
+      throw FormatException('Invalid project: ${problems.join('; ')}');
+    }
+    return project;
   }
 
   /// Applies migrations until [json] reaches [currentVersion].
