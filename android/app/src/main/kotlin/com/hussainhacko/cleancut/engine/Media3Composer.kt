@@ -1,7 +1,10 @@
 package com.hussainhacko.cleancut.engine
 
 import androidx.annotation.OptIn
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.SpeedParameters
+import androidx.media3.common.audio.SpeedProvider
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.effect.Presentation
 import androidx.media3.transformer.Composition
@@ -49,6 +52,18 @@ object Media3Composer {
         return EditedMediaItem.Builder(media.build())
             .setDurationUs(item.sourceDurationUs)
             .apply { if (item.isImage) setFrameRate(frameRate) }
+            .apply {
+                if (item.hasSpeedChange) {
+                    setSpeed(SpeedParameters(ConstantSpeedProvider(item.speed), item.keepPitch))
+                }
+            }
             .build()
     }
+}
+
+/** Plays a whole clip at one [speed] (Flow without a curve). */
+internal class ConstantSpeedProvider(private val speed: Float) : SpeedProvider {
+    override fun getSpeed(timeUs: Long): Float = speed
+
+    override fun getNextSpeedChangeTimeUs(timeUs: Long): Long = C.TIME_UNSET
 }

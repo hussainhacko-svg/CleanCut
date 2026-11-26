@@ -12,8 +12,8 @@ data class CompositionPlan(
     val height: Int,
     val frameRate: Int,
 ) {
-    /** Length of the sequence: the sum of the trimmed items. */
-    val durationUs: Long get() = items.sumOf { it.clippedDurationUs }
+    /** Length of the sequence: the sum of the trimmed items after their speed. */
+    val durationUs: Long get() = items.sumOf { it.timelineDurationUs }
 
     /** True when stills and videos mix, so audio must be padded with silence. */
     val needsSilentAudio: Boolean get() = items.any { it.isImage } && items.any { !it.isImage }
@@ -21,6 +21,10 @@ data class CompositionPlan(
     companion object {
         /** Smallest preview side; Media3 needs a non-empty, even-sized surface. */
         const val MIN_SIDE = 2
+
+        /** Slowest and fastest clip speed; matches the Dart model's `SpeedLimits`. */
+        const val MIN_SPEED = 0.1f
+        const val MAX_SPEED = 10f
 
         /** Used when the spec has no usable frame rate. */
         const val DEFAULT_FRAME_RATE = 30
@@ -45,11 +49,18 @@ data class CompositionPlan(
                     sourceDurationUs = if (isImage) end - start else sourceDuration,
                     clipStartUs = if (isImage) 0 else start,
                     clipEndUs = if (isImage) end - start else end,
+                    // Stills show for their trimmed length; speed only applies to video.
+                    speed = if (isImage) 1f else speedOf(clip.speed),
+                    keepPitch = clip.keepPitch,
                 )
             }
             val rate = spec.frameRate.toInt().takeIf { it in 1..240 } ?: DEFAULT_FRAME_RATE
             return CompositionPlan(items, even(spec.canvasWidth), even(spec.canvasHeight), rate)
         }
+
+        /** A usable speed: NaN and non-positive speeds play normally, others are clamped. */
+        internal fun speedOf(speed: Double): Float =
+            if (speed.isNaN() || speed <= 0.0) 1f else speed.toFloat().coerceIn(MIN_SPEED, MAX_SPEED)
 
         /** Rounds down to an even size of at least [MIN_SIDE] (video encoders need even sides). */
         internal fun even(px: Long): Int = (px.coerceIn(MIN_SIDE.toLong(), 8192L).toInt() / 2) * 2
@@ -65,8 +76,19 @@ data class PlannedItem(
     val sourceDurationUs: Long,
     val clipStartUs: Long,
     val clipEndUs: Long,
+    /** Constant playback speed (1 = normal). */
+    val speed: Float = 1f,
+    /** Whether sped-up or slowed-down audio keeps its pitch. */
+    val keepPitch: Boolean = true,
 ) {
+    /** Length of the used source range. */
     val clippedDurationUs: Long get() = clipEndUs - clipStartUs
+
+    /** Length on the timeline after [speed], rounded like the Dart model. */
+    val timelineDurationUs: Long get() = Math.round(clippedDurationUs / speed.toDouble())
+
+    /** Whether the item plays at a speed other than 1. */
+    val hasSpeedChange: Boolean get() = speed != 1f
 
     /** Display length of a still in whole ms; Media3 rejects 0, so at least 1. */
     val imageDurationMs: Long get() = (sourceDurationUs / 1000).coerceAtLeast(1L)

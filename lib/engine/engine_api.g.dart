@@ -125,6 +125,8 @@ class ClipSpec {
     required this.sourceDurationUs,
     required this.sourceInUs,
     required this.sourceOutUs,
+    required this.speed,
+    required this.keepPitch,
   });
 
   /// Content URI of the source.
@@ -141,8 +143,24 @@ class ClipSpec {
   /// Trim end within the source (exclusive).
   int sourceOutUs;
 
+  /// Constant playback speed (0.1–10); the clip lasts
+  /// `(sourceOutUs - sourceInUs) / speed` on the timeline. Always 1 for
+  /// images, whose trim already is their display length.
+  double speed;
+
+  /// Whether sped-up or slowed-down audio keeps its pitch.
+  bool keepPitch;
+
   List<Object?> _toList() {
-    return <Object?>[uri, kind, sourceDurationUs, sourceInUs, sourceOutUs];
+    return <Object?>[
+      uri,
+      kind,
+      sourceDurationUs,
+      sourceInUs,
+      sourceOutUs,
+      speed,
+      keepPitch,
+    ];
   }
 
   Object encode() {
@@ -157,6 +175,8 @@ class ClipSpec {
       sourceDurationUs: result[2]! as int,
       sourceInUs: result[3]! as int,
       sourceOutUs: result[4]! as int,
+      speed: result[5]! as double,
+      keepPitch: result[6]! as bool,
     );
   }
 
@@ -173,7 +193,9 @@ class ClipSpec {
         _deepEquals(kind, other.kind) &&
         _deepEquals(sourceDurationUs, other.sourceDurationUs) &&
         _deepEquals(sourceInUs, other.sourceInUs) &&
-        _deepEquals(sourceOutUs, other.sourceOutUs);
+        _deepEquals(sourceOutUs, other.sourceOutUs) &&
+        _deepEquals(speed, other.speed) &&
+        _deepEquals(keepPitch, other.keepPitch);
   }
 
   @override
@@ -182,7 +204,7 @@ class ClipSpec {
 
   @override
   String toString() {
-    return 'ClipSpec(uri: $uri, kind: $kind, sourceDurationUs: $sourceDurationUs, sourceInUs: $sourceInUs, sourceOutUs: $sourceOutUs)';
+    return 'ClipSpec(uri: $uri, kind: $kind, sourceDurationUs: $sourceDurationUs, sourceInUs: $sourceInUs, sourceOutUs: $sourceOutUs, speed: $speed, keepPitch: $keepPitch)';
   }
 }
 

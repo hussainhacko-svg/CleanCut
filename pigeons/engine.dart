@@ -21,6 +21,8 @@ class ClipSpec {
     required this.sourceDurationUs,
     required this.sourceInUs,
     required this.sourceOutUs,
+    required this.speed,
+    required this.keepPitch,
   });
 
   /// Content URI of the source.
@@ -35,6 +37,14 @@ class ClipSpec {
 
   /// Trim end within the source (exclusive).
   final int sourceOutUs;
+
+  /// Constant playback speed (0.1–10); the clip lasts
+  /// `(sourceOutUs - sourceInUs) / speed` on the timeline. Always 1 for
+  /// images, whose trim already is their display length.
+  final double speed;
+
+  /// Whether sped-up or slowed-down audio keeps its pitch.
+  final bool keepPitch;
 }
 
 /// What the preview plays: the main track, fitted into the canvas.

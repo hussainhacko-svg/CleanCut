@@ -245,7 +245,15 @@ data class ClipSpec (
   /** Trim start within the source. */
   val sourceInUs: Long,
   /** Trim end within the source (exclusive). */
-  val sourceOutUs: Long
+  val sourceOutUs: Long,
+  /**
+   * Constant playback speed (0.1–10); the clip lasts
+   * `(sourceOutUs - sourceInUs) / speed` on the timeline. Always 1 for
+   * images, whose trim already is their display length.
+   */
+  val speed: Double,
+  /** Whether sped-up or slowed-down audio keeps its pitch. */
+  val keepPitch: Boolean
 )
  {
   companion object {
@@ -255,7 +263,9 @@ data class ClipSpec (
       val sourceDurationUs = pigeonVar_list[2] as Long
       val sourceInUs = pigeonVar_list[3] as Long
       val sourceOutUs = pigeonVar_list[4] as Long
-      return ClipSpec(uri, kind, sourceDurationUs, sourceInUs, sourceOutUs)
+      val speed = pigeonVar_list[5] as Double
+      val keepPitch = pigeonVar_list[6] as Boolean
+      return ClipSpec(uri, kind, sourceDurationUs, sourceInUs, sourceOutUs, speed, keepPitch)
     }
   }
   fun toList(): List<Any?> {
@@ -265,6 +275,8 @@ data class ClipSpec (
       sourceDurationUs,
       sourceInUs,
       sourceOutUs,
+      speed,
+      keepPitch,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -275,7 +287,7 @@ data class ClipSpec (
       return true
     }
     val other = other as ClipSpec
-    return EngineApiPigeonUtils.deepEquals(this.uri, other.uri) && EngineApiPigeonUtils.deepEquals(this.kind, other.kind) && EngineApiPigeonUtils.deepEquals(this.sourceDurationUs, other.sourceDurationUs) && EngineApiPigeonUtils.deepEquals(this.sourceInUs, other.sourceInUs) && EngineApiPigeonUtils.deepEquals(this.sourceOutUs, other.sourceOutUs)
+    return EngineApiPigeonUtils.deepEquals(this.uri, other.uri) && EngineApiPigeonUtils.deepEquals(this.kind, other.kind) && EngineApiPigeonUtils.deepEquals(this.sourceDurationUs, other.sourceDurationUs) && EngineApiPigeonUtils.deepEquals(this.sourceInUs, other.sourceInUs) && EngineApiPigeonUtils.deepEquals(this.sourceOutUs, other.sourceOutUs) && EngineApiPigeonUtils.deepEquals(this.speed, other.speed) && EngineApiPigeonUtils.deepEquals(this.keepPitch, other.keepPitch)
   }
 
   override fun hashCode(): Int {
@@ -285,10 +297,12 @@ data class ClipSpec (
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.sourceDurationUs)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.sourceInUs)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.sourceOutUs)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.speed)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.keepPitch)
     return result
   }
   override fun toString(): String {
-    return "ClipSpec(uri=$uri, kind=$kind, sourceDurationUs=$sourceDurationUs, sourceInUs=$sourceInUs, sourceOutUs=$sourceOutUs)"
+    return "ClipSpec(uri=$uri, kind=$kind, sourceDurationUs=$sourceDurationUs, sourceInUs=$sourceInUs, sourceOutUs=$sourceOutUs, speed=$speed, keepPitch=$keepPitch)"
   }
 }
 

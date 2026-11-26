@@ -6,11 +6,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CompositionPlanTest {
-    private fun video(inUs: Long, outUs: Long, durationUs: Long = 10_000_000, uri: String = "content://v") =
-        ClipSpec(uri, SpecMediaKind.VIDEO, durationUs, inUs, outUs)
+    private fun video(
+        inUs: Long,
+        outUs: Long,
+        durationUs: Long = 10_000_000,
+        uri: String = "content://v",
+        speed: Double = 1.0,
+        keepPitch: Boolean = true,
+    ) = ClipSpec(uri, SpecMediaKind.VIDEO, durationUs, inUs, outUs, speed, keepPitch)
 
-    private fun image(inUs: Long, outUs: Long) =
-        ClipSpec("content://i", SpecMediaKind.IMAGE, 3_000_000, inUs, outUs)
+    private fun image(inUs: Long, outUs: Long, speed: Double = 1.0) =
+        ClipSpec("content://i", SpecMediaKind.IMAGE, 3_000_000, inUs, outUs, speed, true)
 
     private fun spec(vararg clips: ClipSpec, w: Long = 1080, h: Long = 1920, fps: Long = 30) =
         CompositionSpec(clips.toList(), w, h, fps)
@@ -23,6 +29,42 @@ class CompositionPlanTest {
         assertEquals(1_000_000, item.clipStartUs)
         assertEquals(4_000_000, item.clipEndUs)
         assertEquals(3_000_000, plan.durationUs)
+    }
+
+    @Test
+    fun `speed shortens or lengthens the timeline, not the trim`() {
+        val plan = CompositionPlan.of(
+            spec(video(0, 4_000_000, speed = 2.0, keepPitch = false), video(0, 1_000_000, uri = "b", speed = 0.5)),
+        )
+        val (fast, slow) = plan.items
+        assertEquals(4_000_000, fast.clippedDurationUs)
+        assertEquals(2_000_000, fast.timelineDurationUs)
+        assertTrue(fast.hasSpeedChange)
+        assertFalse(fast.keepPitch)
+        assertEquals(2_000_000, slow.timelineDurationUs)
+        assertEquals(4_000_000, plan.durationUs)
+    }
+
+    @Test
+    fun `unusable speeds play normally and extremes are clamped`() {
+        val speeds = CompositionPlan.of(
+            spec(
+                video(0, 1_000_000, speed = Double.NaN),
+                video(0, 1_000_000, speed = 0.0),
+                video(0, 1_000_000, speed = -2.0),
+                video(0, 1_000_000, speed = 0.01),
+                video(0, 1_000_000, speed = 50.0),
+            ),
+        ).items.map { it.speed }
+        assertEquals(listOf(1f, 1f, 1f, CompositionPlan.MIN_SPEED, CompositionPlan.MAX_SPEED), speeds)
+    }
+
+    @Test
+    fun `images ignore speed`() {
+        val item = CompositionPlan.of(spec(image(0, 2_000_000, speed = 4.0))).items.single()
+        assertEquals(1f, item.speed)
+        assertFalse(item.hasSpeedChange)
+        assertEquals(2_000_000, item.timelineDurationUs)
     }
 
     @Test

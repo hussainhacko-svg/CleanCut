@@ -47,6 +47,32 @@ void main() {
     expect(spec.frameRate, 24);
   });
 
+  test('videos carry their speed and keep-pitch setting', () {
+    final p = project(mainSeconds: [4]);
+    final fast = p.copyWith(
+      mainTrack: MainTrack(
+        clips: [p.mainTrack.clips.single.copyWith(speed: 2, keepPitch: false)],
+      ),
+    );
+    final clip = compositionSpecOf(fast).clips.single;
+    expect(clip.speed, 2);
+    expect(clip.keepPitch, isFalse);
+    expect((clip.sourceInUs, clip.sourceOutUs), (0, 4000000));
+  });
+
+  test('a sped-up still shows for its timeline length at speed 1', () {
+    final still = Clip.fromMedia(
+      id: 'i',
+      media: image(),
+    ).copyWith(sourceInUs: 1000000, sourceOutUs: 5000000, speed: 2);
+    final clip = compositionSpecOf(
+      project().copyWith(mainTrack: MainTrack(clips: [still])),
+    ).clips.single;
+    expect(clip.speed, 1);
+    expect((clip.sourceInUs, clip.sourceOutUs), (0, 2000000));
+    expect(clip.sourceDurationUs, 2000000);
+  });
+
   test('an empty project maps to no clips', () {
     expect(compositionSpecOf(project()).clips, isEmpty);
   });
