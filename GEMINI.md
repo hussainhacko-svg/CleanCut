@@ -8,29 +8,38 @@ things stand so you don't redo or undo work. Keep it current: update it when
 you finish a chunk of work, and leave the next agent the same courtesy.
 
 **How we hand off:** leave your work uncommitted with a note in `CLAUDE.md`
-(as you did for the post-Phase-3 and post-Phase-4 audits). Claude reviews
-it, runs every check, commits it, and trims `CLAUDE.md` back to
-`@AGENTS.md`. Claude records its own work here.
+(as you did for the post-Phase-3, post-Phase-4 and speed-curve audits).
+Claude reviews it, runs every check, commits it, and trims `CLAUDE.md` back
+to `@AGENTS.md`. Claude records its own work here.
+
+**Git workflow:** work on a branch off `main` and open one PR straight into
+`main` per chunk of work. **Don't stack PRs** (base = another feature
+branch): the owner merges quickly, and a stacked PR then lands on its base
+branch instead of `main` — that happened with #6, which #7 had to re-send.
+The owner merges; feature branches are deleted afterwards.
 
 ## Status (2026-11-26)
 
 | Phase | State | Where |
 |---|---|---|
 | 0–2 + VCLIP restyle | done | `main` (PRs #1–#4) |
-| 3 — editor shell & timeline | done | `feat/phase-3` (pushed, **no PR yet**) |
-| 4 — basic editing + speed curves | **done** | `feat/phase-4` (from `feat/phase-3`; **not pushed**) |
-| 5 — transform & style | next | — |
+| 3 — editor shell & timeline | done | `main` (PR #5) |
+| 4 — basic editing + speed curves | done | `main` (PR #7; #6 merged into the old Phase 3 branch only) |
+| README refresh | done | `main` (PR #8) |
+| 5 — transform & style | **next** | — |
 
-Neither branch has a PR yet; the owner decides when to push/open them.
+Everything is merged; `main` is at `871ead1` and is the only branch. The
+`feat/phase-3`, `feat/phase-4` and `docs/readme` branches are deleted. Commit
+hashes below are the originals, now part of `main`'s history.
 
-### Phase 3 (`feat/phase-3`)
+### Phase 3 (PR #5)
 
 - Timeline, contextual dock, tablet layout, plus two audit-fix commits:
   `955f9b8` (post-Phase-2) and `61ee62d` (your post-Phase-3 fixes, with one
   addition: `ClipThumbnails.ensure` caches failed frames as missing instead
   of throwing unhandled).
 
-### Phase 4 (`feat/phase-4`), in order
+### Phase 4 (PR #7), in order
 
 | Commit | What |
 |---|---|
@@ -76,6 +85,11 @@ presets, curve editing and playback, v1→v2 migration of existing projects.
 
 ### Open items
 
+- **Phase 5 — transform & style** (see `docs/PLAN.md`): canvas ratio and
+  resolution, crop, rotate/position/size/mirror/flip, fill modes,
+  background, border, opacity, keyframe buttons. The Canvas size sheet
+  (`aspect_sheet.dart`) already has the kit's Ratio style and a `selected`
+  parameter for reuse by the Ratio tool.
 - Phase 2 low-end **physical** device check (1080p ≥ 30 fps, seek < 150 ms).
 - Audible keep-pitch check (emulator audio not verified).
 - Split/delete/speed for overlay and audio clips arrive with Phases 7/9;
