@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.ExifInterface
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.Log
@@ -46,15 +48,26 @@ class ThumbnailExtractor(private val context: Context) {
             }
 
             val retriever = MediaMetadataRetriever()
+            val keyframes = KeyframeIndex.open(context, parsed)
             try {
                 retriever.setDataSource(context, parsed)
                 files.mapIndexed { i, file ->
                     coroutineContext.ensureActive()
                     if (!file.isFile) {
-                        // Nearest sync frame: fast enough for a scrolling timeline strip.
+                        // The nearest sync frame is fast and usually close enough; when
+                        // the keyframe before the target is far away, decode exactly.
+                        val exact = ThumbnailTiming.needsExactFrame(
+                            timesUs[i],
+                            keyframes?.previousSyncUs(timesUs[i]),
+                        )
+                        val option = if (exact) {
+                            MediaMetadataRetriever.OPTION_CLOSEST
+                        } else {
+                            MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+                        }
                         retriever.getScaledFrameAtTime(
                             timesUs[i],
-                            MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+                            option,
                             heightPx * MAX_ASPECT,
                             heightPx,
                         )?.let { write(it, file) }
@@ -68,9 +81,48 @@ class ThumbnailExtractor(private val context: Context) {
                 Log.w(TAG, "Could not read frames of $uri", e)
                 files.map { if (it.isFile) it.path else null }
             } finally {
+                keyframes?.close()
                 retriever.release()
             }
         }
+
+    /** Sync-frame times of a video's first video track, read from its index (no decoding). */
+    private class KeyframeIndex private constructor(private val extractor: MediaExtractor) {
+        /** Time of the sync frame at or before [timeUs], or null when unknown. */
+        fun previousSyncUs(timeUs: Long): Long? {
+            extractor.seekTo(timeUs, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
+            return extractor.sampleTime.takeIf { it >= 0 }
+        }
+
+        fun close() = extractor.release()
+
+        companion object {
+            /** Null when the file can't be indexed; callers then use sync frames. */
+            fun open(context: Context, uri: Uri): KeyframeIndex? {
+                val extractor = MediaExtractor()
+                return try {
+                    extractor.setDataSource(context, uri, null)
+                    val track = (0 until extractor.trackCount).firstOrNull {
+                        extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true
+                    }
+                    if (track == null) {
+                        extractor.release()
+                        null
+                    } else {
+                        extractor.selectTrack(track)
+                        KeyframeIndex(extractor)
+                    }
+                } catch (e: CancellationException) {
+                    extractor.release()
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "No keyframe index for $uri", e)
+                    extractor.release()
+                    null
+                }
+            }
+        }
+    }
 
     private fun decodeImage(uri: Uri, heightPx: Int): Bitmap? {
         val resolver = context.contentResolver
