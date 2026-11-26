@@ -35,10 +35,18 @@ you finish a chunk of work, and leave the next agent the same courtesy.
     (`presentation/editor/panels/`), open state in `OpenToolPanel`.
   - `8ec7ffe` timeline: trim handles (applied on release) and long-press
     reorder.
-  - **Still open:** speed curves (follow-up), checking speed/keep-pitch
-    playback on a real device or emulator (only unit/widget-tested so far),
-    and split/delete/etc. for overlay and audio clips (they arrive with
-    Phases 7/9; the dock says "coming in a later update" for them).
+  - **Emulator-tested 2026-11-26** (`Medium_Phone_API_37.0`): split,
+    duplicate, delete, undo/redo, speed panel (tap, type, reset, keep
+    pitch, back), speed 0.1x/2x/10x playback (2x verified frame-accurate
+    against 1x), trim start/end/minimum, reorder, autosave. Two bugs found
+    and fixed: `a528808` (lifted clip lost its gesture: main clips are now
+    keyed by id) and `b101acc` (speed bubble too wide).
+  - **Still open:** speed curves (follow-up); split/delete/etc. for overlay
+    and audio clips (Phases 7/9); audible keep-pitch check (emulator has
+    no audio output in testing).
+  - **Pre-existing (Phase 2), not fixed:** timeline thumbnails use
+    `OPTION_CLOSEST_SYNC` (`ThumbnailExtractor.kt`), so videos with sparse
+    keyframes (e.g. screen recordings) show the same frame in every tile.
 
 ## Design source
 
