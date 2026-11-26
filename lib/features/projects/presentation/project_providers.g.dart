@@ -180,7 +180,7 @@ final class ProjectListProvider
   ProjectList create() => ProjectList();
 }
 
-String _$projectListHash() => r'2e2f3c8291ebd1b1889f656ac228b22856c20890';
+String _$projectListHash() => r'd8d6c4dfd6a5eb76e9a6f983a02158c0422579dc';
 
 /// All projects, most recently edited first.
 

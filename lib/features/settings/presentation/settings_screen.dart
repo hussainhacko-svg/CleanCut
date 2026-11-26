@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
+import 'package:cleancut/core/theme/app_tokens.dart';
 import 'package:cleancut/features/settings/domain/app_settings.dart';
 import 'package:cleancut/features/settings/presentation/settings_providers.dart';
 import 'package:flutter/material.dart';
@@ -24,33 +25,51 @@ class SettingsScreen extends ConsumerWidget {
       ThemePreference.system => l10n.themeSystem,
     };
 
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(title: Text(l10n.settingsTitle)),
       body: ListView(
+        padding: const EdgeInsetsDirectional.fromSTEB(
+          AppTokens.gutter,
+          16,
+          AppTokens.gutter,
+          24,
+        ),
         children: [
-          ListTile(
-            title: Text(
-              l10n.settingsThemeSection,
-              style: Theme.of(context).textTheme.titleSmall,
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(6, 0, 6, 12),
+            child: Semantics(
+              header: true,
+              child: Text(
+                l10n.settingsThemeSection,
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
           ),
-          RadioGroup<ThemePreference>(
-            groupValue: theme,
-            onChanged: (value) {
-              if (value != null) {
-                unawaited(
-                  ref.read(settingsControllerProvider.notifier).setTheme(value),
-                );
-              }
-            },
-            child: Column(
-              children: [
-                for (final p in ThemePreference.values)
-                  RadioListTile<ThemePreference>(
-                    value: p,
-                    title: Text(label(p)),
-                  ),
-              ],
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: RadioGroup<ThemePreference>(
+              groupValue: theme,
+              onChanged: (value) {
+                if (value != null) {
+                  unawaited(
+                    ref
+                        .read(settingsControllerProvider.notifier)
+                        .setTheme(value),
+                  );
+                }
+              },
+              child: Column(
+                children: [
+                  for (final p in ThemePreference.values)
+                    RadioListTile<ThemePreference>(
+                      value: p,
+                      title: Text(label(p)),
+                    ),
+                ],
+              ),
             ),
           ),
         ],

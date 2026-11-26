@@ -134,6 +134,8 @@ test/             mirrors lib/
 | `mocktail` (dev) | Tests | 1 |
 | Gradle: `androidx.media3:media3-transformer`, `-effect`, `-common`, `-exoplayer` (+ `CompositionPlayer`) | Engine | 2 |
 | Gradle: `kotlinx-coroutines-android` | Engine | 2 |
+| `flutter_svg` | VCLIP kit icons (owner-approved) | 2 |
+| Gradle (test): `junit:junit` | Engine JVM unit tests (owner-approved) | 2 |
 
 Anything not listed requires owner approval (see AGENTS.md §2).
 
@@ -156,14 +158,15 @@ Each phase ends with a working, tested build and a tag `v0.<phase>.0`.
 - [x] `ProjectRepository` (JSON files in app docs dir, schemaVersion, autosave)
 - [x] Home screen: project grid, new project (pick media via Photo Picker, choose aspect), rename/duplicate/delete
 - [x] Tests: model invariants, commands, serialization round-trip
+- [x] Restyle to the VCLIP Figma kit (theme tokens, Plus Jakarta Sans / Bebas Neue, home list + New project tile, panel-style canvas picker)
 
 ### Phase 2 — Native engine spike (highest risk — do early)
-- [ ] Pigeon `EngineHostApi` / `EngineFlutterApi` (events: position, state, errors)
-- [ ] `CompositionPlayer` rendering to `SurfaceProducer` → Flutter `Texture`
-- [ ] Load a 1-clip spec; play/pause/seek; frame-accurate scrubbing
-- [ ] Thumbnail extraction (`MediaMetadataRetriever` / frame extractor) + disk cache
-- [ ] Waveform extraction (decode → peaks) + cache
-- [ ] Spike test on a low-end device (target: 1080p preview ≥ 30fps, seek < 150ms)
+- [x] Pigeon `EngineHostApi` / `EngineFlutterApi` (events: position, state, errors)
+- [x] `CompositionPlayer` rendering to `SurfaceProducer` → Flutter `Texture`
+- [x] Load a 1-clip spec; play/pause/seek; frame-accurate scrubbing (main track with videos + stills; VCLIP editor top + full-screen scrubber)
+- [x] Thumbnail extraction (`MediaMetadataRetriever` / frame extractor) + disk cache
+- [x] Waveform extraction (decode → peaks) + cache
+- [ ] Spike test on a low-end device (target: 1080p preview ≥ 30fps, seek < 150ms) — verified on the emulator only; needs a real low-end phone
 
 ### Phase 3 — Editor shell & timeline
 - [ ] Responsive editor scaffold (Bottom Dock / Rail + Panel) — see DESIGN.md

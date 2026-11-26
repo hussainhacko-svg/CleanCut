@@ -12,4 +12,12 @@ void main() {
   test('clamps negative values', () {
     expect(formatDurationUs(-5), '0:00');
   });
+
+  test('clock format pads minutes like the editor readout', () {
+    expect(formatClockUs(0), '00:00');
+    expect(formatClockUs(6 * 1000000), '00:06');
+    expect(formatClockUs(12 * 60 * 1000000 + 999999), '12:00');
+    expect(formatClockUs((3600 + 61) * 1000000), '1:01:01');
+    expect(formatClockUs(-1), '00:00');
+  });
 }

@@ -12,6 +12,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   flutter_riverpod: ^3.5.0
+  flutter_svg: ^2.5.1
   freezed_annotation: ^3.1.0
   go_router: ^18.1.4
   intl: ^0.20.3
@@ -34,3 +35,21 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
+  assets:
+    - assets/icons/
+    - assets/fonts/OFL-PlusJakartaSans.txt
+    - assets/fonts/OFL-BebasNeue.txt
+  fonts:
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-400.ttf
+          weight: 400
+        - asset: assets/fonts/PlusJakartaSans-500.ttf
+          weight: 500
+        - asset: assets/fonts/PlusJakartaSans-600.ttf
+          weight: 600
+        - asset: assets/fonts/PlusJakartaSans-700.ttf
+          weight: 700
+    - family: BebasNeue
+      fonts:
+        - asset: assets/fonts/BebasNeue-400.ttf

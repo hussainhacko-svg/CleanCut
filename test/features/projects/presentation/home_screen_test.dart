@@ -60,7 +60,7 @@ void main() {
     expect(created.mainTrack.clips.map((c) => c.id), ['new1', 'new2']);
     expect(created.name, 'Project Nov 26, 2026');
     expect(find.byType(ProjectScreen), findsOneWidget);
-    expect(find.text('2 clips · 0:06'), findsOneWidget);
+    expect(env.engine.specs.single.clips, hasLength(2));
   });
 
   testWidgets('cancelling the picker creates nothing', (tester) async {
