@@ -483,6 +483,32 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+
+      // The playhead line scrolls with the lanes (it used to stay put).
+      final line = find.byKey(TimelineView.playheadKey);
+      final lanes = find.descendant(
+        of: find.byType(TimelineView),
+        matching: find.byWidgetPredicate(
+          (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+        ),
+      );
+      final vertical = tester.state<ScrollableState>(lanes.first);
+      expect(vertical.position.maxScrollExtent, greaterThan(60));
+      final main = find.byType(MainClipView).first;
+      final timelineTop = tester.getRect(find.byType(TimelineView)).top;
+      final gapBefore = tester.getTopLeft(main).dy - tester.getTopLeft(line).dy;
+
+      vertical.position.jumpTo(10);
+      await tester.pump();
+      expect(
+        tester.getTopLeft(main).dy - tester.getTopLeft(line).dy,
+        closeTo(gapBefore, 0.01),
+      );
+
+      // Once the ruler is scrolled away the line starts at the top.
+      vertical.position.jumpTo(60);
+      await tester.pump();
+      expect(tester.getTopLeft(line).dy, closeTo(timelineTop, 0.01));
     });
 
     testWidgets('tapping empty space below lanes deselects the clip', (

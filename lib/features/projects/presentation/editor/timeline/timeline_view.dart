@@ -107,12 +107,19 @@ class TimelineView extends ConsumerStatefulWidget {
   /// The project shown (the session's present state).
   final Project project;
 
+  /// Key of the playhead line, for tests.
+  @visibleForTesting
+  static const ValueKey<String> playheadKey = ValueKey('timeline-playhead');
+
   @override
   ConsumerState<TimelineView> createState() => _TimelineViewState();
 }
 
 class _TimelineViewState extends ConsumerState<TimelineView> {
   final _scroll = ScrollController();
+
+  /// Vertical lane scroll; the playhead line follows it.
+  final _laneScroll = ScrollController();
 
   // Ephemeral gesture state (AGENTS.md §4 allows local widget state).
   bool _userScrolling = false;
@@ -162,6 +169,7 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   @override
   void dispose() {
     _scroll.dispose();
+    _laneScroll.dispose();
     super.dispose();
   }
 
@@ -465,6 +473,7 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
             child: Stack(
               children: [
                 SingleChildScrollView(
+                  controller: _laneScroll,
                   physics: physics,
                   child: NotificationListener<ScrollNotification>(
                     onNotification: _onScroll,
@@ -503,15 +512,25 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
                   ),
                 ),
                 // The playhead: fixed in the middle, over the lanes.
-                // Spans the lanes only, as in the kit.
-                Positioned(
-                  left: pad - 1,
-                  top: playheadTop,
-                  height: math.max(
-                    0,
-                    math.min(lanesBottom, viewportHeight) - playheadTop,
-                  ),
+                // Spans the lanes only, as in the kit, and follows the
+                // vertical lane scroll (only this line rebuilds).
+                ListenableBuilder(
+                  listenable: _laneScroll,
+                  builder: (context, line) {
+                    final dy = _laneScroll.hasClients
+                        ? _laneScroll.offset
+                        : 0.0;
+                    final top = math.max(0, playheadTop - dy).toDouble();
+                    final bottom = math.min(lanesBottom - dy, viewportHeight);
+                    return Positioned(
+                      left: pad - 1,
+                      top: top,
+                      height: math.max(0, bottom - top).toDouble(),
+                      child: line!,
+                    );
+                  },
                   child: IgnorePointer(
+                    key: TimelineView.playheadKey,
                     child: Container(
                       width: 2,
                       color: Theme.of(context).colorScheme.onSurface,
