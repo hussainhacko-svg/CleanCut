@@ -25,6 +25,18 @@ final class PlatformMediaPicker implements MediaPicker {
     }
   }
 
+  @override
+  Future<MediaRef?> pickImage() async {
+    if (_open) return null;
+    _open = true;
+    try {
+      final picked = await _api.pickImage();
+      return picked == null ? null : toMediaRef(picked);
+    } finally {
+      _open = false;
+    }
+  }
+
   /// Converts a platform result into the model type.
   static MediaRef toMediaRef(PickedMedia picked) => MediaRef(
     uri: picked.uri,

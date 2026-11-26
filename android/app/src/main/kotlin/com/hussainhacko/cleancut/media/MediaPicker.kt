@@ -27,13 +27,20 @@ import kotlinx.coroutines.withContext
 class MediaPicker(private val activity: Activity) : MediaPickerHostApi {
     private var pending: CompletableDeferred<List<Uri>>? = null
 
-    override suspend fun pickVisualMedia(allowMultiple: Boolean): List<PickedMedia> {
+    override suspend fun pickVisualMedia(allowMultiple: Boolean): List<PickedMedia> =
+        pick(allowMultiple = allowMultiple, imagesOnly = false)
+
+    override suspend fun pickImage(): PickedMedia? =
+        pick(allowMultiple = false, imagesOnly = true)
+            .firstOrNull { it.kind == PickedMediaKind.IMAGE }
+
+    private suspend fun pick(allowMultiple: Boolean, imagesOnly: Boolean): List<PickedMedia> {
         check(pending == null) { "A media picker is already open" }
         val result = CompletableDeferred<List<Uri>>()
         pending = result
         try {
             @Suppress("DEPRECATION") // FlutterActivity has no ActivityResult registry.
-            activity.startActivityForResult(buildIntent(allowMultiple), REQUEST_CODE)
+            activity.startActivityForResult(buildIntent(allowMultiple, imagesOnly), REQUEST_CODE)
         } catch (e: Exception) {
             pending = null
             throw e
@@ -62,10 +69,11 @@ class MediaPicker(private val activity: Activity) : MediaPickerHostApi {
         pending = null
     }
 
-    private fun buildIntent(allowMultiple: Boolean): Intent =
+    private fun buildIntent(allowMultiple: Boolean, imagesOnly: Boolean): Intent =
         if (isPhotoPickerAvailable()) {
-            // No type: the picker shows both images and videos.
+            // No type shows both images and videos; "image/*" filters to photos only.
             Intent(MediaStore.ACTION_PICK_IMAGES).apply {
+                if (imagesOnly) type = "image/*"
                 if (allowMultiple) {
                     putExtra(MediaStore.EXTRA_PICK_IMAGES_MAX, MediaStore.getPickImagesMaxLimit())
                 }
@@ -73,8 +81,12 @@ class MediaPicker(private val activity: Activity) : MediaPickerHostApi {
         } else {
             Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
-                type = "*/*"
-                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("video/*", "image/*"))
+                if (imagesOnly) {
+                    type = "image/*"
+                } else {
+                    type = "*/*"
+                    putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("video/*", "image/*"))
+                }
                 putExtra(Intent.EXTRA_ALLOW_MULTIPLE, allowMultiple)
                 addFlags(
                     Intent.FLAG_GRANT_READ_URI_PERMISSION or

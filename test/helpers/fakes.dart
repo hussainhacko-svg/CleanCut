@@ -70,12 +70,20 @@ class InMemorySettingsRepository implements SettingsRepository {
 /// Returns [next] once per call; empty list means "cancelled".
 class FakeMediaPicker implements MediaPicker {
   List<MediaRef> next = const [];
+  MediaRef? nextImage;
   int calls = 0;
+  int imageCalls = 0;
 
   @override
   Future<List<MediaRef>> pickVisualMedia({bool allowMultiple = true}) async {
     calls++;
     return next;
+  }
+
+  @override
+  Future<MediaRef?> pickImage() async {
+    imageCalls++;
+    return nextImage;
   }
 }
 

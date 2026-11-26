@@ -261,4 +261,25 @@ class MediaPickerHostApi {
     );
     return (pigeonVar_replyValue! as List<Object?>).cast<PickedMedia>();
   }
+
+  /// Opens the system photo picker for a single image (e.g. canvas background).
+  ///
+  /// Returns the picked image, or null when cancelled or unreadable.
+  Future<PickedMedia?> pickImage() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.cleancut.MediaPickerHostApi.pickImage$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+    return pigeonVar_replyValue as PickedMedia?;
+  }
 }

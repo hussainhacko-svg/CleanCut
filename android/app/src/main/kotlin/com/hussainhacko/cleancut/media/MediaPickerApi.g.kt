@@ -321,6 +321,12 @@ interface MediaPickerHostApi {
    * Files whose metadata cannot be read are left out.
    */
   suspend fun pickVisualMedia(allowMultiple: Boolean): List<PickedMedia>
+  /**
+   * Opens the system photo picker for a single image (e.g. canvas background).
+   *
+   * Returns the picked image, or null when cancelled or unreadable.
+   */
+  suspend fun pickImage(): PickedMedia?
 
   companion object {
     /** The codec used by MediaPickerHostApi. */
@@ -340,6 +346,23 @@ interface MediaPickerHostApi {
             CoroutineScope(Dispatchers.Main).launch {
               val wrapped: List<Any?> = try {
                 listOf(api.pickVisualMedia(allowMultipleArg))
+              } catch (exception: Throwable) {
+                MediaPickerApiPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.cleancut.MediaPickerHostApi.pickImage$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.pickImage())
               } catch (exception: Throwable) {
                 MediaPickerApiPigeonUtils.wrapError(exception)
               }

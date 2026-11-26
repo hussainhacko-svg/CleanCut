@@ -93,4 +93,30 @@ void main() {
     await picker.pickVisualMedia();
     verify(() => api.pickVisualMedia(allowMultiple: true)).called(1);
   });
+
+  test('pickImage returns a MediaRef or null on cancel', () async {
+    final api = _MockApi();
+    when(api.pickImage).thenAnswer(
+      (_) async => PickedMedia(
+        uri: 'content://bg',
+        kind: PickedMediaKind.image,
+        width: 1080,
+        height: 1920,
+        rotationDegrees: 0,
+      ),
+    );
+    final picked = await PlatformMediaPicker(api: api).pickImage();
+    expect(
+      picked,
+      const MediaRef(
+        uri: 'content://bg',
+        kind: MediaKind.image,
+        width: 1080,
+        height: 1920,
+      ),
+    );
+
+    when(api.pickImage).thenAnswer((_) async => null);
+    expect(await PlatformMediaPicker(api: api).pickImage(), isNull);
+  });
 }
