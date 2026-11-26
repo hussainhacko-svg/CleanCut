@@ -23,8 +23,22 @@ you finish a chunk of work, and leave the next agent the same courtesy.
     (`AtomicFile._write` creates the parent dir).
   - Scrolling the lanes vertically moves the ruler but not the playhead line.
   - Phase 2 low-end physical-device spike test is still unchecked.
-- **Phase 4 (basic editing) is in progress** on `feat/phase-3`'s successor
-  branch (see `git log`), by Claude.
+- **Phase 4 (basic editing): mostly done** on branch `feat/phase-4`
+  (branched from `feat/phase-3`; not pushed, no PR yet), by Claude:
+  - `bd220a9` domain: `TrimClipCommand`, `SplitClipCommand`,
+    `DeleteClipCommand`, `DuplicateClipCommand`, `MoveClipCommand`,
+    `SetClipSpeedCommand` (`domain/commands/clip_commands.dart`) +
+    keyframe re-timing (`domain/model/retiming.dart`). Min clip 0.1 s.
+  - `84f8123` engine: `ClipSpec.speed` / `keepPitch` → Media3
+    `EditedMediaItem.setSpeed(SpeedParameters(...))` (constant speed).
+  - `4ee9558` editor: Split / Duplicate / Delete in the dock; Speed panel
+    (`presentation/editor/panels/`), open state in `OpenToolPanel`.
+  - `8ec7ffe` timeline: trim handles (applied on release) and long-press
+    reorder.
+  - **Still open:** speed curves (follow-up), checking speed/keep-pitch
+    playback on a real device or emulator (only unit/widget-tested so far),
+    and split/delete/etc. for overlay and audio clips (they arrive with
+    Phases 7/9; the dock says "coming in a later update" for them).
 
 ## Design source
 
