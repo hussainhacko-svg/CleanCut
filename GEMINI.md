@@ -1,0 +1,59 @@
+@AGENTS.md
+
+# Handoff note for Gemini
+
+This repo is worked on by two AI agents (Claude Code and Gemini) for the
+owner. `AGENTS.md` (imported above) holds the rules; this section says where
+things stand so you don't redo or undo work. Keep it current: update it when
+you finish a chunk of work, and leave the next agent the same courtesy.
+
+## Status (2026-11-26)
+
+- **Phases 0–3 done.** `main` has Phases 0–2 + the VCLIP restyle (PRs #1–#4).
+  Branch `feat/phase-3` has Phase 3 (timeline, contextual dock, tablet
+  layout) and two audit-fix commits:
+  - `955f9b8` post-Phase-2 audit fixes
+  - `61ee62d` your post-Phase-3 audit fixes, reviewed and committed by
+    Claude. One change on top of yours: `ClipThumbnails.ensure` now catches
+    engine errors and caches the frames as missing (callers don't await it,
+    so a rethrow was an unhandled error, and failed frames were re-requested
+    on every scroll). Regression test in `audit_playback_test.dart`.
+- **Known leftovers (not fixed, low priority):**
+  - A save queued *after* a project delete can still recreate its folder
+    (`AtomicFile._write` creates the parent dir).
+  - Scrolling the lanes vertically moves the ruler but not the playhead line.
+  - Phase 2 low-end physical-device spike test is still unchecked.
+- **Phase 4 (basic editing) is in progress** on `feat/phase-3`'s successor
+  branch (see `git log`), by Claude.
+
+## Design source
+
+The Figma MCP hit its plan limit. The owner exported the VCLIP kit frames to
+`VCLIP-video editor (Community)/` (git-ignored, local only): one `.jpg` per
+frame (`Speed.jpg`, `Video.jpg`, `Timeline.jpg`, `Edit.jpg`, `Icons.jpg`, …).
+**Stick to these screens** for every UI change; `docs/DESIGN.md` records how
+each was adapted.
+
+## Owner decisions for Phase 4 (2026-11-26)
+
+- **Speed panel:** the kit's Speed frame (title, Reset, ✕, value bubble over a
+  tick ruler, labels underneath) but covering PLAN's **0.1×–10×** on a log
+  scale with labels 0.1× · 0.25× · 0.5× · 1× · 2× · 5× · 10×.
+- **Speed curves** (montage/hero/bullet/flash ramps + custom editor) come in a
+  **separate follow-up** within Phase 4, as a "Normal | Curve" tab row in the
+  same panel. First ship constant speed + a keep-pitch switch.
+- **Duplicate** is a clip-dock item **right after Split**, with an icon drawn
+  in the kit's line style (marked as redrawn inside the SVG).
+- Trim = drag the white handles on the selected clip's edges; reorder =
+  long-press + drag; delete/split/duplicate are undoable commands (no
+  confirmation dialogs).
+
+## Toolchain reminders
+
+- Always `fvm flutter …` / `fvm dart …`.
+- Gradle needs `JAVA_HOME="C:/Program Files/Android/Android Studio/jbr"`.
+- Before committing: `fvm dart run build_runner build -d`,
+  `fvm dart format .`, `fvm flutter analyze` (0 issues),
+  `fvm flutter test`, and `.\gradlew.bat :app:testDebugUnitTest` when Kotlin
+  changed.
+- Bug fixes start with a failing test; `domain/` changes ship with unit tests.
