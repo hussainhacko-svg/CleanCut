@@ -149,9 +149,12 @@ class FakeMediaEngine implements MediaEngine {
     required int heightPx,
   }) async => [for (final _ in timesUs) thumbnailPath];
 
+  /// Returned by [waveform].
+  WaveformData? waveformData;
+
   @override
   Future<WaveformData?> waveform(String uri, {int peaksPerSecond = 50}) async =>
-      null;
+      waveformData;
 }
 
 /// Test doubles wired into a [ProviderScope].

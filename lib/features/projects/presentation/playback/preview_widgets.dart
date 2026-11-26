@@ -242,11 +242,8 @@ class FullscreenPreview extends ConsumerWidget {
                   child: IconButton(
                     tooltip: l10n.editorExitFullscreen,
                     onPressed: close,
-                    icon: AppIcon(
-                      AppIcons.close,
-                      size: 14,
-                      color: scheme.onSurface,
-                    ),
+                    // The kit's close glyph sits inside a 24px box.
+                    icon: AppIcon(AppIcons.close, color: scheme.onSurface),
                   ),
                 ),
                 PositionedDirectional(

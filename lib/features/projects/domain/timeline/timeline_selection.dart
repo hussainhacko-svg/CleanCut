@@ -1,0 +1,102 @@
+import 'package:cleancut/features/projects/domain/model/project.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+/// What is selected on the timeline. Selection is UI state, not part of the
+/// project, so it is not undoable.
+@immutable
+sealed class TimelineSelection {
+  const new();
+
+  /// Nothing is selected: the dock shows the "add" tools.
+  static const TimelineSelection none = NoSelection();
+
+  /// This selection if its item still exists in [project], else [none]
+  /// (e.g. after the item was deleted or an undo removed it).
+  TimelineSelection validIn(Project project) => switch (this) {
+    NoSelection() => this,
+    MainClipSelection(:final clipId) =>
+      project.mainTrack.clips.any((c) => c.id == clipId) ? this : none,
+    OverlaySelection(:final trackId, :final clipId) =>
+      project.overlayTracks.any(
+            (t) => t.id == trackId && t.items.any((i) => i.clip.id == clipId),
+          )
+          ? this
+          : none,
+    AudioSelection(:final trackId, :final clipId) =>
+      project.audioTracks.any(
+            (t) => t.id == trackId && t.items.any((i) => i.clip.id == clipId),
+          )
+          ? this
+          : none,
+  };
+}
+
+/// No selection.
+final class NoSelection extends TimelineSelection {
+  /// Creates the empty selection.
+  const new();
+
+  @override
+  bool operator ==(Object other) => other is NoSelection;
+
+  @override
+  int get hashCode => 0;
+}
+
+/// A clip on the main video track.
+final class MainClipSelection extends TimelineSelection {
+  /// Selects main-track clip [clipId].
+  const new(this.clipId);
+
+  /// The selected clip's id.
+  final String clipId;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MainClipSelection && other.clipId == clipId;
+
+  @override
+  int get hashCode => clipId.hashCode;
+}
+
+/// A clip on an overlay track.
+final class OverlaySelection extends TimelineSelection {
+  /// Selects [clipId] on overlay track [trackId].
+  const new({required this.trackId, required this.clipId});
+
+  /// The overlay track.
+  final String trackId;
+
+  /// The selected clip's id.
+  final String clipId;
+
+  @override
+  bool operator ==(Object other) =>
+      other is OverlaySelection &&
+      other.trackId == trackId &&
+      other.clipId == clipId;
+
+  @override
+  int get hashCode => Object.hash(trackId, clipId);
+}
+
+/// A clip on an audio track.
+final class AudioSelection extends TimelineSelection {
+  /// Selects [clipId] on audio track [trackId].
+  const new({required this.trackId, required this.clipId});
+
+  /// The audio track.
+  final String trackId;
+
+  /// The selected clip's id.
+  final String clipId;
+
+  @override
+  bool operator ==(Object other) =>
+      other is AudioSelection &&
+      other.trackId == trackId &&
+      other.clipId == clipId;
+
+  @override
+  int get hashCode => Object.hash(trackId, clipId);
+}

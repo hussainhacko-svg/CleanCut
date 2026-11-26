@@ -117,7 +117,7 @@ void main() {
       );
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(CloseButton));
+      await tester.tap(find.byTooltip('Close'));
       await tester.pumpAndSettle();
       expect(find.text('Canvas size'), findsNothing);
       expect(result, isNull);

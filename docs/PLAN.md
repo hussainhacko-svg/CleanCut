@@ -100,7 +100,8 @@ lib/
   core/           widgets/, utils/, errors/
   engine/         engine_api.dart (generated), engine_client.dart, spec_mapper.dart
   features/
-    projects/     home screen, project list, create/duplicate/delete
+    projects/     home screen, project list, create/duplicate/delete,
+                  and (owner decision) the editor: presentation/editor/, playback/
     media_import/ photo picker, media metadata
     editor/       editor shell, bottom dock, responsive scaffold
     timeline/     tracks, clips, ruler, playhead, zoom, thumbnails, waveforms
@@ -169,11 +170,11 @@ Each phase ends with a working, tested build and a tag `v0.<phase>.0`.
 - [ ] Spike test on a low-end device (target: 1080p preview ≥ 30fps, seek < 150ms) — verified on the emulator only; needs a real low-end phone
 
 ### Phase 3 — Editor shell & timeline
-- [ ] Responsive editor scaffold (Bottom Dock / Rail + Panel) — see DESIGN.md
-- [ ] Timeline: ruler, playhead fixed center, horizontal scroll = scrub, pinch zoom
-- [ ] Clip thumbnails strip, overlay/text/audio lanes, selection, magnetic snapping + haptics
-- [ ] Transport bar, full-screen preview, undo/redo buttons
-- [ ] Contextual dock: no selection → add tools; selection → clip tools
+- [x] Responsive editor scaffold (Bottom Dock / Rail + Panel) — see DESIGN.md
+- [x] Timeline: ruler, playhead fixed center, horizontal scroll = scrub, pinch zoom
+- [x] Clip thumbnails strip, overlay/text/audio lanes, selection, magnetic snapping + haptics (the text lane renders once Phase 8 adds text clips to the model)
+- [x] Transport bar, full-screen preview, undo/redo buttons
+- [x] Contextual dock: no selection → add tools; selection → clip tools (⊕ appends media; tools of later phases say "coming in a later update")
 
 ### Phase 4 — Basic editing
 - [ ] Trim (drag handles on clip edges, with live preview frame)
@@ -195,6 +196,7 @@ Each phase ends with a working, tested build and a tag `v0.<phase>.0`.
 - [ ] Adjustments panel
 - [ ] Blur (whole clip)
 - [ ] Mask: linear, mirror, circle, rect, heart, star — on-preview handles, feather, invert
+- [ ] Transitions between main-track clips (VCLIP ⧓ marker on each boundary; owner-added). Give the marker a real tap target without stealing taps from short clips
 
 ### Phase 7 — Photos & layers
 - [ ] Image clips on main track (default 3s) and overlay tracks (PiP)
@@ -210,6 +212,7 @@ Each phase ends with a working, tested build and a tag `v0.<phase>.0`.
 - [ ] Add audio from device (Photo Picker audio / SAF), extract audio from video
 - [ ] Audio lanes with waveforms, trim/split/move
 - [ ] Volume (clip + keyframes), fade in/out, mute original video audio
+- [ ] Voiceover recording from the dock's "Voice" tool (`RECORD_AUDIO` runtime permission; owner-added)
 
 ### Phase 10 — Export
 - [ ] Export sheet: resolution (720p/1080p/4K if supported), fps (24/30/60), quality/bitrate, estimated size
