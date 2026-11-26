@@ -145,8 +145,10 @@ class MediaPicker(private val activity: Activity) : MediaPickerHostApi {
 
         private fun readImage(resolver: ContentResolver, uri: Uri, name: String?): PickedMedia? {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-                ?: return null
+            // With inJustDecodeBounds, decodeStream always returns null; only the
+            // stream itself being null means the file can't be read.
+            val stream = resolver.openInputStream(uri) ?: return null
+            stream.use { BitmapFactory.decodeStream(it, null, bounds) }
             if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
             val rotation = resolver.openInputStream(uri)?.use { stream ->
                 when (
