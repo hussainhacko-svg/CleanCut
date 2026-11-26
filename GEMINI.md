@@ -46,6 +46,7 @@ Neither branch has a PR yet; the owner decides when to push/open them.
 | `5f6520d` | UI: "Normal \| Curve" tabs, preset tiles, `CurveEditor`. |
 | `3760610` | Emulator fix: curve points drag inside the scrolling panel (eager point recognizer); tapping a point no longer records an empty undo step. |
 | `22c5f5a` | Your speed-curves audit fixes (reviewed and committed by Claude; the new UI tests fail against the old code): Normal tab clears curves at stored speed, `CurveEditor` IEEE-754 clamp crash / cancel-vs-commit / mid-drag reset / 2× text scale, `SpeedCurve` NaN/`splitAt` & zero-duration guards, `_ClipSpeedPanel` `clipStartUs` + hide Curve tab on stills, `CompositionPlan` flat-step collapse. |
+| `0e12fb3` | Design check against the kit frames: Canvas size sheet in the kit's Ratio style, selected-clip wash 50% (was 85%), zero-padded card lengths, speed marker tick, home spacing. |
 
 ### Speed curves — how they work (read before touching speed/time code)
 
