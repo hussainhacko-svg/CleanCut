@@ -37,7 +37,7 @@ object Media3Composer {
         val media = MediaItem.Builder().setUri(item.uri)
         item.mimeType?.let(media::setMimeType)
         if (item.isImage) {
-            media.setImageDurationMs(item.sourceDurationUs / 1000)
+            media.setImageDurationMs(item.imageDurationMs)
         } else {
             media.setClippingConfiguration(
                 MediaItem.ClippingConfiguration.Builder()

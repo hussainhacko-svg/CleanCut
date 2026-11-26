@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/theme/app_tokens.dart';
-import 'package:cleancut/features/media_import/presentation/media_picker_provider.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/model/project_canvas.dart';

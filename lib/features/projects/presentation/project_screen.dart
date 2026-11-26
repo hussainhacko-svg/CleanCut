@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/widgets/app_icon.dart';
-import 'package:cleancut/features/media_import/presentation/media_picker_provider.dart';
 import 'package:cleancut/features/projects/domain/commands/project_commands.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
+import 'package:cleancut/features/projects/domain/model/project_canvas.dart';
 import 'package:cleancut/features/projects/domain/project_repository.dart';
 import 'package:cleancut/features/projects/presentation/editor/editor_state.dart';
 import 'package:cleancut/features/projects/presentation/editor/timeline/timeline_view.dart';
@@ -34,27 +34,23 @@ class ProjectScreen extends ConsumerWidget {
     final provider = projectSessionProvider(projectId);
     final session = ref.watch(provider);
 
-    ref
-      ..listen(provider.select((s) => s.value?.saveFailed ?? false), (
-        _,
-        failed,
-      ) {
-        if (failed) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(l10n.editorSaveFailed)));
-        }
-      })
-      ..listen(playbackProvider(projectId).select((s) => s.error), (_, error) {
-        if (error != null) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(l10n.editorPlaybackFailed)));
-        }
-      });
+    ref.listen(provider.select((s) => s.value?.saveFailed ?? false), (
+      _,
+      failed,
+    ) {
+      if (failed) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l10n.editorSaveFailed)));
+      }
+    });
 
     Future<void> leave() async {
       // Save before leaving so the project list is up to date.
       await ref.read(provider.notifier).flush();
-      if (context.mounted) Navigator.of(context).pop();
+      // A double tap runs this twice; only the first may pop this route.
+      if (context.mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
+        Navigator.of(context).pop();
+      }
     }
 
     final history = session.value?.history;
@@ -167,6 +163,15 @@ class _Editor extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    // Listened to here, not in ProjectScreen, so no native preview is
+    // created for a project that failed to load.
+    ref.listen(playbackProvider(projectId).select((s) => s.error), (_, e) {
+      if (e != null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l10n.editorPlaybackFailed)));
+      }
+    });
     final selection = ref.watch(timelineSelectionControllerProvider(projectId));
     final tools = dockToolsFor(selection);
     void onTool(DockTool t) => unawaited(_onTool(context, ref, t));
@@ -178,14 +183,14 @@ class _Editor extends ConsumerWidget {
         FullscreenPreview.open(
           context,
           projectId: projectId,
-          aspectRatio: project.canvas.aspect.ratio,
+          canvas: project.canvas,
         ),
       ),
     );
     final timeline = TimelineView(projectId: projectId, project: project);
     final preview = _PreviewArea(
       projectId: projectId,
-      aspectRatio: project.canvas.aspect.ratio,
+      canvas: project.canvas,
       onHome: onHome,
     );
 
@@ -244,12 +249,12 @@ class _Editor extends ConsumerWidget {
 class _PreviewArea extends ConsumerWidget {
   const new({
     required this.projectId,
-    required this.aspectRatio,
+    required this.canvas,
     required this.onHome,
   });
 
   final String projectId;
-  final double aspectRatio;
+  final ProjectCanvas canvas;
   final VoidCallback onHome;
 
   /// The kit's 282-wide preview leaves 56dp on each side for the icons.
@@ -259,9 +264,6 @@ class _PreviewArea extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final textureId = ref.watch(
-      playbackProvider(projectId).select((s) => s.textureId),
-    );
     return Stack(
       children: [
         Padding(
@@ -271,7 +273,7 @@ class _PreviewArea extends ConsumerWidget {
             _sideInset,
             0,
           ),
-          child: PreviewView(textureId: textureId, aspectRatio: aspectRatio),
+          child: PreviewView(projectId: projectId, canvas: canvas),
         ),
         PositionedDirectional(
           start: 3,
@@ -311,6 +313,7 @@ class _PlaybackBinding extends ConsumerStatefulWidget {
 
 class _PlaybackBindingState extends ConsumerState<_PlaybackBinding> {
   late final AppLifecycleListener _listener;
+  ProviderSubscription<PlaybackState>? _keepPreview;
 
   @override
   void initState() {
@@ -319,23 +322,31 @@ class _PlaybackBindingState extends ConsumerState<_PlaybackBinding> {
       projectSessionProvider(widget.projectId)
           .select((s) => s.value?.history.present),
       (_, project) {
-        if (project != null) {
-          unawaited(
-            ref.read(playbackProvider(widget.projectId).notifier).load(project),
-          );
-        }
+        if (project == null) return;
+        final playback = playbackProvider(widget.projectId);
+        // The editor owns the preview from the first loaded project until it
+        // closes. Without this, a rebuild that briefly drops every widget
+        // listener (e.g. after a rename) let autoDispose tear down and
+        // recreate the native player.
+        _keepPreview ??= ref.listenManual(playback, (_, _) {});
+        unawaited(ref.read(playback.notifier).load(project));
       },
       fireImmediately: true,
     );
     _listener = AppLifecycleListener(
-      onHide: () => unawaited(
-        ref.read(playbackProvider(widget.projectId).notifier).pause(),
-      ),
+      onHide: () {
+        // Don't create a preview just to pause it (e.g. after a load error).
+        final playback = playbackProvider(widget.projectId);
+        if (ref.read(playback.exists)) {
+          unawaited(ref.read(playback.notifier).pause());
+        }
+      },
     );
   }
 
   @override
   void dispose() {
+    _keepPreview?.close();
     _listener.dispose();
     super.dispose();
   }

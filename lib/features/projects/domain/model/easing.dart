@@ -65,6 +65,8 @@ abstract class Easing with _$Easing {
   double _solveForParameter(double x) {
     var s = x;
     for (var i = 0; i < 8; i++) {
+      // Stay on the curve's [0, 1] segment; a root outside it is wrong.
+      if (s < 0 || s > 1) break;
       final error = _bezier(x1, x2, s) - x;
       if (error.abs() < 1e-7) return s;
       final slope = _bezierSlope(x1, x2, s);

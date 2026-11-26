@@ -8,9 +8,15 @@ final class PlatformMediaPicker implements MediaPicker {
   new({MediaPickerHostApi? api}) : _api = api ?? MediaPickerHostApi();
 
   final MediaPickerHostApi _api;
+  Future<List<MediaRef>>? _open;
 
+  /// A second call while the picker is still open (e.g. a double tap)
+  /// gets the same result instead of failing natively.
   @override
-  Future<List<MediaRef>> pickVisualMedia({bool allowMultiple = true}) async {
+  Future<List<MediaRef>> pickVisualMedia({bool allowMultiple = true}) =>
+      _open ??= _pick(allowMultiple).whenComplete(() => _open = null);
+
+  Future<List<MediaRef>> _pick(bool allowMultiple) async {
     final picked = await _api.pickVisualMedia(allowMultiple: allowMultiple);
     return [for (final p in picked) toMediaRef(p)];
   }

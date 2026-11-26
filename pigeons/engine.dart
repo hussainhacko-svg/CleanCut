@@ -63,12 +63,15 @@ enum PlaybackStatus { idle, buffering, ready, ended }
 /// Snapshot sent whenever the player's status changes.
 class PlayerStateEvent {
   PlayerStateEvent({
+    required this.textureId,
     required this.status,
     required this.isPlaying,
     required this.durationUs,
     required this.positionUs,
   });
 
+  /// The preview this event belongs to.
+  final int textureId;
   final PlaybackStatus status;
   final bool isPlaying;
 
@@ -126,9 +129,10 @@ abstract class EngineFlutterApi {
   /// The player's status or playing flag changed.
   void onPlayerState(PlayerStateEvent state);
 
-  /// Playback position while playing (about 30 times a second).
-  void onPosition(int positionUs);
+  /// Playback position of preview [textureId] while playing (about 30
+  /// times a second).
+  void onPosition(int textureId, int positionUs);
 
-  /// A playback error; the player stops.
-  void onError(String code, String message);
+  /// A playback error of preview [textureId]; the player stops.
+  void onError(int textureId, String code, String message);
 }

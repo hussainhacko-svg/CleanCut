@@ -252,11 +252,15 @@ class CompositionSpec {
 /// Snapshot sent whenever the player's status changes.
 class PlayerStateEvent {
   PlayerStateEvent({
+    required this.textureId,
     required this.status,
     required this.isPlaying,
     required this.durationUs,
     required this.positionUs,
   });
+
+  /// The preview this event belongs to.
+  int textureId;
 
   PlaybackStatus status;
 
@@ -268,7 +272,7 @@ class PlayerStateEvent {
   int positionUs;
 
   List<Object?> _toList() {
-    return <Object?>[status, isPlaying, durationUs, positionUs];
+    return <Object?>[textureId, status, isPlaying, durationUs, positionUs];
   }
 
   Object encode() {
@@ -278,10 +282,11 @@ class PlayerStateEvent {
   static PlayerStateEvent decode(Object result) {
     result as List<Object?>;
     return PlayerStateEvent(
-      status: result[0]! as PlaybackStatus,
-      isPlaying: result[1]! as bool,
-      durationUs: result[2]! as int,
-      positionUs: result[3]! as int,
+      textureId: result[0]! as int,
+      status: result[1]! as PlaybackStatus,
+      isPlaying: result[2]! as bool,
+      durationUs: result[3]! as int,
+      positionUs: result[4]! as int,
     );
   }
 
@@ -294,7 +299,8 @@ class PlayerStateEvent {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(status, other.status) &&
+    return _deepEquals(textureId, other.textureId) &&
+        _deepEquals(status, other.status) &&
         _deepEquals(isPlaying, other.isPlaying) &&
         _deepEquals(durationUs, other.durationUs) &&
         _deepEquals(positionUs, other.positionUs);
@@ -306,7 +312,7 @@ class PlayerStateEvent {
 
   @override
   String toString() {
-    return 'PlayerStateEvent(status: $status, isPlaying: $isPlaying, durationUs: $durationUs, positionUs: $positionUs)';
+    return 'PlayerStateEvent(textureId: $textureId, status: $status, isPlaying: $isPlaying, durationUs: $durationUs, positionUs: $positionUs)';
   }
 }
 
@@ -606,11 +612,12 @@ abstract class EngineFlutterApi {
   /// The player's status or playing flag changed.
   void onPlayerState(PlayerStateEvent state);
 
-  /// Playback position while playing (about 30 times a second).
-  void onPosition(int positionUs);
+  /// Playback position of preview [textureId] while playing (about 30
+  /// times a second).
+  void onPosition(int textureId, int positionUs);
 
-  /// A playback error; the player stops.
-  void onError(String code, String message);
+  /// A playback error of preview [textureId]; the player stops.
+  void onError(int textureId, String code, String message);
 
   static void setUp(
     EngineFlutterApi? api, {
@@ -656,9 +663,10 @@ abstract class EngineFlutterApi {
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           final List<Object?> args = message! as List<Object?>;
-          final int arg_positionUs = args[0]! as int;
+          final int arg_textureId = args[0]! as int;
+          final int arg_positionUs = args[1]! as int;
           try {
-            api.onPosition(arg_positionUs);
+            api.onPosition(arg_textureId, arg_positionUs);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
@@ -681,10 +689,11 @@ abstract class EngineFlutterApi {
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           final List<Object?> args = message! as List<Object?>;
-          final String arg_code = args[0]! as String;
-          final String arg_message = args[1]! as String;
+          final int arg_textureId = args[0]! as int;
+          final String arg_code = args[1]! as String;
+          final String arg_message = args[2]! as String;
           try {
-            api.onError(arg_code, arg_message);
+            api.onError(arg_textureId, arg_code, arg_message);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

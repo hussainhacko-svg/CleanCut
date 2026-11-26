@@ -6,6 +6,8 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -27,10 +29,23 @@ class WaveformExtractor(private val context: Context) {
             val file = File(dir, CacheKeys.waveform(uri, peaksPerSecond))
             if (file.isFile) WaveformFile.decode(file.readBytes())?.let { return@withContext it }
 
-            val data = decode(Uri.parse(uri), peaksPerSecond) ?: return@withContext null
-            val tmp = File(file.path + ".tmp")
-            tmp.writeBytes(WaveformFile.encode(data))
-            if (!tmp.renameTo(file)) tmp.delete()
+            val data = try {
+                decode(Uri.parse(uri), peaksPerSecond)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Revoked access, unreadable file or a codec failure: no waveform.
+                Log.w(TAG, "Could not decode audio of $uri", e)
+                null
+            } ?: return@withContext null
+            // Unique temp file so concurrent requests can't collide.
+            val tmp = File.createTempFile("wave", ".tmp", dir)
+            try {
+                tmp.writeBytes(WaveformFile.encode(data))
+                if (!tmp.renameTo(file)) tmp.delete()
+            } finally {
+                if (tmp.exists()) tmp.delete()
+            }
             data
         }
 
@@ -55,7 +70,9 @@ class WaveformExtractor(private val context: Context) {
             decoder.start()
 
             var accumulator: PeakAccumulator? = null
+            var isFloat = false
             var samples = ShortArray(0)
+            var floats = FloatArray(0)
             val info = MediaCodec.BufferInfo()
             var inputDone = false
             while (true) {
@@ -77,15 +94,27 @@ class WaveformExtractor(private val context: Context) {
                 val outIndex = decoder.dequeueOutputBuffer(info, TIMEOUT_US)
                 if (outIndex >= 0) {
                     if (info.size > 0) {
-                        val acc = accumulator ?: newAccumulator(decoder.outputFormat, peaksPerSecond)
-                            .also { accumulator = it }
+                        val acc = accumulator ?: run {
+                            val format = decoder.outputFormat
+                            isFloat = pcmEncodingOf(format) == AudioFormat.ENCODING_PCM_FLOAT
+                            newAccumulator(format, peaksPerSecond) ?: return null
+                        }.also { accumulator = it }
                         val out = decoder.getOutputBuffer(outIndex)!! // index from dequeue is valid
                         out.position(info.offset).limit(info.offset + info.size)
-                        val shorts = out.order(ByteOrder.nativeOrder()).asShortBuffer()
-                        val count = shorts.remaining()
-                        if (samples.size < count) samples = ShortArray(count)
-                        shorts.get(samples, 0, count)
-                        acc.add(samples, count)
+                        out.order(ByteOrder.nativeOrder())
+                        if (isFloat) {
+                            val buffer = out.asFloatBuffer()
+                            val count = buffer.remaining()
+                            if (floats.size < count) floats = FloatArray(count)
+                            buffer.get(floats, 0, count)
+                            acc.addFloats(floats, count)
+                        } else {
+                            val buffer = out.asShortBuffer()
+                            val count = buffer.remaining()
+                            if (samples.size < count) samples = ShortArray(count)
+                            buffer.get(samples, 0, count)
+                            acc.add(samples, count)
+                        }
                     }
                     decoder.releaseOutputBuffer(outIndex, false)
                     if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) break
@@ -102,18 +131,27 @@ class WaveformExtractor(private val context: Context) {
         }
     }
 
-    private fun newAccumulator(format: MediaFormat, peaksPerSecond: Int): PeakAccumulator {
-        val encoding = if (format.containsKey(MediaFormat.KEY_PCM_ENCODING)) {
+    private fun pcmEncodingOf(format: MediaFormat): Int =
+        if (format.containsKey(MediaFormat.KEY_PCM_ENCODING)) {
             format.getInteger(MediaFormat.KEY_PCM_ENCODING)
         } else {
             AudioFormat.ENCODING_PCM_16BIT
         }
-        check(encoding == AudioFormat.ENCODING_PCM_16BIT) { "Unsupported PCM encoding $encoding" }
+
+    /** Null for PCM encodings other than 16-bit and float (no waveform). */
+    private fun newAccumulator(format: MediaFormat, peaksPerSecond: Int): PeakAccumulator? {
+        val encoding = pcmEncodingOf(format)
+        if (encoding != AudioFormat.ENCODING_PCM_16BIT && encoding != AudioFormat.ENCODING_PCM_FLOAT) {
+            Log.w(TAG, "Unsupported PCM encoding $encoding")
+            return null
+        }
         val rate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-        return PeakAccumulator(rate, format.getInteger(MediaFormat.KEY_CHANNEL_COUNT), peaksPerSecond.coerceAtMost(rate))
+        val channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+        return PeakAccumulator(rate, channels, peaksPerSecond.coerceAtMost(rate))
     }
 
     private companion object {
+        const val TAG = "CleanCutWaveform"
         const val TIMEOUT_US = 10_000L
     }
 }

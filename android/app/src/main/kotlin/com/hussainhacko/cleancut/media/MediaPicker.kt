@@ -150,7 +150,21 @@ class MediaPicker(private val activity: Activity) : MediaPickerHostApi {
             val stream = resolver.openInputStream(uri) ?: return null
             stream.use { BitmapFactory.decodeStream(it, null, bounds) }
             if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-            val rotation = resolver.openInputStream(uri)?.use { stream ->
+            // Unreadable EXIF (some PNG/WebP streams) means "no rotation", not
+            // "drop the photo".
+            val rotation = runCatching { exifRotation(resolver, uri) }.getOrDefault(0)
+            return PickedMedia(
+                uri = uri.toString(),
+                kind = PickedMediaKind.IMAGE,
+                width = bounds.outWidth.toLong(),
+                height = bounds.outHeight.toLong(),
+                rotationDegrees = rotation.toLong(),
+                displayName = name,
+            )
+        }
+
+        private fun exifRotation(resolver: ContentResolver, uri: Uri): Int =
+            resolver.openInputStream(uri)?.use { stream ->
                 when (
                     ExifInterface(stream).getAttributeInt(
                         ExifInterface.TAG_ORIENTATION,
@@ -164,15 +178,6 @@ class MediaPicker(private val activity: Activity) : MediaPickerHostApi {
                     else -> 0
                 }
             } ?: 0
-            return PickedMedia(
-                uri = uri.toString(),
-                kind = PickedMediaKind.IMAGE,
-                width = bounds.outWidth.toLong(),
-                height = bounds.outHeight.toLong(),
-                rotationDegrees = rotation.toLong(),
-                displayName = name,
-            )
-        }
 
         private fun displayName(resolver: ContentResolver, uri: Uri): String? =
             resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)

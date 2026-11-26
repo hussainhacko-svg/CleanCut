@@ -107,7 +107,7 @@ final class PlaybackProvider
   }
 }
 
-String _$playbackHash() => r'fb034ca7ccda72900ae76aa4438ed39455c9bb63';
+String _$playbackHash() => r'746a97a142ccc8ef06706655839935a99fbc8628';
 
 /// Drives the preview player of one open project.
 

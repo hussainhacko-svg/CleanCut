@@ -2,32 +2,43 @@ import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/theme/accent_gradient.dart';
 import 'package:cleancut/core/utils/timecode.dart';
 import 'package:cleancut/core/widgets/app_icon.dart';
+import 'package:cleancut/features/projects/domain/model/project_canvas.dart';
 import 'package:cleancut/features/projects/presentation/playback/playback_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// The engine's preview texture, letterboxed to the canvas [aspectRatio].
-class PreviewView extends StatelessWidget {
-  /// Creates the view; shows black until [textureId] is known.
-  const new({required this.textureId, required this.aspectRatio, super.key});
+/// The engine's preview texture, letterboxed to the project's canvas and
+/// filled with the canvas background. The texture only shows while the
+/// player has something loaded, so an emptied project doesn't keep the
+/// last frame.
+class PreviewView extends ConsumerWidget {
+  /// Creates the view for [projectId] with [canvas].
+  const new({required this.projectId, required this.canvas, super.key});
 
-  /// Texture from the engine, or null while it is created.
-  final int? textureId;
+  /// The open project.
+  final String projectId;
 
-  /// Canvas width / height.
-  final double aspectRatio;
+  /// The project's canvas (aspect and background).
+  final ProjectCanvas canvas;
 
   @override
-  Widget build(BuildContext context) {
-    final id = textureId;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final (textureId, hasMedia) = ref.watch(
+      playbackProvider(projectId)
+          .select((s) => (s.textureId, s.durationUs > 0)),
+    );
     return Center(
       child: AspectRatio(
-        aspectRatio: aspectRatio,
+        aspectRatio: canvas.aspect.ratio,
         child: ColoredBox(
-          color: Colors.black,
-          child: id == null
+          // Data, not a design token: the canvas color the user picked.
+          color: Color(canvas.backgroundArgb),
+          child: textureId == null || !hasMedia
               ? null
-              : Texture(textureId: id, filterQuality: FilterQuality.medium),
+              : Texture(
+                  textureId: textureId,
+                  filterQuality: FilterQuality.medium,
+                ),
         ),
       ),
     );
@@ -190,25 +201,25 @@ class TransportBar extends ConsumerWidget {
 /// Full-screen preview (VCLIP "Full screen"): the video edge to edge, a close
 /// mark, and a floating bar with play, times, scrub bar and exit.
 class FullscreenPreview extends ConsumerWidget {
-  /// Creates the page for [projectId] with the canvas [aspectRatio].
-  const new({required this.projectId, required this.aspectRatio, super.key});
+  /// Creates the page for [projectId] with its [canvas].
+  const new({required this.projectId, required this.canvas, super.key});
 
   /// The open project.
   final String projectId;
 
-  /// Canvas width / height.
-  final double aspectRatio;
+  /// The project's canvas.
+  final ProjectCanvas canvas;
 
   /// Opens the page over the editor.
   static Future<void> open(
     BuildContext context, {
     required String projectId,
-    required double aspectRatio,
+    required ProjectCanvas canvas,
   }) => Navigator.of(context).push(
     PageRouteBuilder<void>(
       transitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (_, _, _) =>
-          FullscreenPreview(projectId: projectId, aspectRatio: aspectRatio),
+          FullscreenPreview(projectId: projectId, canvas: canvas),
       transitionsBuilder: (_, animation, _, child) =>
           FadeTransition(opacity: animation, child: child),
     ),
@@ -218,9 +229,6 @@ class FullscreenPreview extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final textureId = ref.watch(
-      playbackProvider(projectId).select((s) => s.textureId),
-    );
     final isPlaying = ref.watch(
       playbackProvider(projectId).select((s) => s.isPlaying),
     );
@@ -228,11 +236,11 @@ class FullscreenPreview extends ConsumerWidget {
     void close() => Navigator.of(context).pop();
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: scheme.scrim,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          PreviewView(textureId: textureId, aspectRatio: aspectRatio),
+          PreviewView(projectId: projectId, canvas: canvas),
           SafeArea(
             child: Stack(
               children: [
@@ -332,48 +340,55 @@ class _ScrubBarState extends ConsumerState<ScrubBar> {
       fontFeatures: const [FontFeature.tabularFigures()],
     );
 
-    return Row(
-      children: [
-        Text(formatClockUs(value.round()), style: timeStyle),
-        Expanded(
-          child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 2,
-              trackShape: _GradientTrackShape(gradient),
-              inactiveTrackColor: theme.colorScheme.outlineVariant,
-              thumbColor: gradient.end,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-              overlayShape: SliderComponentShape.noOverlay,
-            ),
-            child: Slider(
-              value: value,
-              max: max,
-              semanticFormatterCallback: (v) => formatClockUs(v.round()),
-              label: l10n.editorSeek,
-              onChangeStart: duration <= 0
-                  ? null
-                  : (v) {
-                      _resumeAfterDrag = ref.read(provider).isPlaying;
-                      if (_resumeAfterDrag) {
-                        // Fire and forget: the drag must not wait for it.
-                        controller.pause().ignore();
-                      }
-                    },
-              onChanged: duration <= 0
-                  ? null
-                  : (v) {
-                      setState(() => _dragUs = v);
-                      controller.seekTo(v.round()).ignore();
-                    },
-              onChangeEnd: (v) {
-                setState(() => _dragUs = null);
-                if (_resumeAfterDrag) controller.play().ignore();
-              },
+    // Time runs left to right in every locale (AGENTS.md §8).
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Row(
+        children: [
+          Text(formatClockUs(value.round()), style: timeStyle),
+          Expanded(
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 2,
+                trackShape: _GradientTrackShape(gradient),
+                inactiveTrackColor: theme.colorScheme.outlineVariant,
+                thumbColor: gradient.end,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+                // An invisible 24dp overlay makes the bar a 48dp target.
+                overlayShape: const RoundSliderOverlayShape(),
+                // The kit shows no press halo.
+                overlayColor: gradient.end.withValues(alpha: 0),
+              ),
+              child: Slider(
+                value: value,
+                max: max,
+                semanticFormatterCallback: (v) => formatClockUs(v.round()),
+                label: l10n.editorSeek,
+                onChangeStart: duration <= 0
+                    ? null
+                    : (v) {
+                        _resumeAfterDrag = ref.read(provider).isPlaying;
+                        if (_resumeAfterDrag) {
+                          // Fire and forget: the drag must not wait for it.
+                          controller.pause().ignore();
+                        }
+                      },
+                onChanged: duration <= 0
+                    ? null
+                    : (v) {
+                        setState(() => _dragUs = v);
+                        controller.seekTo(v.round()).ignore();
+                      },
+                onChangeEnd: (v) {
+                  setState(() => _dragUs = null);
+                  if (_resumeAfterDrag) controller.play().ignore();
+                },
+              ),
             ),
           ),
-        ),
-        Text(formatClockUs(duration), style: timeStyle),
-      ],
+          Text(formatClockUs(duration), style: timeStyle),
+        ],
+      ),
     );
   }
 }
@@ -409,7 +424,8 @@ class _GradientTrackShape extends RoundedRectSliderTrackShape {
     context.canvas
       ..drawRRect(
         RRect.fromRectAndRadius(rect, radius),
-        Paint()..color = sliderTheme.inactiveTrackColor ?? Colors.grey,
+        // ScrubBar always sets it.
+        Paint()..color = sliderTheme.inactiveTrackColor!,
       )
       ..drawRRect(
         RRect.fromRectAndRadius(

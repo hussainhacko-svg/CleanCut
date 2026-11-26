@@ -25,8 +25,11 @@ class EngineHost(
 
     private val listener = object : PreviewListener {
         override fun onState(state: PlayerStateEvent) = send { flutterApi.onPlayerState(state) }
-        override fun onPosition(positionUs: Long) = send { flutterApi.onPosition(positionUs) }
-        override fun onError(code: String, message: String) = send { flutterApi.onError(code, message) }
+        override fun onPosition(textureId: Long, positionUs: Long) =
+            send { flutterApi.onPosition(textureId, positionUs) }
+
+        override fun onError(textureId: Long, code: String, message: String) =
+            send { flutterApi.onError(textureId, code, message) }
     }
 
     override fun createPreview(): Long {

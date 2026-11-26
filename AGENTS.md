@@ -37,6 +37,7 @@ pigeons/                  # Pigeon interface definitions (source of truth for th
 
 - `domain/` must not import `package:flutter`, Riverpod, or any IO. It must be unit-testable with `dart test` semantics.
 - Features may depend on `core/` and `engine/`, and on another feature's `domain/` only. Never import another feature's `presentation/` or `data/`.
+  When a feature needs another feature's implementation (e.g. the platform media picker), it declares a provider typed to that feature's `domain/` interface, and `lib/main.dart` (the composition root) overrides it with the implementation.
 - The **timeline/project model is immutable**. All edits go through `EditCommand`s so undo/redo always works. No widget mutates the model directly.
 - Times are stored as integer **microseconds** (`int`), never `double` seconds or `Duration` inside the model.
 - The native engine is the **single source of truth for pixels**: preview and export use the same Media3 composition. Never re-implement an effect in Dart for preview only.

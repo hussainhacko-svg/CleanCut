@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cleancut/features/media_import/data/media_picker_api.g.dart';
 import 'package:cleancut/features/media_import/data/platform_media_picker.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
@@ -59,5 +61,27 @@ void main() {
       await PlatformMediaPicker(api: api).pickVisualMedia(allowMultiple: false),
       isEmpty,
     );
+  });
+
+  test('a second call while the picker is open shares the first', () async {
+    final api = _MockApi();
+    final gate = Completer<List<PickedMedia>>();
+    when(() => api.pickVisualMedia(allowMultiple: true))
+        .thenAnswer((_) => gate.future);
+    final picker = PlatformMediaPicker(api: api);
+
+    final first = picker.pickVisualMedia();
+    final second = picker.pickVisualMedia();
+    gate.complete(const []);
+
+    expect(await first, isEmpty);
+    expect(await second, isEmpty);
+    verify(() => api.pickVisualMedia(allowMultiple: true)).called(1);
+
+    // Once closed, the picker can open again.
+    when(() => api.pickVisualMedia(allowMultiple: true))
+        .thenAnswer((_) async => const []);
+    await picker.pickVisualMedia();
+    verify(() => api.pickVisualMedia(allowMultiple: true)).called(1);
   });
 }

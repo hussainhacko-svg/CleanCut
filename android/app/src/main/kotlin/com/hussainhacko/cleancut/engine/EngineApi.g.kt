@@ -354,6 +354,8 @@ data class CompositionSpec (
  * Generated class from Pigeon that represents data sent in messages.
  */
 data class PlayerStateEvent (
+  /** The preview this event belongs to. */
+  val textureId: Long,
   val status: PlaybackStatus,
   val isPlaying: Boolean,
   /** Length of the composition; 0 while unknown. */
@@ -363,15 +365,17 @@ data class PlayerStateEvent (
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): PlayerStateEvent {
-      val status = pigeonVar_list[0] as PlaybackStatus
-      val isPlaying = pigeonVar_list[1] as Boolean
-      val durationUs = pigeonVar_list[2] as Long
-      val positionUs = pigeonVar_list[3] as Long
-      return PlayerStateEvent(status, isPlaying, durationUs, positionUs)
+      val textureId = pigeonVar_list[0] as Long
+      val status = pigeonVar_list[1] as PlaybackStatus
+      val isPlaying = pigeonVar_list[2] as Boolean
+      val durationUs = pigeonVar_list[3] as Long
+      val positionUs = pigeonVar_list[4] as Long
+      return PlayerStateEvent(textureId, status, isPlaying, durationUs, positionUs)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
+      textureId,
       status,
       isPlaying,
       durationUs,
@@ -386,11 +390,12 @@ data class PlayerStateEvent (
       return true
     }
     val other = other as PlayerStateEvent
-    return EngineApiPigeonUtils.deepEquals(this.status, other.status) && EngineApiPigeonUtils.deepEquals(this.isPlaying, other.isPlaying) && EngineApiPigeonUtils.deepEquals(this.durationUs, other.durationUs) && EngineApiPigeonUtils.deepEquals(this.positionUs, other.positionUs)
+    return EngineApiPigeonUtils.deepEquals(this.textureId, other.textureId) && EngineApiPigeonUtils.deepEquals(this.status, other.status) && EngineApiPigeonUtils.deepEquals(this.isPlaying, other.isPlaying) && EngineApiPigeonUtils.deepEquals(this.durationUs, other.durationUs) && EngineApiPigeonUtils.deepEquals(this.positionUs, other.positionUs)
   }
 
   override fun hashCode(): Int {
     var result = javaClass.hashCode()
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.textureId)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.status)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.isPlaying)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.durationUs)
@@ -398,7 +403,7 @@ data class PlayerStateEvent (
     return result
   }
   override fun toString(): String {
-    return "PlayerStateEvent(status=$status, isPlaying=$isPlaying, durationUs=$durationUs, positionUs=$positionUs)"
+    return "PlayerStateEvent(textureId=$textureId, status=$status, isPlaying=$isPlaying, durationUs=$durationUs, positionUs=$positionUs)"
   }
 }
 
@@ -730,14 +735,17 @@ class EngineFlutterApi(private val binaryMessenger: BinaryMessenger, private val
       }
     }
   }
-  /** Playback position while playing (about 30 times a second). */
-  suspend fun onPosition(positionUsArg: Long)
+  /**
+   * Playback position of preview [textureId] while playing (about 30
+   * times a second).
+   */
+  suspend fun onPosition(textureIdArg: Long, positionUsArg: Long)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
     return suspendCancellableCoroutine { continuation ->
       val channelName = "dev.flutter.pigeon.cleancut.EngineFlutterApi.onPosition$separatedMessageChannelSuffix"
       val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-      channel.send(listOf(positionUsArg)) {
+      channel.send(listOf(textureIdArg, positionUsArg)) {
         if (it is List<*>) {
           if (it.size > 1) {
             continuation.resumeWithException(FlutterError(it[0] as String, it[1] as String, it[2] as String?))
@@ -750,14 +758,14 @@ class EngineFlutterApi(private val binaryMessenger: BinaryMessenger, private val
       }
     }
   }
-  /** A playback error; the player stops. */
-  suspend fun onError(codeArg: String, messageArg: String)
+  /** A playback error of preview [textureId]; the player stops. */
+  suspend fun onError(textureIdArg: Long, codeArg: String, messageArg: String)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
     return suspendCancellableCoroutine { continuation ->
       val channelName = "dev.flutter.pigeon.cleancut.EngineFlutterApi.onError$separatedMessageChannelSuffix"
       val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-      channel.send(listOf(codeArg, messageArg)) {
+      channel.send(listOf(textureIdArg, codeArg, messageArg)) {
         if (it is List<*>) {
           if (it.size > 1) {
             continuation.resumeWithException(FlutterError(it[0] as String, it[1] as String, it[2] as String?))
