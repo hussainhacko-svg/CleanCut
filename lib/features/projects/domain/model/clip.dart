@@ -1,5 +1,6 @@
 import 'package:cleancut/features/projects/domain/model/clip_transform.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
+import 'package:cleancut/features/projects/domain/model/speed_curve.dart';
 import 'package:cleancut/features/projects/domain/model/time.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -23,7 +24,8 @@ const int defaultImageDurationUs = 3 * Micros.perSecond;
 
 /// A visual (video or image) clip.
 ///
-/// The clip plays `[sourceInUs, sourceOutUs)` of its [media] at [speed].
+/// The clip plays `[sourceInUs, sourceOutUs)` of its [media] at [speed],
+/// or along [speedCurve] when it has one (the curve then replaces [speed]).
 /// For images the source range is just the display length.
 @freezed
 abstract class Clip with _$Clip {
@@ -34,6 +36,7 @@ abstract class Clip with _$Clip {
     required int sourceInUs,
     required int sourceOutUs,
     @Default(1.0) double speed,
+    SpeedCurve? speedCurve,
     @Default(true) bool keepPitch,
     @Default(ClipTransform()) ClipTransform transform,
     @Default(FitMode.fit) FitMode fitMode,
@@ -67,8 +70,40 @@ abstract class Clip with _$Clip {
   /// Length of the used source range.
   int get sourceDurationUs => sourceOutUs - sourceInUs;
 
-  /// Length on the timeline, after [speed].
-  int get durationUs => Micros.scaledBySpeed(sourceDurationUs, speed);
+  /// Length on the timeline, after [speed] or [speedCurve].
+  int get durationUs => timelineLengthOf(sourceDurationUs);
+
+  /// Timeline length this clip would have using [sourceUs] of source (a
+  /// curve stretches with the clip).
+  int timelineLengthOf(int sourceUs) => switch (speedCurve) {
+    null => Micros.scaledBySpeed(sourceUs, speed),
+    final curve => curve.timelineDurationUs(sourceUs),
+  };
+
+  /// Source played per timeline µs on average; equals [speed] without a
+  /// curve.
+  double get averageSpeed => switch (speedCurve) {
+    null => speed,
+    final curve => 1 / curve.timePerSource,
+  };
+
+  /// Source offset (from [sourceInUs]) shown [timelineOffsetUs] into the
+  /// clip on the timeline.
+  int sourceOffsetAt(int timelineOffsetUs) => switch (speedCurve) {
+    null => (timelineOffsetUs * speed).round(),
+    final curve =>
+      (sourceDurationUs * curve.progressAt(timelineOffsetUs / durationUs))
+          .round(),
+  };
+
+  /// Timeline offset (into the clip) at which [sourceOffsetUs] (from
+  /// [sourceInUs]) plays.
+  int timelineOffsetOf(int sourceOffsetUs) => switch (speedCurve) {
+    null => Micros.scaledBySpeed(sourceOffsetUs, speed),
+    final curve =>
+      (durationUs * curve.timelineFractionAt(sourceOffsetUs / sourceDurationUs))
+          .round(),
+  };
 
   /// Broken invariants, empty when the clip is valid.
   List<String> validate() => [
@@ -77,6 +112,9 @@ abstract class Clip with _$Clip {
     if (media.durationUs case final d? when sourceOutUs > d)
       'sourceOutUs beyond media duration',
     if (!SpeedLimits.contains(speed)) 'speed out of range',
+    if (speedCurve case final c?) ...[
+      for (final problem in c.validate()) 'speedCurve: $problem',
+    ],
     if (volume < 0) 'volume < 0',
     if (media.kind == MediaKind.audio) 'audio media in a visual clip',
   ];

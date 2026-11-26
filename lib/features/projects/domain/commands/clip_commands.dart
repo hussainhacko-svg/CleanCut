@@ -9,7 +9,7 @@ import 'package:cleancut/features/projects/domain/model/clip.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/model/retiming.dart';
-import 'package:cleancut/features/projects/domain/model/time.dart';
+import 'package:cleancut/features/projects/domain/model/speed_curve.dart';
 
 /// Shortest timeline length a trim or split may leave (0.1 s).
 const int minClipDurationUs = 100000;
@@ -23,12 +23,12 @@ int _indexOf(Project project, String clipId) {
 Project _withClips(Project project, List<Clip> clips) =>
     project.copyWith(mainTrack: project.mainTrack.copyWith(clips: clips));
 
-/// Timeline length of [sourceUs] of source at [speed].
-int _timelineUs(int sourceUs, double speed) =>
-    Micros.scaledBySpeed(sourceUs, speed);
-
-/// Source length that plays for [timelineUs] at [speed].
-int _sourceUs(int timelineUs, double speed) => (timelineUs * speed).round();
+/// Re-times [clip]'s keyframes after its timeline length changed from
+/// [clip]'s to [updated]'s (speed or curve change), so they stay on the
+/// same frames.
+Clip _retimed(Clip clip, Clip updated) => updated.copyWith(
+  transform: clip.transform.scaledInTime(updated.durationUs / clip.durationUs),
+);
 
 /// Sets the used source range `[sourceInUs, sourceOutUs)` of clip [clipId].
 ///
@@ -65,15 +65,15 @@ final class TrimClipCommand extends EditCommand {
     }
     final minDuration = math.min(minClipDurationUs, clip.durationUs);
     if (sourceOutUs <= sourceInUs ||
-        _timelineUs(sourceOutUs - sourceInUs, clip.speed) < minDuration) {
+        clip.timelineLengthOf(sourceOutUs - sourceInUs) < minDuration) {
       throw InvalidEditException('Trim leaves less than $minDuration us');
     }
     if (sourceInUs == clip.sourceInUs && sourceOutUs == clip.sourceOutUs) {
       return project;
     }
     // Keyframes are clip-relative: moving the start right by n source µs
-    // moves them left by n / speed on the timeline.
-    final shift = -_timelineUs(sourceInUs - clip.sourceInUs, clip.speed);
+    // moves them left by n / (average) speed on the timeline.
+    final shift = -((sourceInUs - clip.sourceInUs) / clip.averageSpeed).round();
     final updated = [...project.mainTrack.clips];
     updated[index] = clip.copyWith(
       sourceInUs: sourceInUs,
@@ -88,7 +88,7 @@ final class TrimClipCommand extends EditCommand {
 /// shorter than its current length when it is already below the minimum.
 int _minSourceUs(Clip clip) => clip.durationUs < minClipDurationUs
     ? clip.sourceDurationUs
-    : (minClipDurationUs * clip.speed).ceil();
+    : (minClipDurationUs * clip.averageSpeed).ceil();
 
 /// The closest valid source start for [clip] to [sourceInUs] when dragging
 /// its start edge: not before the media, and leaving at least
@@ -115,7 +115,9 @@ int clampTrimEnd(Clip clip, int sourceOutUs) {
 ///
 /// The first part keeps its id; the second gets [newId]'s id and is placed
 /// right after it. Keyframes are partitioned at the cut, each half pinning
-/// the value at the cut. Both parts must be at least [minClipDurationUs]
+/// the value at the cut; a speed curve is divided the same way (owner
+/// decision), each half stretched back over its part. Both parts must be at
+/// least [minClipDurationUs]
 /// long, so a split right at a clip edge is rejected.
 final class SplitClipCommand extends EditCommand {
   /// Creates the command.
@@ -141,14 +143,19 @@ final class SplitClipCommand extends EditCommand {
         'Split at $timeUs us is too close to an edge of $clipId',
       );
     }
-    final cut = clip.sourceInUs + _sourceUs(offset, clip.speed);
+    final cut = clip.sourceInUs + clip.sourceOffsetAt(offset);
+    final halves = clip.speedCurve?.splitAt(
+      (cut - clip.sourceInUs) / clip.sourceDurationUs,
+    );
     final first = clip.copyWith(
       sourceOutUs: cut,
+      speedCurve: halves?.$1,
       transform: clip.transform.clipped(offset),
     );
     final second = clip.copyWith(
       id: newId(),
       sourceInUs: cut,
+      speedCurve: halves?.$2,
       transform: clip.transform.shifted(-offset),
     );
     final updated = [...project.mainTrack.clips]
@@ -231,13 +238,14 @@ final class MoveClipCommand extends EditCommand {
   }
 }
 
-/// Sets the constant playback speed of clip [clipId] (Flow) and whether its
-/// audio keeps its pitch.
+/// Sets the constant playback speed of clip [clipId] (Flow "Normal") and,
+/// when given, whether its audio keeps its pitch.
 ///
-/// The source range stays the same, so the clip gets longer or shorter on
-/// the timeline; its keyframes are re-timed to stay on the same frames.
-/// Speed must be within [SpeedLimits]. Consecutive changes of one clip
-/// (a slider drag) are one undo step.
+/// A constant speed replaces a speed curve. The source range stays the
+/// same, so the clip gets longer or shorter on the timeline; its keyframes
+/// are re-timed to stay on the same frames. Speed must be within
+/// [SpeedLimits]. Consecutive changes of one clip (a slider drag) are one
+/// undo step.
 final class SetClipSpeedCommand extends EditCommand {
   /// Creates the command; a null [keepPitch] leaves it unchanged.
   const new(this.clipId, {required this.speed, this.keepPitch});
@@ -262,16 +270,76 @@ final class SetClipSpeedCommand extends EditCommand {
     final index = _indexOf(project, clipId);
     final clip = project.mainTrack.clips[index];
     final pitch = keepPitch ?? clip.keepPitch;
-    if (speed == clip.speed && pitch == clip.keepPitch) return project;
+    if (speed == clip.speed &&
+        pitch == clip.keepPitch &&
+        clip.speedCurve == null) {
+      return project;
+    }
     if (clip.media.kind == MediaKind.image && pitch != clip.keepPitch) {
       throw const InvalidEditException('Images have no audio pitch');
     }
     final updated = [...project.mainTrack.clips];
-    updated[index] = clip.copyWith(
-      speed: speed,
-      keepPitch: pitch,
-      transform: clip.transform.scaledInTime(clip.speed / speed),
+    updated[index] = _retimed(
+      clip,
+      clip.copyWith(speed: speed, speedCurve: null, keepPitch: pitch),
     );
+    return _withClips(project, updated);
+  }
+}
+
+/// Sets (or, with null, removes) the speed curve of clip [clipId] (Flow
+/// "Curve"). The curve replaces the constant speed while set; removing it
+/// returns to that speed. Keyframes are re-timed to stay on the same
+/// frames.
+final class SetClipSpeedCurveCommand extends EditCommand {
+  /// Creates the command.
+  const new(this.clipId, this.curve);
+
+  /// Target clip.
+  final String clipId;
+
+  /// The new curve; null for constant speed.
+  final SpeedCurve? curve;
+
+  @override
+  Project apply(Project project) {
+    if (curve case final c?) {
+      final problems = c.validate();
+      if (problems.isNotEmpty) {
+        throw InvalidEditException('Invalid speed curve: $problems');
+      }
+    }
+    final index = _indexOf(project, clipId);
+    final clip = project.mainTrack.clips[index];
+    if (curve == clip.speedCurve) return project;
+    final updated = [...project.mainTrack.clips];
+    updated[index] = _retimed(clip, clip.copyWith(speedCurve: curve));
+    return _withClips(project, updated);
+  }
+}
+
+/// Sets whether clip [clipId]'s sped-up or slowed-down audio keeps its
+/// pitch, leaving its speed or curve as it is.
+final class SetClipKeepPitchCommand extends EditCommand {
+  /// Creates the command.
+  const new(this.clipId, {required this.keepPitch});
+
+  /// Target clip.
+  final String clipId;
+
+  /// Whether the audio keeps its pitch.
+  final bool keepPitch;
+
+  @override
+  Project apply(Project project) {
+    final index = _indexOf(project, clipId);
+    final clip = project.mainTrack.clips[index];
+    if (clip.keepPitch == keepPitch) return project;
+    if (clip.media.kind == MediaKind.image) {
+      throw const InvalidEditException('Images have no audio pitch');
+    }
+    final updated = [...project.mainTrack.clips];
+    updated[index] = clip.copyWith(keepPitch: keepPitch);
     return _withClips(project, updated);
   }
 }

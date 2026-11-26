@@ -12,6 +12,9 @@ _Clip _$ClipFromJson(Map<String, dynamic> json) => _Clip(
   sourceInUs: (json['sourceInUs'] as num).toInt(),
   sourceOutUs: (json['sourceOutUs'] as num).toInt(),
   speed: (json['speed'] as num?)?.toDouble() ?? 1.0,
+  speedCurve: json['speedCurve'] == null
+      ? null
+      : SpeedCurve.fromJson(json['speedCurve'] as Map<String, dynamic>),
   keepPitch: json['keepPitch'] as bool? ?? true,
   transform: json['transform'] == null
       ? const ClipTransform()
@@ -28,6 +31,7 @@ Map<String, dynamic> _$ClipToJson(_Clip instance) => <String, dynamic>{
   'sourceInUs': instance.sourceInUs,
   'sourceOutUs': instance.sourceOutUs,
   'speed': instance.speed,
+  'speedCurve': instance.speedCurve?.toJson(),
   'keepPitch': instance.keepPitch,
   'transform': instance.transform.toJson(),
   'fitMode': _$FitModeEnumMap[instance.fitMode]!,

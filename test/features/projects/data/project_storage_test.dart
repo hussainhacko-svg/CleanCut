@@ -58,7 +58,7 @@ void main() {
     });
 
     test('fails loudly when a migration is missing', () {
-      const gap = ProjectCodec(currentVersion: 2);
+      const gap = ProjectCodec(currentVersion: 3);
       expect(() => gap.migrate(project().toJson()), throwsStateError);
     });
 
