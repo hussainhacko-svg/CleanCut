@@ -221,19 +221,23 @@ class _Bubble extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 26),
       height: 26,
       padding: const EdgeInsetsDirectional.symmetric(horizontal: 5),
-      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: scheme.onSurface,
         borderRadius: BorderRadius.circular(13),
       ),
-      child: Text(
-        text,
-        maxLines: 1,
-        style: theme.textTheme.labelSmall?.copyWith(
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-          color: scheme.surface,
-          fontFeatures: const [FontFeature.tabularFigures()],
+      // widthFactor 1: as wide as the text (a circle for "1×"), not as wide
+      // as the slot the bubble rides in.
+      child: Center(
+        widthFactor: 1,
+        child: Text(
+          text,
+          maxLines: 1,
+          style: theme.textTheme.labelSmall?.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            color: scheme.surface,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
         ),
       ),
     );
