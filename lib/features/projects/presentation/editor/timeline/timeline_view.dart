@@ -682,6 +682,9 @@ class _TimelineContent extends ConsumerWidget {
       );
       clipLefts.add(_x(start));
       final view = Positioned(
+        // Keyed so a lifted clip keeps its element (and the long-press
+        // recognizer tracking the finger) when it moves to the top.
+        key: ValueKey(('mainClip', clip.id)),
         left: left,
         top: layout.mainTop,
         width: width,

@@ -280,6 +280,45 @@ void main() {
       expect(ids(tester), ['m0', 'm1']);
     });
 
+    testWidgets('the last of three clips can be lifted to the front', (
+      tester,
+    ) async {
+      // Regression: lifting a clip moved its widget to the top of the stack
+      // without a key, so its element (and the long-press recognizer
+      // tracking the finger) was recreated; the clip never followed the
+      // finger and stayed lifted after release (found on the emulator).
+      env = TestEnv(
+        projects: [
+          project(mainSeconds: [2, 3, 2]),
+        ],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: env.overrides,
+          child: localizedApp(const ProjectScreen(projectId: 'p1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(MainClipView).last),
+      );
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+      for (var i = 0; i < 6; i++) {
+        await gesture.moveBy(const Offset(-30, 0));
+        await tester.pump();
+      }
+      await gesture.up();
+      await tester.pump();
+      expect(ids(tester), ['m2', 'm0', 'm1']);
+      expect(find.byKey(const ValueKey('reorderIndicator')), findsNothing);
+      expect(
+        tester
+            .widgetList<MainClipView>(find.byType(MainClipView))
+            .where((v) => v.lifted),
+        isEmpty,
+      );
+    });
+
     testWidgets('a long press without moving changes nothing', (tester) async {
       await pumpEditor(tester);
       await tester.longPress(find.byType(MainClipView).first);
