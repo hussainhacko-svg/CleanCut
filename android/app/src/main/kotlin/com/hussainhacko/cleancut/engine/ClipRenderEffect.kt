@@ -2,6 +2,7 @@ package com.hussainhacko.cleancut.engine
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.ColorSpace
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.opengl.GLES20
@@ -85,9 +86,15 @@ private class ClipRenderProgram(
             val style = look.style
             val bg = background.background
             val backgroundTexture = when (bg.kind) {
-                BackgroundStyle.Kind.BLUR -> blurredInput(inputTexId, style.crop, bg)
+                BackgroundStyle.Kind.BLUR -> {
+                    releaseImageBackground()
+                    blurredInput(inputTexId, style, bg)
+                }
                 BackgroundStyle.Kind.IMAGE -> imageBackground(bg)
-                else -> NO_TEXTURE
+                else -> {
+                    releaseImageBackground()
+                    NO_TEXTURE
+                }
             }
             GlUtil.focusFramebufferUsingCurrentContext(outputFbo, canvasWidth, canvasHeight)
             val clipTimeUs = (presentationTimeUs - look.timelineStartUs).coerceAtLeast(0L)
@@ -131,12 +138,21 @@ private class ClipRenderProgram(
         GlUtil.checkGlError()
     }
 
-    /** The current frame, cropped, filling the canvas, downsampled and blurred. */
-    private fun blurredInput(inputTexId: Int, crop: CropBox, bg: BackgroundStyle): Int {
+    /** The current frame, cropped and flipped like the clip, filling the canvas, downsampled and blurred. */
+    private fun blurredInput(inputTexId: Int, style: ClipStyle, bg: BackgroundStyle): Int {
         val (w, h) = smallSize(bg)
-        val srcW = inputWidth * crop.width
-        val srcH = inputHeight * crop.height
-        renderDownsample(inputTexId, srcW, srcH, crop, flipV = false, target = scratch[0].ensure(w, h))
+        val srcW = inputWidth * style.crop.width
+        val srcH = inputHeight * style.crop.height
+        renderDownsample(
+            src = inputTexId,
+            srcW = srcW,
+            srcH = srcH,
+            crop = style.crop,
+            flipX = style.flipX,
+            flipY = style.flipY,
+            flipV = false,
+            target = scratch[0].ensure(w, h),
+        )
         return blurScratch(bg)
     }
 
@@ -153,15 +169,43 @@ private class ClipRenderProgram(
         val (w, h) = smallSize(bg)
         val full = CropBox()
         val first = if (bg.blur > 0) scratch[0].ensure(w, h) else imageTarget.ensure(w, h)
-        renderDownsample(imageTexture, imageSize.width.toDouble(), imageSize.height.toDouble(), full, flipV = true, target = first)
+        renderDownsample(
+            src = imageTexture,
+            srcW = imageSize.width.toDouble(),
+            srcH = imageSize.height.toDouble(),
+            crop = full,
+            flipX = false,
+            flipY = false,
+            flipV = true,
+            target = first,
+        )
         if (bg.blur > 0) {
             val blurred = blurScratch(bg)
             // Copy the result into the cached target so the scratch textures stay free.
             val t = imageTarget.ensure(w, h)
-            renderDownsample(blurred, w.toDouble(), h.toDouble(), full, flipV = false, target = t)
+            renderDownsample(
+                src = blurred,
+                srcW = w.toDouble(),
+                srcH = h.toDouble(),
+                crop = full,
+                flipX = false,
+                flipY = false,
+                flipV = false,
+                target = t,
+            )
         }
         imageTargetKey = key
         return imageTarget.texture
+    }
+
+    private fun releaseImageBackground() {
+        if (imageTexture != NO_TEXTURE) {
+            GlUtil.deleteTexture(imageTexture)
+            imageTexture = NO_TEXTURE
+        }
+        if (imageTarget.texture != NO_TEXTURE) imageTarget.release()
+        imageUri = null
+        imageTargetKey = null
     }
 
     private fun smallSize(bg: BackgroundStyle): Pair<Int, Int> {
@@ -175,13 +219,23 @@ private class ClipRenderProgram(
     }
 
     /** Draws [src] (fill mapping of its [crop]) into [target], averaging 4×4 taps per pixel. */
-    private fun renderDownsample(src: Int, srcW: Double, srcH: Double, crop: CropBox, flipV: Boolean, target: Target) {
+    private fun renderDownsample(
+        src: Int,
+        srcW: Double,
+        srcH: Double,
+        crop: CropBox,
+        flipX: Boolean,
+        flipY: Boolean,
+        flipV: Boolean,
+        target: Target,
+    ) {
         GlUtil.focusFramebufferUsingCurrentContext(target.fbo, target.width, target.height)
         downsample.use()
         downsample.setSamplerTexIdUniform("uSrc", src, 0)
         downsample.setFloatsUniform("uSrcSize", floatArrayOf(max(1.0, srcW).toFloat(), max(1.0, srcH).toFloat()))
         downsample.setFloatsUniform("uDst", floatArrayOf(target.width.toFloat(), target.height.toFloat()))
         downsample.setFloatsUniform("uCrop", floatArrayOf(crop.left.toFloat(), crop.top.toFloat(), crop.width.toFloat(), crop.height.toFloat()))
+        downsample.setFloatsUniform("uFlip", floatArrayOf(if (flipX) -1f else 1f, if (flipY) -1f else 1f))
         downsample.setFloatUniform("uFlipV", if (flipV) 1f else 0f)
         downsample.bindAttributesAndUniforms()
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
@@ -212,22 +266,36 @@ private class ClipRenderProgram(
         if (imageTexture != NO_TEXTURE) GlUtil.deleteTexture(imageTexture)
         imageTexture = NO_TEXTURE
         imageUri = uri
-        val bitmap = runCatching { decode(uri) }
+        val decoded = runCatching { decode(uri) }
             .onFailure { Log.w(TAG, "Background image could not be read", it) }
             .getOrNull() ?: return
-        imageTexture = GlUtil.createTexture(bitmap)
-        imageSize = Size(bitmap.width, bitmap.height)
-        bitmap.recycle()
+        val upload = if (decoded.config == Bitmap.Config.ARGB_8888) {
+            decoded
+        } else {
+            val copy = decoded.copy(Bitmap.Config.ARGB_8888, false)
+            decoded.recycle()
+            copy ?: return
+        }
+        try {
+            imageTexture = runCatching { GlUtil.createTexture(upload) }
+                .onFailure { Log.w(TAG, "Background image could not be uploaded", it) }
+                .getOrDefault(NO_TEXTURE)
+            if (imageTexture != NO_TEXTURE) {
+                imageSize = Size(upload.width, upload.height)
+            }
+        } finally {
+            upload.recycle()
+        }
     }
 
-    /** Decodes [uri] upright (EXIF applied), at most [MAX_IMAGE_SIDE] on its long side. */
+    /** Decodes [uri] upright (EXIF applied), sRGB 8-bit, at most [MAX_IMAGE_SIDE] on its long side. */
     private fun decode(uri: String): Bitmap {
         val source = ImageDecoder.createSource(context.contentResolver, Uri.parse(uri))
         return ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
-            val longSide = max(info.size.width, info.size.height)
-            var sample = 1
-            while (longSide / (sample * 2) >= MAX_IMAGE_SIDE) sample *= 2
-            decoder.setTargetSampleSize(sample)
+            decoder.setTargetSampleSize(
+                BackgroundStyle.imageSampleSize(info.size.width, info.size.height, MAX_IMAGE_SIDE),
+            )
+            decoder.setTargetColorSpace(ColorSpace.get(ColorSpace.Named.SRGB))
             decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
         }
     }
@@ -331,13 +399,12 @@ void main() {
   vec4 bg;
   if (uBgKind == 1) {
     float t = clamp(dot(p - 0.5 * uCanvas, uGradAxis.xy) / uGradAxis.z + 0.5, 0.0, 1.0);
-    bg = mix(uColorA, uColorB, t);
+    bg = vec4(mix(uColorA.rgb * uColorA.a, uColorB.rgb * uColorB.a, t), 1.0);
   } else if (uBgKind == 2) {
-    bg = texture2D(uBgTex, vOut);
+    bg = vec4(texture2D(uBgTex, vOut).rgb, 1.0);
   } else {
-    bg = uColorA;
+    bg = vec4(uColorA.rgb * uColorA.a, 1.0);
   }
-  bg = vec4(bg.rgb * bg.a, 1.0);
 
   vec2 d = p - uCenter;
   vec2 local = vec2(uRot.x * d.x + uRot.y * d.y, -uRot.y * d.x + uRot.x * d.y);
@@ -350,13 +417,17 @@ void main() {
   }
   vec2 u = local / max(uHalf, vec2(1e-4)) * 0.5 * uFlip + 0.5;
   vec2 src = uCrop.xy + clamp(u, 0.0, 1.0) * uCrop.zw;
+  // uTex is premultiplied (Android Bitmaps for PNGs; video frames have a = 1).
   vec4 c = texture2D(uTex, vec2(src.x, 1.0 - src.y));
+  vec3 outRgb = c.rgb;
+  float outA = c.a;
   if (uBorder > 0.0) {
     float stroke = clamp(sd + uBorder + 0.5, 0.0, 1.0) * uBorderColor.a;
-    c = vec4(mix(c.rgb, uBorderColor.rgb, stroke), max(c.a, stroke));
+    outRgb = uBorderColor.rgb * stroke + outRgb * (1.0 - stroke);
+    outA = stroke + outA * (1.0 - stroke);
   }
-  float alpha = coverage * uOpacity * c.a;
-  gl_FragColor = vec4(mix(bg.rgb, c.rgb, alpha), 1.0);
+  float mask = coverage * uOpacity;
+  gl_FragColor = vec4(bg.rgb * (1.0 - outA * mask) + outRgb * mask, 1.0);
 }
 """
 
@@ -367,13 +438,15 @@ uniform sampler2D uSrc;
 uniform vec2 uSrcSize;
 uniform vec2 uDst;
 uniform vec4 uCrop;
+uniform vec2 uFlip;
 uniform float uFlipV;
 varying vec2 vOut;
 void main() {
   vec2 p = vec2(vOut.x, 1.0 - vOut.y) * uDst;
   float s = max(uDst.x / uSrcSize.x, uDst.y / uSrcSize.y);
   vec2 sp = (p - 0.5 * uDst) / s + 0.5 * uSrcSize;
-  vec2 u = uCrop.xy + sp / uSrcSize * uCrop.zw;
+  vec2 norm = (sp / uSrcSize - 0.5) * uFlip + 0.5;
+  vec2 u = uCrop.xy + norm * uCrop.zw;
   vec2 footprint = (1.0 / s) / uSrcSize * uCrop.zw;
   vec4 sum = vec4(0.0);
   for (int i = 0; i < 4; i++) {

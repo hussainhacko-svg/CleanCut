@@ -148,11 +148,23 @@ class ClipLookTest {
 
     @Test
     fun `blur textures shrink as the blur grows`() {
-        fun side(blur: Double) =
-            BackgroundStyle.of(backgroundSpec(SpecBackgroundKind.BLUR, blur = blur)).blurTextureShortSide(720)
+        fun side(blur: Double, canvasShortSide: Int = 720) =
+            BackgroundStyle.of(backgroundSpec(SpecBackgroundKind.BLUR, blur = blur))
+                .blurTextureShortSide(canvasShortSide)
         assertEquals(720, side(0.0))
         assertEquals(160 - 72, side(0.5))
         assertEquals(16, side(1.0))
+        // Tiny canvases below 8 px must not crash coerceIn.
+        assertEquals(2, side(0.5, canvasShortSide = 2))
+        assertEquals(1, side(1.0, canvasShortSide = 0))
+    }
+
+    @Test
+    fun `image sample size keeps the decoded long side at or below maxSide`() {
+        assertEquals(1, BackgroundStyle.imageSampleSize(2048, 1080, 2048))
+        assertEquals(2, BackgroundStyle.imageSampleSize(2049, 1080, 2048))
+        assertEquals(2, BackgroundStyle.imageSampleSize(4000, 3000, 2048))
+        assertEquals(4, BackgroundStyle.imageSampleSize(8192, 4096, 2048))
     }
 
     @Test

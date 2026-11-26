@@ -218,13 +218,26 @@ data class BackgroundStyle(
 
     /** Short side in pixels of the small texture the blurred background is rendered into. */
     fun blurTextureShortSide(canvasShortSide: Int): Int {
-        if (blur <= 0.0) return canvasShortSide
+        val safeCanvas = max(1, canvasShortSide)
+        if (blur <= 0.0) return safeCanvas
         // 0 -> 160 px (soft), 1 -> 16 px (very blurry); bilinear upscaling smooths it out.
-        return (160 - 144 * blur.coerceIn(0.0, 1.0)).toInt().coerceIn(8, canvasShortSide)
+        return (160 - 144 * blur.coerceIn(0.0, 1.0)).toInt().coerceIn(min(8, safeCanvas), safeCanvas)
     }
 
     companion object {
         val DEFAULT = BackgroundStyle()
+
+        /**
+         * Smallest power-of-two sample size that keeps the decoded image's long side
+         * at or below [maxSide].
+         */
+        internal fun imageSampleSize(width: Int, height: Int, maxSide: Int): Int {
+            if (maxSide <= 0) return 1
+            val longSide = max(width, height)
+            var sample = 1
+            while (longSide / sample > maxSide) sample *= 2
+            return sample
+        }
 
         fun of(spec: BackgroundSpec?): BackgroundStyle {
             if (spec == null) return DEFAULT

@@ -90,17 +90,33 @@ class PreviewPlayer(
             // Clear before stop() so any listener callback triggered by stop()
             // also reports an empty timeline rather than stale duration/position.
             hasComposition = false
+            composed = null
+            structure = null
             player.stop()
             player.clearVideoSurface()
             listener.onState(state())
             return
         }
         val current = composed
-        if (hasComposition && current != null && plan.structureKey == structure) {
+        if (hasComposition &&
+            current != null &&
+            plan.structureKey == structure &&
+            player.playbackState != Player.STATE_IDLE &&
+            player.playerError == null
+        ) {
             // Only looks changed (a slider or gesture): swap them in place, no rebuild.
             current.updateLooks(plan)
             // A paused player shows a stale frame; seeking in place redraws it.
-            if (!player.isPlaying) player.seekTo(player.currentPosition)
+            // Clamp inside the last millisecond so STATE_ENDED also redraws.
+            if (!player.isPlaying) {
+                val durationMs = player.duration
+                val posMs = if (durationMs != C.TIME_UNSET && durationMs > 0) {
+                    player.currentPosition.coerceIn(0L, durationMs - 1)
+                } else {
+                    player.currentPosition.coerceAtLeast(0L)
+                }
+                player.seekTo(posMs)
+            }
             return
         }
         val keepMs = if (hasComposition) player.currentPosition else 0L
