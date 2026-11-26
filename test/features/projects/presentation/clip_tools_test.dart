@@ -1,12 +1,14 @@
 // Phase 4 dock actions on the selected main clip: split, duplicate, delete
 // and the Speed panel.
 import 'package:cleancut/features/projects/domain/model/project.dart';
+import 'package:cleancut/features/projects/domain/timeline/timeline_scale.dart';
 import 'package:cleancut/features/projects/presentation/editor/editor_state.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/speed_panel.dart';
 import 'package:cleancut/features/projects/presentation/editor/timeline/timeline_view.dart';
 import 'package:cleancut/features/projects/presentation/editor/tool_dock.dart';
 import 'package:cleancut/features/projects/presentation/project_screen.dart';
 import 'package:cleancut/features/projects/presentation/project_session.dart';
+import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -184,5 +186,110 @@ void main() {
     expect(find.byType(SpeedPanel), findsOneWidget);
     expect(find.byType(PropertiesPanel), findsNothing);
     expect(find.byType(ToolRail), findsOneWidget);
+  });
+
+  group('timeline gestures', () {
+    /// 100 px per second so drags map to round times.
+    Future<void> zoomIn(WidgetTester tester) async {
+      containerOf(tester)
+          .read(timelineZoomProvider('p1').notifier)
+          .set(TimelineScale(100));
+      await tester.pump();
+    }
+
+    testWidgets('dragging the end handle trims the end on release', (
+      tester,
+    ) async {
+      await pumpEditor(tester);
+      await zoomIn(tester);
+      await selectClip(tester, 0);
+      final handle = find.byKey(const ValueKey('trimEnd'));
+      final gesture = await tester.startGesture(tester.getCenter(handle));
+      await gesture.moveBy(const Offset(-25, 0));
+      await gesture.moveBy(const Offset(-25, 0));
+      await tester.pump();
+      // Drawn shorter, but the project is untouched until release.
+      expect(present(tester).mainTrack.clips.first.sourceOutUs, 2 * s);
+      await gesture.up();
+      await tester.pump();
+      final clip = present(tester).mainTrack.clips.first;
+      expect((clip.sourceInUs, clip.sourceOutUs), (0, 1500000));
+      // The preview shows the new end frame.
+      expect(env.engine.seeks.last, lessThan(1500000));
+      expect(env.engine.seeks.last, greaterThan(1400000));
+
+      await tester.tap(find.byTooltip('Undo'));
+      await tester.pump();
+      expect(present(tester).mainTrack.clips.first.sourceOutUs, 2 * s);
+    });
+
+    testWidgets('dragging the start handle trims the start', (tester) async {
+      await pumpEditor(tester);
+      await zoomIn(tester);
+      await selectClip(tester, 1);
+      await tester.drag(
+        find.byKey(const ValueKey('trimStart')),
+        const Offset(80, 0),
+      );
+      await tester.pump();
+      final clip = present(tester).mainTrack.clips[1];
+      expect((clip.sourceInUs, clip.sourceOutUs), (800000, 3 * s));
+      expect(present(tester).durationUs, 4200000);
+      expect(env.engine.seeks.last, 2 * s);
+    });
+
+    testWidgets('a trim cannot go past the media or below 0.1 s', (
+      tester,
+    ) async {
+      await pumpEditor(tester);
+      await zoomIn(tester);
+      await selectClip(tester, 0);
+      await tester.drag(
+        find.byKey(const ValueKey('trimEnd')),
+        const Offset(300, 0),
+      );
+      await tester.pump();
+      // Nothing to extend: the clip already uses the whole video.
+      expect(present(tester).mainTrack.clips.first.sourceOutUs, 2 * s);
+      await tester.drag(
+        find.byKey(const ValueKey('trimEnd')),
+        const Offset(-400, 0),
+      );
+      await tester.pump();
+      expect(present(tester).mainTrack.clips.first.durationUs, 100000);
+    });
+
+    testWidgets('long-press and drag reorders clips', (tester) async {
+      await pumpEditor(tester);
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(MainClipView).first),
+      );
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+      await gesture.moveBy(const Offset(40, 0));
+      await gesture.moveBy(const Offset(40, 0));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('reorderIndicator')), findsOneWidget);
+      expect(ids(tester), ['m0', 'm1']);
+      await gesture.up();
+      await tester.pump();
+      expect(ids(tester), ['m1', 'm0']);
+      expect(find.byKey(const ValueKey('reorderIndicator')), findsNothing);
+
+      await tester.tap(find.byTooltip('Undo'));
+      await tester.pump();
+      expect(ids(tester), ['m0', 'm1']);
+    });
+
+    testWidgets('a long press without moving changes nothing', (tester) async {
+      await pumpEditor(tester);
+      await tester.longPress(find.byType(MainClipView).first);
+      await tester.pump();
+      expect(ids(tester), ['m0', 'm1']);
+      final h = containerOf(tester)
+          .read(projectSessionProvider('p1'))
+          .requireValue
+          .history;
+      expect(h.canUndo, isFalse);
+    });
   });
 }

@@ -177,9 +177,10 @@ Each phase ends with a working, tested build and a tag `v0.<phase>.0`.
 - [x] Contextual dock: no selection → add tools; selection → clip tools (⊕ appends media; tools of later phases say "coming in a later update")
 
 ### Phase 4 — Basic editing
-- [ ] Trim (drag handles on clip edges, with live preview frame)
-- [ ] Split at playhead, delete, duplicate, reorder (long-press drag)
-- [ ] Flow: speed slider (0.1×–10×), curve presets + custom curve editor, keep pitch
+- [x] Trim (drag handles on clip edges; the length updates live, the preview shows the trimmed edge's frame on release)
+- [x] Split at playhead, delete, duplicate, reorder (long-press drag)
+- [x] Flow: speed panel (0.1×–10×, kit "Speed" frame) + keep pitch — constant speed via Media3 `SpeedParameters`
+- [ ] Flow: curve presets (montage, hero, bullet, flash in/out) + custom curve editor ("Normal | Curve" tabs in the Speed panel; owner: separate follow-up)
 - [ ] Freeze frame, reverse (stretch goal)
 
 ### Phase 5 — Transform & style

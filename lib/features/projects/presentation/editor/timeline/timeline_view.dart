@@ -7,16 +7,20 @@ import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/theme/timeline_colors.dart';
 import 'package:cleancut/core/widgets/app_icon.dart';
 import 'package:cleancut/engine/media_engine.dart';
+import 'package:cleancut/features/projects/domain/commands/clip_commands.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/model/time.dart';
+import 'package:cleancut/features/projects/domain/timeline/reorder.dart';
 import 'package:cleancut/features/projects/domain/timeline/ruler.dart';
 import 'package:cleancut/features/projects/domain/timeline/snapping.dart';
 import 'package:cleancut/features/projects/domain/timeline/timeline_scale.dart';
 import 'package:cleancut/features/projects/domain/timeline/timeline_selection.dart';
 import 'package:cleancut/features/projects/presentation/editor/editor_state.dart';
 import 'package:cleancut/features/projects/presentation/playback/playback_controller.dart';
+import 'package:cleancut/features/projects/presentation/project_session.dart';
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,6 +45,53 @@ abstract final class TimelineMetrics {
   /// Gap drawn between neighbouring main-track clips (visual only; times
   /// stay exact).
   static const double clipGap = 4;
+}
+
+/// A trim in progress: the dragged clip's source range so far. Drawn
+/// without touching the project; committed as one `TrimClipCommand` on
+/// release (so the preview reloads once).
+typedef TrimDrag = ({
+  String clipId,
+  bool start,
+  int sourceInUs,
+  int sourceOutUs,
+});
+
+/// A long-press reorder in progress: the clip, how far it moved and the
+/// index it would land on.
+typedef ReorderDrag = ({String clipId, double dx, int toIndex});
+
+/// Callbacks from the main strip's trim handles and long-press reorder.
+final class MainStripGestures {
+  /// Creates the callbacks.
+  const new({
+    required this.onTrimStart,
+    required this.onTrimUpdate,
+    required this.onTrimEnd,
+    required this.onReorderStart,
+    required this.onReorderUpdate,
+    required this.onReorderEnd,
+  });
+
+  /// A trim handle of `clip` (starting at timeline `clipStartUs`) was
+  /// grabbed; `start` is the left handle.
+  final void Function(Clip clip, int clipStartUs, {required bool start})
+  onTrimStart;
+
+  /// The grabbed handle moved by `dx` px.
+  final ValueChanged<double> onTrimUpdate;
+
+  /// The handle was released.
+  final VoidCallback onTrimEnd;
+
+  /// `clip` was long-pressed to reorder it.
+  final ValueChanged<Clip> onReorderStart;
+
+  /// The long-pressed clip moved by `dx` px from where it was lifted.
+  final ValueChanged<double> onReorderUpdate;
+
+  /// The long-pressed clip was dropped.
+  final VoidCallback onReorderEnd;
 }
 
 /// The timeline: ruler, lanes and a fixed playhead in the middle. Dragging
@@ -72,6 +123,25 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   TimelineScale? _pinchStartScale;
 
   late List<int> _snapTargets = snapTargets(widget.project);
+
+  // Trim: the clip as it was when grabbed and the finger's travel.
+  TrimDrag? _trim;
+  Clip? _trimOrigin;
+  int _trimClipStartUs = 0;
+  double _trimDx = 0;
+  bool _trimSnapped = false;
+
+  // Reorder (long-press + drag).
+  ReorderDrag? _reorder;
+
+  late final MainStripGestures _gestures = MainStripGestures(
+    onTrimStart: _onTrimStart,
+    onTrimUpdate: _onTrimUpdate,
+    onTrimEnd: _onTrimEnd,
+    onReorderStart: _onReorderStart,
+    onReorderUpdate: _onReorderUpdate,
+    onReorderEnd: _onReorderEnd,
+  );
 
   @override
   void didUpdateWidget(TimelineView oldWidget) {
@@ -134,6 +204,166 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
       if (resume) unawaited(_playback.play());
     }
     return false;
+  }
+
+  ProjectSession get _session =>
+      ref.read(projectSessionProvider(widget.projectId).notifier);
+
+  /// Clip edits pause playback so the playhead stays put.
+  void _pauseForEdit() {
+    if (ref.read(playbackProvider(widget.projectId)).isPlaying) {
+      unawaited(_playback.pause());
+    }
+  }
+
+  void _onTrimStart(Clip clip, int clipStartUs, {required bool start}) {
+    _pauseForEdit();
+    unawaited(HapticFeedback.selectionClick());
+    setState(() {
+      _trimOrigin = clip;
+      _trimClipStartUs = clipStartUs;
+      _trimDx = 0;
+      _trimSnapped = false;
+      _trim = (
+        clipId: clip.id,
+        start: start,
+        sourceInUs: clip.sourceInUs,
+        sourceOutUs: clip.sourceOutUs,
+      );
+    });
+  }
+
+  void _onTrimUpdate(double dx) {
+    final clip = _trimOrigin;
+    final trim = _trim;
+    if (clip == null || trim == null) return;
+    _trimDx += dx;
+    final playhead = ref.read(playbackPositionProvider(widget.projectId));
+    final tolerance = _scale.toUs(snapDistancePx);
+    final deltaSource = (_scale.toUs(_trimDx) * clip.speed).round();
+    var sourceIn = clip.sourceInUs;
+    var sourceOut = clip.sourceOutUs;
+    var snapped = false;
+    if (trim.start) {
+      sourceIn = clampTrimStart(clip, clip.sourceInUs + deltaSource);
+      // The left edge is drawn at start + (old length - new length).
+      final edge =
+          _trimClipStartUs +
+          clip.durationUs -
+          Micros.scaledBySpeed(sourceOut - sourceIn, clip.speed);
+      if ((edge - playhead).abs() <= tolerance) {
+        final length = _trimClipStartUs + clip.durationUs - playhead;
+        sourceIn = clampTrimStart(
+          clip,
+          sourceOut - (length * clip.speed).round(),
+        );
+        snapped = true;
+      }
+    } else {
+      sourceOut = clampTrimEnd(clip, clip.sourceOutUs + deltaSource);
+      final edge =
+          _trimClipStartUs +
+          Micros.scaledBySpeed(sourceOut - sourceIn, clip.speed);
+      if ((edge - playhead).abs() <= tolerance) {
+        sourceOut = clampTrimEnd(
+          clip,
+          sourceIn + ((playhead - _trimClipStartUs) * clip.speed).round(),
+        );
+        snapped = true;
+      }
+    }
+    if (snapped && !_trimSnapped) {
+      unawaited(HapticFeedback.selectionClick());
+    }
+    _trimSnapped = snapped;
+    if (sourceIn == trim.sourceInUs && sourceOut == trim.sourceOutUs) return;
+    setState(() {
+      _trim = (
+        clipId: trim.clipId,
+        start: trim.start,
+        sourceInUs: sourceIn,
+        sourceOutUs: sourceOut,
+      );
+    });
+  }
+
+  void _onTrimEnd() {
+    final trim = _trim;
+    final clip = _trimOrigin;
+    setState(() {
+      _trim = null;
+      _trimOrigin = null;
+    });
+    if (trim == null || clip == null) return;
+    if (trim.sourceInUs == clip.sourceInUs &&
+        trim.sourceOutUs == clip.sourceOutUs) {
+      return;
+    }
+    _session
+      ..apply(
+        TrimClipCommand(
+          clip.id,
+          sourceInUs: trim.sourceInUs,
+          sourceOutUs: trim.sourceOutUs,
+        ),
+      )
+      ..seal();
+    // Show the frame at the trimmed edge (DESIGN.md section 4).
+    final length = Micros.scaledBySpeed(
+      trim.sourceOutUs - trim.sourceInUs,
+      clip.speed,
+    );
+    final frameUs = Micros.perSecond ~/ widget.project.canvas.fps;
+    final edge = trim.start
+        ? _trimClipStartUs
+        : _trimClipStartUs + math.max<int>(0, length - frameUs);
+    unawaited(_playback.seekTo(edge));
+  }
+
+  void _onReorderStart(Clip clip) {
+    final index = widget.project.mainTrack.clips.indexWhere(
+      (c) => c.id == clip.id,
+    );
+    if (index < 0) return;
+    _pauseForEdit();
+    unawaited(HapticFeedback.mediumImpact());
+    setState(() => _reorder = (clipId: clip.id, dx: 0, toIndex: index));
+  }
+
+  void _onReorderUpdate(double dx) {
+    final reorder = _reorder;
+    if (reorder == null) return;
+    final clips = widget.project.mainTrack.clips;
+    final index = clips.indexWhere((c) => c.id == reorder.clipId);
+    if (index < 0) return;
+    final center =
+        widget.project.mainTrack.startOf(index) +
+        clips[index].durationUs ~/ 2 +
+        _scale.toUs(dx);
+    final target = reorderTargetIndex(
+      [for (final c in clips) c.durationUs],
+      index,
+      center,
+    );
+    if (target != reorder.toIndex) {
+      unawaited(HapticFeedback.selectionClick());
+    }
+    setState(
+      () => _reorder = (clipId: reorder.clipId, dx: dx, toIndex: target),
+    );
+  }
+
+  void _onReorderEnd() {
+    final reorder = _reorder;
+    setState(() => _reorder = null);
+    if (reorder == null) return;
+    final index = widget.project.mainTrack.clips.indexWhere(
+      (c) => c.id == reorder.clipId,
+    );
+    if (index < 0 || index == reorder.toIndex) return;
+    _session
+      ..apply(MoveClipCommand(reorder.clipId, toIndex: reorder.toIndex))
+      ..seal();
   }
 
   // Pinch: two pointers zoom around the playhead; scrolling pauses.
@@ -257,6 +487,9 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
                             viewport: viewport,
                             scroll: _scroll,
                             selection: selection,
+                            trim: _trim,
+                            reorder: _reorder,
+                            gestures: _gestures,
                           ),
                         ),
                       ),
@@ -337,6 +570,9 @@ class _TimelineContent extends ConsumerWidget {
     required this.viewport,
     required this.scroll,
     required this.selection,
+    required this.trim,
+    required this.reorder,
+    required this.gestures,
   });
 
   final String projectId;
@@ -347,6 +583,12 @@ class _TimelineContent extends ConsumerWidget {
   final double viewport;
   final ScrollController scroll;
   final TimelineSelection selection;
+  final TrimDrag? trim;
+  final ReorderDrag? reorder;
+  final MainStripGestures gestures;
+
+  /// Width of each trim handle's touch target (AGENTS.md section 8).
+  static const double handleTarget = 48;
 
   double _x(int us) => pad + scale.toPx(us);
 
@@ -405,34 +647,92 @@ class _TimelineContent extends ConsumerWidget {
     }
 
     // Main strip: back-to-back clips with transition markers between them.
+    // A trimmed clip is drawn with its new range until the finger lifts;
+    // a long-pressed clip follows the finger above the others.
     var start = 0;
     final clips = project.mainTrack.clips;
+    final clipLefts = <double>[];
+    Widget? lifted;
+    final handles = <Widget>[];
     for (final (i, clip) in clips.indexed) {
-      final end = start + clip.durationUs;
+      final trimming = trim?.clipId == clip.id ? trim : null;
+      final shown = trimming == null
+          ? clip
+          : clip.copyWith(
+              sourceInUs: trimming.sourceInUs,
+              sourceOutUs: trimming.sourceOutUs,
+            );
+      // Trimming the start moves the left edge; the right edge stays until
+      // release, when the main track closes the gap.
+      final shownStart = trimming != null && trimming.start
+          ? start + clip.durationUs - shown.durationUs
+          : start;
+      final end = trimming != null && !trimming.start
+          ? start + shown.durationUs
+          : start + clip.durationUs;
       final sel = MainClipSelection(clip.id);
-      final left = _x(start) + TimelineMetrics.clipGap / 2;
+      final isLifted = reorder?.clipId == clip.id;
+      final left =
+          _x(shownStart) +
+          TimelineMetrics.clipGap / 2 +
+          (isLifted ? reorder!.dx : 0);
       final width = math.max<double>(
         2,
-        scale.toPx(clip.durationUs) - TimelineMetrics.clipGap,
+        scale.toPx(shown.durationUs) - TimelineMetrics.clipGap,
       );
-      children.add(
-        Positioned(
-          left: left,
-          top: layout.mainTop,
-          width: width,
-          height: TimelineMetrics.mainHeight,
-          child: MainClipView(
-            clip: clip,
-            scale: scale,
-            contentLeft: left,
-            viewport: viewport,
-            scroll: scroll,
-            selected: selection == sel,
-            onTap: () => selector.toggle(sel),
-          ),
+      clipLefts.add(_x(start));
+      final view = Positioned(
+        left: left,
+        top: layout.mainTop,
+        width: width,
+        height: TimelineMetrics.mainHeight,
+        child: MainClipView(
+          clip: shown,
+          scale: scale,
+          contentLeft: left,
+          viewport: viewport,
+          scroll: scroll,
+          selected: selection == sel,
+          lifted: isLifted,
+          onTap: () => selector.toggle(sel),
+          onLongPressStart: () => gestures.onReorderStart(clip),
+          onLongPressMove: gestures.onReorderUpdate,
+          onLongPressEnd: gestures.onReorderEnd,
         ),
       );
-      if (i > 0) {
+      if (isLifted) {
+        lifted = view;
+      } else {
+        children.add(view);
+      }
+      if (selection == sel && reorder == null) {
+        final clipStart = start;
+        for (final isStart in [true, false]) {
+          final edgeX = isStart ? left : left + width;
+          handles.add(
+            Positioned(
+              key: ValueKey(isStart ? 'trimStart' : 'trimEnd'),
+              left: edgeX - handleTarget / 2,
+              top: layout.mainTop,
+              width: handleTarget,
+              height: TimelineMetrics.mainHeight,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                // Count the finger's whole travel, including the touch slop,
+                // so the edge stays under the finger.
+                dragStartBehavior: DragStartBehavior.down,
+                onHorizontalDragStart: (_) =>
+                    gestures.onTrimStart(clip, clipStart, start: isStart),
+                onHorizontalDragUpdate: (d) =>
+                    gestures.onTrimUpdate(d.primaryDelta ?? d.delta.dx),
+                onHorizontalDragEnd: (_) => gestures.onTrimEnd(),
+                onHorizontalDragCancel: gestures.onTrimEnd,
+              ),
+            ),
+          );
+        }
+      }
+      if (i > 0 && reorder == null) {
         // Decorative until transitions are built: a 48dp target here
         // would cover short clips and swallow their taps.
         children.add(
@@ -446,6 +746,30 @@ class _TimelineContent extends ConsumerWidget {
         );
       }
       start = end;
+    }
+    children.addAll(handles);
+    if (reorder != null && lifted != null) {
+      // Where the lifted clip will land: before the clip now at that slot
+      // (ignoring the lifted one), or after the last.
+      final others = [
+        for (final (i, c) in clips.indexed)
+          if (c.id != reorder!.clipId) i,
+      ];
+      final x = reorder!.toIndex < others.length
+          ? clipLefts[others[reorder!.toIndex]]
+          : _x(project.mainTrack.durationUs);
+      children
+        ..add(
+          Positioned(
+            key: const ValueKey('reorderIndicator'),
+            left: x - 1,
+            top: layout.mainTop - 4,
+            width: 2,
+            height: TimelineMetrics.mainHeight + 8,
+            child: IgnorePointer(child: ColoredBox(color: scheme.onSurface)),
+          ),
+        )
+        ..add(lifted);
     }
 
     // Audio lanes; the first row also holds the "mute original audio"
@@ -563,6 +887,10 @@ class MainClipView extends StatelessWidget {
     required this.scroll,
     required this.selected,
     required this.onTap,
+    this.lifted = false,
+    this.onLongPressStart,
+    this.onLongPressMove,
+    this.onLongPressEnd,
     super.key,
   });
 
@@ -587,55 +915,96 @@ class MainClipView extends StatelessWidget {
   /// Selects / deselects the clip.
   final VoidCallback onTap;
 
+  /// Whether the clip is lifted for reordering (drawn raised).
+  final bool lifted;
+
+  /// Long press: lift the clip to reorder it.
+  final VoidCallback? onLongPressStart;
+
+  /// The lifted clip moved by `dx` px from where it was lifted.
+  final ValueChanged<double>? onLongPressMove;
+
+  /// The lifted clip was dropped.
+  final VoidCallback? onLongPressEnd;
+
   @override
   Widget build(BuildContext context) {
     final colors = TimelineColors.of(context);
     final scheme = Theme.of(context).colorScheme;
     const radius = BorderRadius.all(Radius.circular(10));
+    final move = onLongPressMove;
+    final strip = Stack(
+      clipBehavior: ui.Clip.none,
+      children: [
+        Positioned.fill(
+          child: ClipRRect(
+            borderRadius: radius,
+            child: ColoredBox(
+              color: scheme.surfaceContainerHigh,
+              child: ThumbnailStrip(
+                clip: clip,
+                scale: scale,
+                contentLeft: contentLeft,
+                viewport: viewport,
+                scroll: scroll,
+              ),
+            ),
+          ),
+        ),
+        if (selected) ...[
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: colors.selectionTint.withValues(alpha: 0.85),
+                borderRadius: radius,
+                border: Border.all(color: scheme.onSurface, width: 2),
+              ),
+            ),
+          ),
+          for (final left in [true, false])
+            Positioned(
+              left: left ? -9 : null,
+              right: left ? null : -9,
+              top: TimelineMetrics.mainHeight / 2 - 7,
+              child: _Handle(color: scheme.onSurface),
+            ),
+        ],
+      ],
+    );
     return Semantics(
       button: true,
       selected: selected,
       label: clip.media.displayName,
       child: GestureDetector(
         onTap: onTap,
-        child: Stack(
-          clipBehavior: ui.Clip.none,
-          children: [
-            Positioned.fill(
-              child: ClipRRect(
-                borderRadius: radius,
-                child: ColoredBox(
-                  color: scheme.surfaceContainerHigh,
-                  child: ThumbnailStrip(
-                    clip: clip,
-                    scale: scale,
-                    contentLeft: contentLeft,
-                    viewport: viewport,
-                    scroll: scroll,
-                  ),
-                ),
-              ),
-            ),
-            if (selected) ...[
-              Positioned.fill(
+        onLongPressStart: onLongPressStart == null
+            ? null
+            : (_) => onLongPressStart!(),
+        onLongPressMoveUpdate: move == null
+            ? null
+            : (d) => move(d.offsetFromOrigin.dx),
+        onLongPressEnd: onLongPressEnd == null
+            ? null
+            : (_) => onLongPressEnd!(),
+        onLongPressCancel: onLongPressEnd,
+        child: lifted
+            ? Transform.translate(
+                offset: const Offset(0, -6),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: colors.selectionTint.withValues(alpha: 0.85),
                     borderRadius: radius,
-                    border: Border.all(color: scheme.onSurface, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: scheme.shadow.withValues(alpha: 0.6),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
+                  child: Opacity(opacity: 0.9, child: strip),
                 ),
-              ),
-              for (final left in [true, false])
-                Positioned(
-                  left: left ? -9 : null,
-                  right: left ? null : -9,
-                  top: TimelineMetrics.mainHeight / 2 - 7,
-                  child: _Handle(color: scheme.onSurface),
-                ),
-            ],
-          ],
-        ),
+              )
+            : strip,
       ),
     );
   }

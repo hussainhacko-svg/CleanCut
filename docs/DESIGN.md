@@ -64,11 +64,30 @@ Phone dock: a horizontally scrolling row; items 52dp apart, 24px icon + 8px labe
 | State | Dock items |
 |---|---|
 | Nothing selected | ⊕ Add media · Music · Voice · Text · Effect · Overlay · Ratio |
-| Video/photo or overlay clip selected | ‹ Back · Split · Filters · Crop · Adjust · Speed · Animation · Volume · Delete |
+| Video/photo or overlay clip selected | ‹ Back · Split · Duplicate · Filters · Crop · Adjust · Speed · Animation · Volume · Delete |
 | Text selected (Phase 8, kit "Edit") | ‹ Back · Split · Edit · Delete · Color · Font · Align |
 | Audio selected | ‹ Back · Split · Volume · Speed · Delete |
 
-Tools whose phase hasn't shipped show "Coming in a later update." Icons that exist as vectors in the kit come from it; the clip tools (split, filters, crop, adjust, speed, animation, volume, delete, mute) were redrawn from the kit's flattened "Icons" sheet and are marked inside their SVGs.
+Tools whose phase hasn't shipped show "Coming in a later update." Icons that exist as vectors in the kit come from it; the clip tools (split, filters, crop, adjust, speed, animation, volume, delete, mute) were redrawn from the kit's flattened "Icons" sheet and are marked inside their SVGs. **Duplicate** is not in the kit: the owner placed it right after Split, with an icon drawn in the kit's line style (marked in `tool_duplicate.svg`).
+
+- **Split** cuts the selected clip at the playhead; with the playhead outside the clip (or within 0.1 s of an edge) a snackbar says to move it. **Delete** removes the clip at once (undoable, no dialog). Overlay and audio clips get these tools with their phases.
+
+### Speed panel (VCLIP "Speed")
+
+```
+┌──────────────────────────────┐
+│ Speed               Reset  ✕ │  tool panel header
+│              (2×)            │  white value bubble rides over the ruler
+│ |'''|'''|'''|'''|'''|'''|    │  tall tick at each label, 3 short between
+│ 0.1× 0.25× 0.5× 1× 2× 5× 10× │  labels; the current one bold in the accent gradient
+│ Keep pitch              [⏻]  │  video only (not in the kit; owner-approved)
+└──────────────────────────────┘
+```
+
+- Opens over the dock on phones (the timeline shrinks above it) and in place of the properties panel on tablets; closes with ✕, system back, or when the selection changes.
+- Range **0.1×–10×** (owner decision; the kit shows 1/8×–4×). Labels sit at even distances and the speed grows geometrically between them, so 1× is the middle.
+- Drag anywhere on the ruler (bubble follows, haptic tick + snap at each label), tap to jump, tap the bubble to type an exact value, Reset → 1×. The speed is applied once, on release, so the preview reloads once; each change is one undo step.
+- Speed curves (montage, hero, bullet, flash ramps, custom) come later as a "Normal | Curve" tab row in this panel.
 
 ### Timeline (VCLIP "Timeline")
 
@@ -78,6 +97,8 @@ Tools whose phase hasn't shipped show "Coming in a later update." Icons that exi
 - Lane colors (`TimelineColors`): effect `#808080`, text `#43418E`, overlay `#D158D9`, audio `#E86F48`.
 - Selection: tap a clip to select, tap it again or empty space (or ‹ Back) to deselect. A selected main clip gets a cream `#EDDB93` tint (85%), a 2px white border and 4×14 white trim handles; the other lanes drop to 60% opacity. A selected pill gets a 50% fill, a 2px outline and handles in its lane color. Selection is UI state (not undoable) and clears when its clip disappears.
 - The ⧓ marker is decorative until transitions ship: a 48dp target would cover short clips (a 2 s clip is 45px wide at the default zoom).
+- **Trim:** the selected clip's white handles have 48dp-wide touch targets centred on its edges. Dragging draws the new length live (trimming the start moves the left edge; the gap closes on release, as the main track is magnetic), snaps to the playhead with a haptic tick, stops at the media's ends and at 0.1 s, and is applied on release as one undo step. The preview then seeks to the trimmed edge to show its frame.
+- **Reorder:** long-press a main clip to lift it (raised, shadowed, haptic); drag it sideways; a 2dp white line shows where it will land (a haptic tick when that changes); release to drop. A long press without moving changes nothing.
 
 ## 4. Gestures
 
