@@ -39,8 +39,15 @@ class InMemoryProjectRepository implements ProjectRepository {
       projects[id] ?? (throw ProjectNotFoundException(id));
 
   @override
-  Future<Project> save(Project project, {bool keepUpdatedAt = false}) async {
+  Future<Project> save(
+    Project project, {
+    bool keepUpdatedAt = false,
+    bool onlyIfExists = false,
+  }) async {
     saveCount++;
+    if (onlyIfExists && !projects.containsKey(project.id)) {
+      throw ProjectNotFoundException(project.id);
+    }
     final stored = keepUpdatedAt ? project : project.copyWith(updatedAt: now);
     projects[project.id] = stored;
     return stored;

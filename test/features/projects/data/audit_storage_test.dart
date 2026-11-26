@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:cleancut/features/projects/data/file_project_repository.dart';
 import 'package:cleancut/features/projects/data/project_codec.dart';
+import 'package:cleancut/features/projects/domain/project_repository.dart';
 import 'package:cleancut/features/settings/data/file_settings_repository.dart';
 import 'package:cleancut/features/settings/domain/app_settings.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -85,6 +86,35 @@ void main() {
     ]);
     expect(await repo.loadAll(), isEmpty);
     expect(Directory('${dir.path}/${p.id}').existsSync(), isFalse);
+  });
+
+  test(
+    'an update queued after a delete does not recreate the project',
+    () async {
+      final repo = FileProjectRepository(dir, clock: () => testTime);
+      final p = await repo.save(project());
+      final delete = repo.delete(p.id);
+      final update = repo.save(p.copyWith(name: 'late'), onlyIfExists: true);
+      await delete;
+      await expectLater(update, throwsA(isA<ProjectNotFoundException>()));
+      expect(Directory('${dir.path}/${p.id}').existsSync(), isFalse);
+      expect(await repo.loadAll(), isEmpty);
+    },
+  );
+
+  test('an update of an existing project still saves', () async {
+    final repo = FileProjectRepository(dir, clock: () => testTime);
+    final p = await repo.save(project());
+    await repo.save(p.copyWith(name: 'renamed'), onlyIfExists: true);
+    expect((await repo.load(p.id)).name, 'renamed');
+  });
+
+  test('a plain save after a delete restores the project (undo)', () async {
+    final repo = FileProjectRepository(dir, clock: () => testTime);
+    final p = await repo.save(project());
+    await repo.delete(p.id);
+    await repo.save(p, keepUpdatedAt: true);
+    expect((await repo.load(p.id)).id, p.id);
   });
 }
 

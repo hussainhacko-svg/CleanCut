@@ -76,7 +76,12 @@ class ProjectList extends _$ProjectList {
   Future<void> rename(String id, String name) async {
     final repo = await _repo;
     final project = await repo.load(id);
-    upsert(await repo.save(RenameProjectCommand(name).apply(project)));
+    upsert(
+      await repo.save(
+        RenameProjectCommand(name).apply(project),
+        onlyIfExists: true,
+      ),
+    );
   }
 
   /// Copies the project [id] under a new id and [name].
