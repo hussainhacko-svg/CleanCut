@@ -298,18 +298,6 @@ abstract class AppLocalizations {
   /// **'Couldn\'t open your media.'**
   String get mediaPickerFailed;
 
-  /// No description provided for @editorPlaceholder.
-  ///
-  /// In en, this message translates to:
-  /// **'The editor is coming soon.'**
-  String get editorPlaceholder;
-
-  /// No description provided for @editorClipSummary.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =0{No clips} =1{1 clip} other{{count} clips}} · {duration}'**
-  String editorClipSummary(int count, String duration);
-
   /// No description provided for @editorNotFound.
   ///
   /// In en, this message translates to:
@@ -321,6 +309,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t save your changes.'**
   String get editorSaveFailed;
+
+  /// No description provided for @editorHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get editorHome;
+
+  /// No description provided for @editorExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get editorExport;
+
+  /// No description provided for @editorExportSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Export is coming in a later update.'**
+  String get editorExportSoon;
+
+  /// No description provided for @editorPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get editorPlay;
+
+  /// No description provided for @editorPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get editorPause;
+
+  /// No description provided for @editorFullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Full screen'**
+  String get editorFullscreen;
+
+  /// No description provided for @editorExitFullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit full screen'**
+  String get editorExitFullscreen;
+
+  /// Playback readout under the preview, e.g. 00:06 / 00:12.
+  ///
+  /// In en, this message translates to:
+  /// **'{position} / {duration}'**
+  String editorTimecode(String position, String duration);
+
+  /// No description provided for @editorPlaybackFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t play this project\'s media.'**
+  String get editorPlaybackFailed;
+
+  /// No description provided for @editorSeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback position'**
+  String get editorSeek;
 }
 
 class _AppLocalizationsDelegate

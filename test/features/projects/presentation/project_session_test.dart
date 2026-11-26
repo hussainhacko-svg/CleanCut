@@ -64,7 +64,9 @@ void main() {
     });
   });
 
-  testWidgets('project screen undo button reverts an edit', (tester) async {
+  testWidgets('editor undo button reverts an edit and reloads the preview', (
+    tester,
+  ) async {
     final env = TestEnv(
       projects: [
         project(mainSeconds: [2]),
@@ -77,20 +79,30 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('1 clip · 0:02'), findsOneWidget);
+    // The preview loaded the project.
+    expect(env.engine.specs, hasLength(1));
 
     final container = ProviderScope.containerOf(
       tester.element(find.byType(ProjectScreen)),
     );
+    String name() => container
+        .read(projectSessionProvider('p1'))
+        .value!
+        .history
+        .present
+        .name;
     container
         .read(projectSessionProvider('p1').notifier)
         .apply(const RenameProjectCommand('Renamed'));
     await tester.pump();
-    expect(find.text('Renamed'), findsOneWidget);
+    expect(name(), 'Renamed');
+    // Every edit reloads the preview.
+    expect(env.engine.specs, hasLength(2));
 
     await tester.tap(find.byTooltip('Undo'));
     await tester.pump();
-    expect(find.text('Test project'), findsOneWidget);
+    expect(name(), 'Test project');
+    expect(env.engine.specs, hasLength(3));
 
     // Let the debounced autosave run so no timer is left pending.
     await tester.pump(const Duration(seconds: 1));

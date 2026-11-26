@@ -84,7 +84,7 @@ final class SettingsControllerProvider
 }
 
 String _$settingsControllerHash() =>
-    r'f377776abcaea166c2dab67b5125e43def22bfdc';
+    r'eb167cc571e7457da849993e9fb44b4a78974911';
 
 /// The current [AppSettings], persisted on change.
 

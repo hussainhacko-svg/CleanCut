@@ -3,8 +3,10 @@ import 'package:cleancut/core/theme/app_tokens.dart';
 import 'package:cleancut/features/projects/domain/model/project_canvas.dart';
 import 'package:cleancut/features/projects/presentation/aspect_sheet.dart';
 import 'package:cleancut/features/projects/presentation/home_screen.dart';
+import 'package:cleancut/features/projects/presentation/playback/playback_controller.dart';
 import 'package:cleancut/features/projects/presentation/project_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../helpers/fakes.dart';
@@ -12,21 +14,43 @@ import '../domain/fixtures.dart';
 
 void main() {
   group('ProjectCard', () {
+    late FakeMediaEngine engine;
+    setUp(() => engine = FakeMediaEngine());
+
     Future<List<Object>> pumpCard(WidgetTester tester) async {
       final events = <Object>[];
       await tester.pumpWidget(
-        localizedApp(
-          Scaffold(
-            body: ProjectCard(
-              project: project(mainSeconds: [65]),
-              onOpen: () => events.add('open'),
-              onAction: events.add,
+        ProviderScope(
+          overrides: [mediaEngineProvider.overrideWithValue(engine)],
+          child: localizedApp(
+            Scaffold(
+              body: ProjectCard(
+                project: project(mainSeconds: [65]),
+                onOpen: () => events.add('open'),
+                onAction: events.add,
+              ),
             ),
           ),
         ),
       );
+      await tester.pump();
       return events;
     }
+
+    testWidgets('shows the first frame when the engine has one', (
+      tester,
+    ) async {
+      engine.thumbnailPath = 'missing.jpg';
+      await pumpCard(tester);
+      final image = tester.widget<Image>(find.byType(Image));
+      expect((image.image as ResizeImage).imageProvider, isA<FileImage>());
+    });
+
+    testWidgets('keeps the placeholder without a frame', (tester) async {
+      await pumpCard(tester);
+      expect(find.byType(Image), findsNothing);
+      expect(find.byIcon(Icons.movie_outlined), findsOneWidget);
+    });
 
     testWidgets('shows name, VCLIP-style date and duration', (tester) async {
       await pumpCard(tester);

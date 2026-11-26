@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/theme/app_tokens.dart';
 import 'package:cleancut/core/utils/timecode.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
+import 'package:cleancut/features/projects/presentation/playback/playback_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Actions offered in a project card's menu.
 enum ProjectAction {
@@ -111,8 +115,9 @@ class ProjectCard extends StatelessWidget {
   }
 }
 
-/// Canvas-shaped placeholder until Phase 2 adds frame thumbnails.
-class _Thumbnail extends StatelessWidget {
+/// First frame of the first clip (72×88, cover), or a canvas-shaped
+/// placeholder while it loads or when there is none.
+class _Thumbnail extends ConsumerWidget {
   const new({required this.project});
 
   final Project project;
@@ -121,26 +126,62 @@ class _Thumbnail extends StatelessWidget {
   static const double _height = 88;
 
   @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final ratio = project.canvas.aspect.ratio.clamp(0.25, 4.0);
-    // Fit the canvas shape inside the 72×88 slot.
-    final fitsWidth = ratio >= _width / _height;
-    final w = fitsWidth ? _width : _height * ratio;
-    final h = fitsWidth ? _width / ratio : _height;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final clips = project.mainTrack.clips;
+    final path = clips.isEmpty
+        ? null
+        : ref
+              .watch(
+                clipThumbnailProvider(
+                  clips.first.media.uri,
+                  clips.first.sourceInUs,
+                  (_height * 2).round(),
+                ),
+              )
+              .value;
+    final placeholder = _Placeholder(project: project);
     return SizedBox(
       width: _width,
       height: _height,
-      child: Center(
-        child: Container(
-          width: w,
-          height: h,
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Icon(Icons.movie_outlined, color: scheme.onSurfaceVariant),
+      child: path == null
+          ? placeholder
+          : ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: Image.file(
+                File(path),
+                fit: BoxFit.cover,
+                cacheHeight: (_height * 2).round(),
+                errorBuilder: (_, _, _) => placeholder,
+              ),
+            ),
+    );
+  }
+}
+
+class _Placeholder extends StatelessWidget {
+  const new({required this.project});
+
+  final Project project;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final ratio = project.canvas.aspect.ratio.clamp(0.25, 4.0);
+    const w0 = _Thumbnail._width;
+    const h0 = _Thumbnail._height;
+    // Fit the canvas shape inside the 72×88 slot.
+    final fitsWidth = ratio >= w0 / h0;
+    final w = fitsWidth ? w0 : h0 * ratio;
+    final h = fitsWidth ? w0 / ratio : h0;
+    return Center(
+      child: Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(4),
         ),
+        child: Icon(Icons.movie_outlined, color: scheme.onSurfaceVariant),
       ),
     );
   }

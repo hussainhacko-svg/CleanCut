@@ -48,9 +48,17 @@
   "@aspectRatioLabel": {"placeholders": {"width": {"type": "int"}, "height": {"type": "int"}}},
   "mediaPickerFailed": "Couldn't open your media.",
 
-  "editorPlaceholder": "The editor is coming soon.",
-  "editorClipSummary": "{count, plural, =0{No clips} =1{1 clip} other{{count} clips}} · {duration}",
-  "@editorClipSummary": {"placeholders": {"count": {"type": "int"}, "duration": {"type": "String"}}},
   "editorNotFound": "This project no longer exists.",
-  "editorSaveFailed": "Couldn't save your changes."
+  "editorSaveFailed": "Couldn't save your changes.",
+  "editorHome": "Home",
+  "editorExport": "Export",
+  "editorExportSoon": "Export is coming in a later update.",
+  "editorPlay": "Play",
+  "editorPause": "Pause",
+  "editorFullscreen": "Full screen",
+  "editorExitFullscreen": "Exit full screen",
+  "editorTimecode": "{position} / {duration}",
+  "@editorTimecode": {"description": "Playback readout under the preview, e.g. 00:06 / 00:12.", "placeholders": {"position": {"type": "String"}, "duration": {"type": "String"}}},
+  "editorPlaybackFailed": "Couldn't play this project's media.",
+  "editorSeek": "Playback position"
 }

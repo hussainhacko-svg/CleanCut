@@ -1,3 +1,4 @@
+import 'package:cleancut/core/theme/accent_gradient.dart';
 import 'package:cleancut/core/theme/app_tokens.dart';
 import 'package:flutter/material.dart';
 
@@ -8,6 +9,7 @@ import 'package:flutter/material.dart';
 abstract final class AppTheme {
   // VCLIP palette.
   static const Color _black = Color(0xFF030303);
+  static const Color _editor = Color(0xFF080808);
   static const Color _panel = Color(0xFF1F1F1F);
   static const Color _card = Color(0xFF212121);
   static const Color _chip = Color(0xFF3A3A3A);
@@ -30,7 +32,8 @@ abstract final class AppTheme {
       surface: _black,
       onSurface: Colors.white,
       onSurfaceVariant: _secondaryText,
-      surfaceContainerLowest: _black,
+      // The editor screen's background (VCLIP "Timeline").
+      surfaceContainerLowest: _editor,
       surfaceContainerLow: Color(0xFF141414),
       surfaceContainer: _panel,
       surfaceContainerHigh: _card,
@@ -66,6 +69,7 @@ abstract final class AppTheme {
       borderRadius: BorderRadius.all(Radius.circular(AppTokens.cardRadius)),
     );
     return base.copyWith(
+      extensions: const [AccentGradient(start: _orange, end: _pink)],
       scaffoldBackgroundColor: scheme.surface,
       appBarTheme: AppBarTheme(
         backgroundColor: scheme.surface,
@@ -77,6 +81,10 @@ abstract final class AppTheme {
           fontWeight: FontWeight.w600,
           color: scheme.onSurface,
         ),
+      ),
+      // Every icon button is a full 48dp target (AGENTS.md §8).
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(minimumSize: const Size.square(48)),
       ),
       actionIconTheme: ActionIconThemeData(
         backButtonIconBuilder: (_) => const Icon(Icons.chevron_left),

@@ -142,23 +142,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mediaPickerFailed => 'Couldn\'t open your media.';
 
   @override
-  String get editorPlaceholder => 'The editor is coming soon.';
-
-  @override
-  String editorClipSummary(int count, String duration) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count clips',
-      one: '1 clip',
-      zero: 'No clips',
-    );
-    return '$_temp0 · $duration';
-  }
-
-  @override
   String get editorNotFound => 'This project no longer exists.';
 
   @override
   String get editorSaveFailed => 'Couldn\'t save your changes.';
+
+  @override
+  String get editorHome => 'Home';
+
+  @override
+  String get editorExport => 'Export';
+
+  @override
+  String get editorExportSoon => 'Export is coming in a later update.';
+
+  @override
+  String get editorPlay => 'Play';
+
+  @override
+  String get editorPause => 'Pause';
+
+  @override
+  String get editorFullscreen => 'Full screen';
+
+  @override
+  String get editorExitFullscreen => 'Exit full screen';
+
+  @override
+  String editorTimecode(String position, String duration) {
+    return '$position / $duration';
+  }
+
+  @override
+  String get editorPlaybackFailed => 'Couldn\'t play this project\'s media.';
+
+  @override
+  String get editorSeek => 'Playback position';
 }

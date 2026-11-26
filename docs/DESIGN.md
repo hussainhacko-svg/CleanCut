@@ -105,6 +105,15 @@ Colors live only in `AppTheme` (`lib/app/theme/app_theme.dart`); shapes and font
 - Dark is the default; the light theme reuses the same accents on white surfaces.
 - Motion: 200ms emphasized easing for panel open/close; no animation on scrub.
 
+## 5a. Editor (VCLIP "Timeline", "Full screen")
+
+- **Background** `#080808` (`surfaceContainerLowest`).
+- **Top:** home icon (top-left) and export icon (top-right) sit beside the preview; no title, no PRO badge.
+- **Preview:** the kit's 282×360 box on a 393×852 screen (56dp side insets, ~42% of the height); the canvas is letterboxed inside it. Pixels come from the native engine texture.
+- **Transport row:** 40dp dark circle with play/pause at the left, full-screen circle at the right (13dp from the edges, 48dp targets); in the middle small grey undo/redo arrows (white when usable) around a 98dp-wide `00:06 / 00:12` readout (12px, tabular figures).
+- **Full screen:** video edge to edge on black, a ✕ at the top right, and a floating rounded bar (`surfaceContainer` 85%) with play/pause, position, a gradient scrub bar (2dp track, 5dp thumb), duration and an exit-full-screen icon. Dragging pauses, seeks frame-accurately and resumes if it was playing.
+- **Icons:** the kit's SVGs live in `assets/icons` and are drawn with `AppIcon` (flutter_svg). Glyphs the kit lacks (pause, close, exit full screen) are drawn in the same style and marked in the SVG.
+
 ## 6. Key components (build as reusable widgets)
 
 - `EditorScaffold` (responsive switch between compact and expanded)
@@ -137,5 +146,5 @@ Colors live only in `AppTheme` (`lib/app/theme/app_theme.dart`); shapes and font
 - **New project:** system Photo Picker (videos + photos, multi-select) → "Canvas size" panel (tool-panel style: title + ✕, a scrolling row of 70dp outlined preset tiles: Original, 9:16, 16:9, 1:1, 4:5, 3:4, 4:3) → project is created and opened. Cancelling either step creates nothing.
 - **Card menu:** Rename (dialog), Duplicate ("<name> copy"), Delete. Delete happens immediately and shows a snackbar with **Undo** — no confirmation dialog.
 - Empty state: the New project tile, then icon, "No projects yet" and a hint.
-- Thumbnails replace the canvas-shape placeholder once Phase 2 adds frame extraction.
+- The card thumbnail is the first frame of the first clip (native extraction, disk-cached); the canvas-shape placeholder shows while it loads or when there is no frame.
 - Not adopted from the kit: Camera / Stock videos / AI images shortcuts and "GO PRO" (not in `PLAN.md`).

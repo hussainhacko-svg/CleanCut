@@ -1,14 +1,19 @@
+import 'dart:async';
+
 import 'package:cleancut/app/app.dart';
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/app/theme/app_theme.dart';
+import 'package:cleancut/engine/media_engine.dart';
 import 'package:cleancut/features/media_import/domain/media_picker.dart';
 import 'package:cleancut/features/media_import/presentation/media_picker_provider.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/project_repository.dart';
+import 'package:cleancut/features/projects/presentation/playback/playback_controller.dart';
 import 'package:cleancut/features/projects/presentation/project_providers.dart';
 import 'package:cleancut/features/settings/domain/app_settings.dart';
 import 'package:cleancut/features/settings/presentation/settings_providers.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
@@ -68,6 +73,87 @@ class FakeMediaPicker implements MediaPicker {
   }
 }
 
+/// Records engine calls and lets tests push native events.
+class FakeMediaEngine implements MediaEngine {
+  final calls = <String>[];
+  final specs = <CompositionSpec>[];
+  final seeks = <int>[];
+  int nextTextureId = 7;
+
+  /// Paths returned by [thumbnails]; null means "no frame".
+  String? thumbnailPath;
+
+  final _states = StreamController<PlayerStateEvent>.broadcast(sync: true);
+  final _positions = StreamController<int>.broadcast(sync: true);
+  final _errors = StreamController<EngineError>.broadcast(sync: true);
+
+  void emitState({
+    PlaybackStatus status = PlaybackStatus.ready,
+    bool isPlaying = false,
+    int durationUs = 12000000,
+    int positionUs = 0,
+  }) => _states.add(
+    PlayerStateEvent(
+      status: status,
+      isPlaying: isPlaying,
+      durationUs: durationUs,
+      positionUs: positionUs,
+    ),
+  );
+
+  void emitPosition(int us) => _positions.add(us);
+
+  void emitError() => _errors.add(const EngineError('ERROR', 'boom'));
+
+  @override
+  Stream<PlayerStateEvent> get states => _states.stream;
+
+  @override
+  Stream<int> get positions => _positions.stream;
+
+  @override
+  Stream<EngineError> get errors => _errors.stream;
+
+  @override
+  Future<int> createPreview() async {
+    calls.add('create');
+    return nextTextureId;
+  }
+
+  @override
+  Future<void> setComposition(CompositionSpec spec) async {
+    calls.add('set');
+    specs.add(spec);
+  }
+
+  @override
+  Future<void> play() async => calls.add('play');
+
+  @override
+  Future<void> pause() async => calls.add('pause');
+
+  @override
+  Future<void> seekTo(int positionUs) async {
+    calls.add('seek');
+    seeks.add(positionUs);
+  }
+
+  @override
+  Future<void> disposePreview(int textureId) async =>
+      calls.add('dispose:$textureId');
+
+  @override
+  Future<List<String?>> thumbnails(
+    String uri,
+    List<int> timesUs, {
+    required int heightPx,
+  }) async => [for (final _ in timesUs) thumbnailPath];
+
+  @override
+  Future<WaveformData?> waveform(String uri, {int peaksPerSecond = 50}) async =>
+      null;
+}
+
 /// Test doubles wired into a [ProviderScope].
 class TestEnv {
   new({Iterable<Project> projects = const []})
@@ -76,12 +162,14 @@ class TestEnv {
   final InMemoryProjectRepository repo;
   final settings = InMemorySettingsRepository();
   final picker = FakeMediaPicker();
+  final engine = FakeMediaEngine();
   final String Function() ids = sequentialIds('new');
 
   List<Override> get overrides => [
     projectRepositoryProvider.overrideWith((ref) async => repo),
     settingsRepositoryProvider.overrideWith((ref) async => settings),
     mediaPickerProvider.overrideWithValue(picker),
+    mediaEngineProvider.overrideWithValue(engine),
     idGeneratorProvider.overrideWithValue(ids),
     clockProvider.overrideWithValue(() => testTime),
   ];
