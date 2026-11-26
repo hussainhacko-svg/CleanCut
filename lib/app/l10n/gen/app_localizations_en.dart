@@ -285,4 +285,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get speedTypeHint => 'Tap to type an exact speed';
+
+  @override
+  String get speedTabNormal => 'Normal';
+
+  @override
+  String get speedTabCurve => 'Curve';
+
+  @override
+  String get curveNone => 'None';
+
+  @override
+  String get curveCustom => 'Custom';
+
+  @override
+  String get curveMontage => 'Montage';
+
+  @override
+  String get curveHero => 'Hero';
+
+  @override
+  String get curveBullet => 'Bullet';
+
+  @override
+  String get curveFlashIn => 'Flash in';
+
+  @override
+  String get curveFlashOut => 'Flash out';
+
+  @override
+  String get curveEditHint => 'Tap again to edit the curve';
+
+  @override
+  String get curveGraph =>
+      'Speed curve. Drag a point to change the speed there.';
+
+  @override
+  String get curveAddPoint => 'Add point';
+
+  @override
+  String get curveDeletePoint => 'Delete point';
+
+  @override
+  String get curveBackToPresets => 'Presets';
 }

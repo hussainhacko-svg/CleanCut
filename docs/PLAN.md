@@ -180,7 +180,7 @@ Each phase ends with a working, tested build and a tag `v0.<phase>.0`.
 - [x] Trim (drag handles on clip edges; the length updates live, the preview shows the trimmed edge's frame on release)
 - [x] Split at playhead, delete, duplicate, reorder (long-press drag)
 - [x] Flow: speed panel (0.1×–10×, kit "Speed" frame) + keep pitch — constant speed via Media3 `SpeedParameters`
-- [ ] Flow: curve presets (montage, hero, bullet, flash in/out) + custom curve editor ("Normal | Curve" tabs in the Speed panel; owner: separate follow-up)
+- [x] Flow: curve presets (montage, hero, bullet, flash in/out) + custom curve editor ("Normal | Curve" tabs in the Speed panel); engine plays curves as 64 constant-speed steps
 - [ ] Freeze frame, reverse (stretch goal)
 
 ### Phase 5 — Transform & style

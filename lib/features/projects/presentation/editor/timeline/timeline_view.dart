@@ -248,7 +248,7 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     _trimDx += dx;
     final playhead = ref.read(playbackPositionProvider(widget.projectId));
     final tolerance = _scale.toUs(snapDistancePx);
-    final deltaSource = (_scale.toUs(_trimDx) * clip.speed).round();
+    final deltaSource = (_scale.toUs(_trimDx) * clip.averageSpeed).round();
     var sourceIn = clip.sourceInUs;
     var sourceOut = clip.sourceOutUs;
     var snapped = false;
@@ -258,24 +258,24 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
       final edge =
           _trimClipStartUs +
           clip.durationUs -
-          Micros.scaledBySpeed(sourceOut - sourceIn, clip.speed);
+          clip.timelineLengthOf(sourceOut - sourceIn);
       if ((edge - playhead).abs() <= tolerance) {
         final length = _trimClipStartUs + clip.durationUs - playhead;
         sourceIn = clampTrimStart(
           clip,
-          sourceOut - (length * clip.speed).round(),
+          sourceOut - (length * clip.averageSpeed).round(),
         );
         snapped = true;
       }
     } else {
       sourceOut = clampTrimEnd(clip, clip.sourceOutUs + deltaSource);
       final edge =
-          _trimClipStartUs +
-          Micros.scaledBySpeed(sourceOut - sourceIn, clip.speed);
+          _trimClipStartUs + clip.timelineLengthOf(sourceOut - sourceIn);
       if ((edge - playhead).abs() <= tolerance) {
         sourceOut = clampTrimEnd(
           clip,
-          sourceIn + ((playhead - _trimClipStartUs) * clip.speed).round(),
+          sourceIn +
+              ((playhead - _trimClipStartUs) * clip.averageSpeed).round(),
         );
         snapped = true;
       }
@@ -318,10 +318,7 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
       )
       ..seal();
     // Show the frame at the trimmed edge (DESIGN.md section 4).
-    final length = Micros.scaledBySpeed(
-      trim.sourceOutUs - trim.sourceInUs,
-      clip.speed,
-    );
+    final length = clip.timelineLengthOf(trim.sourceOutUs - trim.sourceInUs);
     final frameUs = Micros.perSecond ~/ widget.project.canvas.fps;
     final edge = trim.start
         ? _trimClipStartUs
@@ -1190,7 +1187,7 @@ class _ThumbnailStripState extends ConsumerState<ThumbnailStrip> {
   int _sourceTimeAt(double px) {
     final clip = widget.clip;
     final timelineUs = widget.scale.toUs(px);
-    final source = clip.sourceInUs + (timelineUs * clip.speed).round();
+    final source = clip.sourceInUs + clip.sourceOffsetAt(timelineUs);
     final clamped = source.clamp(clip.sourceInUs, clip.sourceOutUs - 1);
     return (clamped ~/ _timeGridUs) * _timeGridUs;
   }

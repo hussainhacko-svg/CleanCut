@@ -87,7 +87,21 @@ Tools whose phase hasn't shipped show "Coming in a later update." Icons that exi
 - Opens over the dock on phones (the timeline shrinks above it) and in place of the properties panel on tablets; closes with ✕, system back, or when the selection changes.
 - Range **0.1×–10×** (owner decision; the kit shows 1/8×–4×). Labels sit at even distances and the speed grows geometrically between them, so 1× is the middle.
 - Drag anywhere on the ruler (bubble follows, haptic tick + snap at each label), tap to jump, tap a label (48dp target) to pick that speed, tap the bubble to type an exact value, Reset → 1×. Labels shrink to fit narrow panels (tablet). The speed is applied once, on release, so the preview reloads once; each change is one undo step.
-- Speed curves (montage, hero, bullet, flash ramps, custom) come later as a "Normal | Curve" tab row in this panel.
+- A **"Normal | Curve"** tab row (kit "Filters" tab style: selected bold in the accent gradient, others muted, 48dp targets) sits under the header. The panel opens on Curve when the clip has a curve. Keep pitch stays below both tabs. On phones the panel leaves the timeline at least 80dp and scrolls inside on short screens.
+
+```
+┌──────────────────────────────┐
+│ Speed               Reset  ✕ │
+│ Normal   Curve               │  tabs
+│ [⊘] [~] [∿] [⌄] [⊔] [╲_] [_╱]│  70dp tiles: None, Custom, Montage, Hero,
+│ None Custom Montage Hero …   │  Bullet, Flash in, Flash out (shape drawn;
+│ Keep pitch              [⏻]  │  selected = white border + bold label + ✎)
+└──────────────────────────────┘
+```
+
+- **Curve presets** (owner-approved shapes; speed at start/25/50/75/100%): Montage 1·2·0.5·2·1, Hero 1·1·0.25·1·1, Bullet 2·0.25·0.25·0.25·2, Flash in 5·2·1·1·1, Flash out 1·1·1·2·5, Custom flat 1×. Tapping a tile applies it; None returns to the Normal speed. Tapping the selected tile again opens the editor. Reset (Curve tab) restores the preset's shape.
+- **Curve editor:** a 150dp graph of speed (10× top, 1× middle, 0.1× bottom, log scale, labelled guides) over the clip, the curve in `primary`, points as white dots (selected: larger, `primary` centre), and a white playhead line. Drag a point up/down (end points) or anywhere between its neighbours (inner points); near 1× it snaps with a haptic tick; the change applies on release (one undo step). Tap a point to select it. The button on the right is **Add point** (adds at the playhead; off when the playhead is outside the clip, on a point, or 10 points exist) or, with an inner point selected, **Delete point**. **‹ Presets** goes back to the tiles.
+- The curve follows the clip (owner decision): trimming stretches it, splitting divides it.
 
 ### Timeline (VCLIP "Timeline")
 

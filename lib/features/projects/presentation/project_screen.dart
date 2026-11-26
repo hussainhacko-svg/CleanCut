@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/widgets/app_icon.dart';
 import 'package:cleancut/features/projects/domain/commands/clip_commands.dart';
 import 'package:cleancut/features/projects/domain/commands/project_commands.dart';
+import 'package:cleancut/features/projects/domain/history/edit_command.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
@@ -123,6 +125,9 @@ class _Editor extends ConsumerWidget {
 
   /// Width from which the tablet layout is used (AGENTS.md §8).
   static const double expandedWidth = 840;
+
+  /// Timeline height kept visible above an open tool panel on phones.
+  static const double _minTimelineHeight = 80;
 
   Future<void> _onTool(
     BuildContext context,
@@ -327,11 +332,31 @@ class _Editor extends ConsumerWidget {
             const SizedBox(height: 4),
             transport,
             const SizedBox(height: 6),
-            Expanded(child: timeline),
-            // An open tool panel slides over the dock (kit "Speed").
             if (panel != null)
-              panel
+              // An open tool panel slides over the dock (kit "Speed"). It
+              // takes what it needs but leaves the timeline at least
+              // [_minTimelineHeight], scrolling inside on short screens.
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, area) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: timeline),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: math.max(
+                            0,
+                            area.maxHeight - _minTimelineHeight,
+                          ),
+                        ),
+                        child: SingleChildScrollView(child: panel),
+                      ),
+                    ],
+                  ),
+                ),
+              )
             else ...[
+              Expanded(child: timeline),
               ToolDock(tools: tools, onTool: onTool),
               const SizedBox(height: 4),
             ],
@@ -352,21 +377,43 @@ class _ClipSpeedPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.read(projectSessionProvider(projectId).notifier);
-    void apply(SetClipSpeedCommand command) {
+    void apply(EditCommand command) {
       session
         ..apply(command)
         ..seal();
     }
 
+    // Where the playhead is inside the clip, for the curve editor. Only
+    // rebuilds when that changes, not on every position tick elsewhere.
+    final progress = ref.watch(
+      playbackPositionProvider(projectId).select((positionUs) {
+        final project = ref
+            .read(projectSessionProvider(projectId))
+            .value
+            ?.history
+            .present;
+        final index =
+            project?.mainTrack.clips.indexWhere((c) => c.id == clip.id) ?? -1;
+        if (project == null || index < 0) return null;
+        final offset = positionUs - project.mainTrack.startOf(index);
+        if (offset < 0 || offset > clip.durationUs) return null;
+        return (clip.sourceOffsetAt(offset) / clip.sourceDurationUs * 1000)
+                .round() /
+            1000;
+      }),
+    );
+
     return SpeedPanel(
       speed: clip.speed,
       keepPitch: clip.keepPitch,
+      curve: clip.speedCurve,
+      playheadProgress: progress,
       onChanged: (speed) => apply(SetClipSpeedCommand(clip.id, speed: speed)),
+      onCurveChanged: (curve) =>
+          apply(SetClipSpeedCurveCommand(clip.id, curve)),
       onKeepPitchChanged: clip.media.kind == MediaKind.image
           ? null
-          : (keep) => apply(
-              SetClipSpeedCommand(clip.id, speed: clip.speed, keepPitch: keep),
-            ),
+          : (keep) => apply(SetClipKeepPitchCommand(clip.id, keepPitch: keep)),
       onClose: ref.read(openToolPanelProvider(projectId).notifier).close,
     );
   }

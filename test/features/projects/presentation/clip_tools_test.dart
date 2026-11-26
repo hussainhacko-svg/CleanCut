@@ -3,9 +3,11 @@
 import 'package:cleancut/features/projects/domain/commands/clip_commands.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
+import 'package:cleancut/features/projects/domain/model/speed_curve.dart';
 import 'package:cleancut/features/projects/domain/model/tracks.dart';
 import 'package:cleancut/features/projects/domain/timeline/timeline_scale.dart';
 import 'package:cleancut/features/projects/presentation/editor/editor_state.dart';
+import 'package:cleancut/features/projects/presentation/editor/panels/curve_widgets.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/speed_panel.dart';
 import 'package:cleancut/features/projects/presentation/editor/timeline/timeline_view.dart';
 import 'package:cleancut/features/projects/presentation/editor/tool_dock.dart';
@@ -152,6 +154,61 @@ void main() {
     await tester.pump();
     expect(find.byType(SpeedPanel), findsNothing);
     expect(find.byType(ToolDock), findsOneWidget);
+  });
+
+  testWidgets('Curve presets, keep pitch and Normal speed edit the clip', (
+    tester,
+  ) async {
+    // The panel scrolls on this short test screen; bring targets into view.
+    Future<void> tapVisible(Finder finder) async {
+      await tester.ensureVisible(finder);
+      await tester.pump();
+      await tester.tap(finder);
+      await tester.pump();
+    }
+
+    await pumpEditor(tester);
+    await selectClip(tester, 0);
+    await tapTool(tester, 'Speed');
+    await tapVisible(find.text('Curve'));
+    await tapVisible(find.text('Bullet'));
+    var clip = present(tester).mainTrack.clips.first;
+    expect(clip.speedCurve, SpeedCurvePreset.bullet.curve);
+    // Bullet is mostly 0.25x: the 2 s clip gets much longer.
+    expect(clip.durationUs, greaterThan(4 * s));
+
+    // Keep pitch is its own step and keeps the curve.
+    await tapVisible(find.byType(Switch));
+    clip = present(tester).mainTrack.clips.first;
+    expect(clip.keepPitch, isFalse);
+    expect(clip.speedCurve, SpeedCurvePreset.bullet.curve);
+
+    // Editing: open the editor and add a point at the playhead (0 s is the
+    // clip start, on a point), so move the playhead into the clip first.
+    env.engine.emitPosition(clip.durationUs ~/ 3);
+    await tester.pump();
+    await tapVisible(find.text('Bullet'));
+    expect(find.byType(CurveEditor), findsOneWidget);
+    await tapVisible(find.text('Add point'));
+    clip = present(tester).mainTrack.clips.first;
+    expect(clip.speedCurve!.points, hasLength(6));
+    expect(clip.speedCurve!.preset, SpeedCurvePreset.bullet);
+
+    // A Normal speed replaces the curve.
+    await tapVisible(find.text('Normal'));
+    tester.widget<SpeedPanel>(find.byType(SpeedPanel)).onChanged(2);
+    await tester.pump();
+    clip = present(tester).mainTrack.clips.first;
+    expect(clip.speedCurve, isNull);
+    expect(clip.durationUs, s);
+
+    // Each step undoes on its own: back to the 6-point curve.
+    await tester.tap(find.byTooltip('Undo'));
+    await tester.pump();
+    expect(
+      present(tester).mainTrack.clips.first.speedCurve!.points,
+      hasLength(6),
+    );
   });
 
   testWidgets('the panel closes when the selection changes', (tester) async {

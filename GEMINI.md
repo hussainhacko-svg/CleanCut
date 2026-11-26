@@ -60,6 +60,20 @@ you finish a chunk of work, and leave the next agent the same courtesy.
     (the `KeyframeIndex.open` move is harmless but wasn't a real leak: `open`
     catches its own errors).
 
+- **Speed curves (Phase 4 Flow) done** on `feat/phase-4` by Claude:
+  - Model `SpeedCurve` (`domain/model/speed_curve.dart`): points over the
+    clip's source progress, monotone cubic in log-speed, 64 constant-speed
+    steps shared by model length and engine playback. Presets per owner.
+    Curve stretches on trim, divides on split (halves resampled, <1% length
+    drift). Schema v2 (`speedCurve`, no-op migration from v1).
+  - Commands: `SetClipSpeedCurveCommand`, `SetClipKeepPitchCommand`; a
+    Normal speed (`SetClipSpeedCommand`) replaces a curve. Use
+    `Clip.timelineLengthOf / sourceOffsetAt / timelineOffsetOf /
+    averageSpeed` instead of `clip.speed` maths anywhere time is mapped.
+  - Engine: `ClipSpec.speedSteps` → `ItemSpeedProvider` (Media3).
+  - UI: Speed panel "Normal | Curve" tabs, preset tiles, `CurveEditor`
+    (`presentation/editor/panels/curve_widgets.dart`).
+
 ## Design source
 
 The Figma MCP hit its plan limit. The owner exported the VCLIP kit frames to

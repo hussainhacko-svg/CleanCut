@@ -567,6 +567,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap to type an exact speed'**
   String get speedTypeHint;
+
+  /// No description provided for @speedTabNormal.
+  ///
+  /// In en, this message translates to:
+  /// **'Normal'**
+  String get speedTabNormal;
+
+  /// No description provided for @speedTabCurve.
+  ///
+  /// In en, this message translates to:
+  /// **'Curve'**
+  String get speedTabCurve;
+
+  /// No description provided for @curveNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get curveNone;
+
+  /// No description provided for @curveCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get curveCustom;
+
+  /// No description provided for @curveMontage.
+  ///
+  /// In en, this message translates to:
+  /// **'Montage'**
+  String get curveMontage;
+
+  /// No description provided for @curveHero.
+  ///
+  /// In en, this message translates to:
+  /// **'Hero'**
+  String get curveHero;
+
+  /// No description provided for @curveBullet.
+  ///
+  /// In en, this message translates to:
+  /// **'Bullet'**
+  String get curveBullet;
+
+  /// No description provided for @curveFlashIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash in'**
+  String get curveFlashIn;
+
+  /// No description provided for @curveFlashOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash out'**
+  String get curveFlashOut;
+
+  /// No description provided for @curveEditHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap again to edit the curve'**
+  String get curveEditHint;
+
+  /// No description provided for @curveGraph.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed curve. Drag a point to change the speed there.'**
+  String get curveGraph;
+
+  /// No description provided for @curveAddPoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add point'**
+  String get curveAddPoint;
+
+  /// No description provided for @curveDeletePoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete point'**
+  String get curveDeletePoint;
+
+  /// No description provided for @curveBackToPresets.
+  ///
+  /// In en, this message translates to:
+  /// **'Presets'**
+  String get curveBackToPresets;
 }
 
 class _AppLocalizationsDelegate

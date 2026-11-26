@@ -99,5 +99,20 @@
   "speedTypeTitle": "Speed",
   "speedTypeLabel": "Speed (0.1–10)",
   "speedTypeInvalid": "Enter a speed from 0.1 to 10",
-  "speedTypeHint": "Tap to type an exact speed"
+  "speedTypeHint": "Tap to type an exact speed",
+  "speedTabNormal": "Normal",
+  "speedTabCurve": "Curve",
+
+  "curveNone": "None",
+  "curveCustom": "Custom",
+  "curveMontage": "Montage",
+  "curveHero": "Hero",
+  "curveBullet": "Bullet",
+  "curveFlashIn": "Flash in",
+  "curveFlashOut": "Flash out",
+  "curveEditHint": "Tap again to edit the curve",
+  "curveGraph": "Speed curve. Drag a point to change the speed there.",
+  "curveAddPoint": "Add point",
+  "curveDeletePoint": "Delete point",
+  "curveBackToPresets": "Presets"
 }
