@@ -33,6 +33,10 @@ class PreviewPlayer(
     private val handler = Handler(Looper.getMainLooper())
     private var size = Size(CompositionPlan.MIN_SIDE, CompositionPlan.MIN_SIDE)
     private var hasComposition = false
+
+    /** The playing composition's live looks and the structure they belong to. */
+    private var composed: ComposedPlan? = null
+    private var structure: CompositionPlan? = null
     private var released = false
 
     private val ticker = object : Runnable {
@@ -91,9 +95,20 @@ class PreviewPlayer(
             listener.onState(state())
             return
         }
+        val current = composed
+        if (hasComposition && current != null && plan.structureKey == structure) {
+            // Only looks changed (a slider or gesture): swap them in place, no rebuild.
+            current.updateLooks(plan)
+            // A paused player shows a stale frame; seeking in place redraws it.
+            if (!player.isPlaying) player.seekTo(player.currentPosition)
+            return
+        }
         val keepMs = if (hasComposition) player.currentPosition else 0L
         val startMs = keepMs.coerceIn(0L, (plan.durationUs / 1000 - 1).coerceAtLeast(0L))
-        player.setComposition(Media3Composer.build(plan), startMs)
+        val built = Media3Composer.build(plan)
+        player.setComposition(built.composition, startMs)
+        composed = built
+        structure = plan.structureKey
         hasComposition = true
         attachSurface()
         player.prepare()

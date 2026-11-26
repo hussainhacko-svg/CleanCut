@@ -22,6 +22,101 @@ class SpeedStepSpec {
   final double speed;
 }
 
+/// How a clip is sized into the canvas before its transform.
+enum SpecFitMode { fit, fill, stretch }
+
+/// A clip's placement at clip-relative timeline time [timeUs]; the engine
+/// interpolates linearly between samples. Positions are canvas-normalized
+/// center offsets (x = 1 is the right edge, y = 1 the bottom edge),
+/// [rotation] is clockwise degrees.
+class TransformSampleSpec {
+  TransformSampleSpec({
+    required this.timeUs,
+    required this.x,
+    required this.y,
+    required this.scale,
+    required this.rotation,
+    required this.opacity,
+  });
+
+  final int timeUs;
+  final double x;
+  final double y;
+  final double scale;
+  final double rotation;
+  final double opacity;
+}
+
+/// Everything about how a clip looks on the canvas (Phase 5).
+class ClipStyleSpec {
+  ClipStyleSpec({
+    required this.fitMode,
+    required this.cropLeft,
+    required this.cropTop,
+    required this.cropRight,
+    required this.cropBottom,
+    required this.flipX,
+    required this.flipY,
+    required this.transform,
+    required this.borderWidth,
+    required this.borderArgb,
+    required this.borderRadius,
+  });
+
+  final SpecFitMode fitMode;
+
+  /// Crop in normalized displayed-frame coordinates (0–1, y down).
+  final double cropLeft;
+  final double cropTop;
+  final double cropRight;
+  final double cropBottom;
+
+  /// Mirror left-right / flip upside down, before the rotation.
+  final bool flipX;
+  final bool flipY;
+
+  /// At least one sample; one sample means a constant transform.
+  final List<TransformSampleSpec> transform;
+
+  /// Stroke width as a fraction of the canvas short side (0 = none).
+  final double borderWidth;
+  final int borderArgb;
+
+  /// Corner radius as a fraction of the clip's shorter displayed side.
+  final double borderRadius;
+}
+
+/// What fills the canvas behind the clips.
+enum SpecBackgroundKind { color, gradient, blur, image }
+
+class BackgroundSpec {
+  BackgroundSpec({
+    required this.kind,
+    required this.argb,
+    required this.endArgb,
+    required this.angleDegrees,
+    required this.blur,
+    required this.imageUri,
+  });
+
+  final SpecBackgroundKind kind;
+
+  /// Solid color, or the gradient's start color (0xAARRGGBB).
+  final int argb;
+
+  /// The gradient's end color.
+  final int endArgb;
+
+  /// Gradient direction, clockwise from "towards the top".
+  final double angleDegrees;
+
+  /// Blur strength 0–1 (blurred clip or image backgrounds).
+  final double blur;
+
+  /// Image backgrounds: content URI of the picture.
+  final String? imageUri;
+}
+
 /// One clip of the main sequence. Times are microseconds.
 class ClipSpec {
   ClipSpec({
@@ -33,6 +128,7 @@ class ClipSpec {
     required this.speed,
     required this.keepPitch,
     required this.speedSteps,
+    required this.style,
   });
 
   /// Content URI of the source.
@@ -59,6 +155,9 @@ class ClipSpec {
   /// A speed curve as constant-speed steps (sorted, the first at 0); when
   /// not empty it replaces [speed]. Empty for images.
   final List<SpeedStepSpec> speedSteps;
+
+  /// Fit, crop, transform and border.
+  final ClipStyleSpec style;
 }
 
 /// What the preview plays: the main track, fitted into the canvas.
@@ -68,6 +167,7 @@ class CompositionSpec {
     required this.canvasWidth,
     required this.canvasHeight,
     required this.frameRate,
+    required this.background,
   });
 
   /// Main-track clips in timeline order.
@@ -79,6 +179,9 @@ class CompositionSpec {
 
   /// Frames per second used for still images.
   final int frameRate;
+
+  /// What fills the canvas behind the clips.
+  final BackgroundSpec background;
 }
 
 /// Player status, mirroring Media3's `Player.STATE_*`.

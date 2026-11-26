@@ -114,6 +114,12 @@ int _deepHash(Object? value) {
 /// Kind of a clip's source file.
 enum SpecMediaKind { video, image }
 
+/// How a clip is sized into the canvas before its transform.
+enum SpecFitMode { fit, fill, stretch }
+
+/// What fills the canvas behind the clips.
+enum SpecBackgroundKind { color, gradient, blur, image }
+
 /// Player status, mirroring Media3's `Player.STATE_*`.
 enum PlaybackStatus { idle, buffering, ready, ended }
 
@@ -165,6 +171,265 @@ class SpeedStepSpec {
   }
 }
 
+/// A clip's placement at clip-relative timeline time [timeUs]; the engine
+/// interpolates linearly between samples. Positions are canvas-normalized
+/// center offsets (x = 1 is the right edge, y = 1 the bottom edge),
+/// [rotation] is clockwise degrees.
+class TransformSampleSpec {
+  TransformSampleSpec({
+    required this.timeUs,
+    required this.x,
+    required this.y,
+    required this.scale,
+    required this.rotation,
+    required this.opacity,
+  });
+
+  int timeUs;
+
+  double x;
+
+  double y;
+
+  double scale;
+
+  double rotation;
+
+  double opacity;
+
+  List<Object?> _toList() {
+    return <Object?>[timeUs, x, y, scale, rotation, opacity];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static TransformSampleSpec decode(Object result) {
+    result as List<Object?>;
+    return TransformSampleSpec(
+      timeUs: result[0]! as int,
+      x: result[1]! as double,
+      y: result[2]! as double,
+      scale: result[3]! as double,
+      rotation: result[4]! as double,
+      opacity: result[5]! as double,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! TransformSampleSpec || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeUs, other.timeUs) &&
+        _deepEquals(x, other.x) &&
+        _deepEquals(y, other.y) &&
+        _deepEquals(scale, other.scale) &&
+        _deepEquals(rotation, other.rotation) &&
+        _deepEquals(opacity, other.opacity);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'TransformSampleSpec(timeUs: $timeUs, x: $x, y: $y, scale: $scale, rotation: $rotation, opacity: $opacity)';
+  }
+}
+
+/// Everything about how a clip looks on the canvas (Phase 5).
+class ClipStyleSpec {
+  ClipStyleSpec({
+    required this.fitMode,
+    required this.cropLeft,
+    required this.cropTop,
+    required this.cropRight,
+    required this.cropBottom,
+    required this.flipX,
+    required this.flipY,
+    required this.transform,
+    required this.borderWidth,
+    required this.borderArgb,
+    required this.borderRadius,
+  });
+
+  SpecFitMode fitMode;
+
+  /// Crop in normalized displayed-frame coordinates (0–1, y down).
+  double cropLeft;
+
+  double cropTop;
+
+  double cropRight;
+
+  double cropBottom;
+
+  /// Mirror left-right / flip upside down, before the rotation.
+  bool flipX;
+
+  bool flipY;
+
+  /// At least one sample; one sample means a constant transform.
+  List<TransformSampleSpec> transform;
+
+  /// Stroke width as a fraction of the canvas short side (0 = none).
+  double borderWidth;
+
+  int borderArgb;
+
+  /// Corner radius as a fraction of the clip's shorter displayed side.
+  double borderRadius;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      fitMode,
+      cropLeft,
+      cropTop,
+      cropRight,
+      cropBottom,
+      flipX,
+      flipY,
+      transform,
+      borderWidth,
+      borderArgb,
+      borderRadius,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static ClipStyleSpec decode(Object result) {
+    result as List<Object?>;
+    return ClipStyleSpec(
+      fitMode: result[0]! as SpecFitMode,
+      cropLeft: result[1]! as double,
+      cropTop: result[2]! as double,
+      cropRight: result[3]! as double,
+      cropBottom: result[4]! as double,
+      flipX: result[5]! as bool,
+      flipY: result[6]! as bool,
+      transform: (result[7]! as List<Object?>).cast<TransformSampleSpec>(),
+      borderWidth: result[8]! as double,
+      borderArgb: result[9]! as int,
+      borderRadius: result[10]! as double,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ClipStyleSpec || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(fitMode, other.fitMode) &&
+        _deepEquals(cropLeft, other.cropLeft) &&
+        _deepEquals(cropTop, other.cropTop) &&
+        _deepEquals(cropRight, other.cropRight) &&
+        _deepEquals(cropBottom, other.cropBottom) &&
+        _deepEquals(flipX, other.flipX) &&
+        _deepEquals(flipY, other.flipY) &&
+        _deepEquals(transform, other.transform) &&
+        _deepEquals(borderWidth, other.borderWidth) &&
+        _deepEquals(borderArgb, other.borderArgb) &&
+        _deepEquals(borderRadius, other.borderRadius);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'ClipStyleSpec(fitMode: $fitMode, cropLeft: $cropLeft, cropTop: $cropTop, cropRight: $cropRight, cropBottom: $cropBottom, flipX: $flipX, flipY: $flipY, transform: $transform, borderWidth: $borderWidth, borderArgb: $borderArgb, borderRadius: $borderRadius)';
+  }
+}
+
+class BackgroundSpec {
+  BackgroundSpec({
+    required this.kind,
+    required this.argb,
+    required this.endArgb,
+    required this.angleDegrees,
+    required this.blur,
+    this.imageUri,
+  });
+
+  SpecBackgroundKind kind;
+
+  /// Solid color, or the gradient's start color (0xAARRGGBB).
+  int argb;
+
+  /// The gradient's end color.
+  int endArgb;
+
+  /// Gradient direction, clockwise from "towards the top".
+  double angleDegrees;
+
+  /// Blur strength 0–1 (blurred clip or image backgrounds).
+  double blur;
+
+  /// Image backgrounds: content URI of the picture.
+  String? imageUri;
+
+  List<Object?> _toList() {
+    return <Object?>[kind, argb, endArgb, angleDegrees, blur, imageUri];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static BackgroundSpec decode(Object result) {
+    result as List<Object?>;
+    return BackgroundSpec(
+      kind: result[0]! as SpecBackgroundKind,
+      argb: result[1]! as int,
+      endArgb: result[2]! as int,
+      angleDegrees: result[3]! as double,
+      blur: result[4]! as double,
+      imageUri: result[5] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! BackgroundSpec || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(kind, other.kind) &&
+        _deepEquals(argb, other.argb) &&
+        _deepEquals(endArgb, other.endArgb) &&
+        _deepEquals(angleDegrees, other.angleDegrees) &&
+        _deepEquals(blur, other.blur) &&
+        _deepEquals(imageUri, other.imageUri);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'BackgroundSpec(kind: $kind, argb: $argb, endArgb: $endArgb, angleDegrees: $angleDegrees, blur: $blur, imageUri: $imageUri)';
+  }
+}
+
 /// One clip of the main sequence. Times are microseconds.
 class ClipSpec {
   ClipSpec({
@@ -176,6 +441,7 @@ class ClipSpec {
     required this.speed,
     required this.keepPitch,
     required this.speedSteps,
+    required this.style,
   });
 
   /// Content URI of the source.
@@ -204,6 +470,9 @@ class ClipSpec {
   /// not empty it replaces [speed]. Empty for images.
   List<SpeedStepSpec> speedSteps;
 
+  /// Fit, crop, transform and border.
+  ClipStyleSpec style;
+
   List<Object?> _toList() {
     return <Object?>[
       uri,
@@ -214,6 +483,7 @@ class ClipSpec {
       speed,
       keepPitch,
       speedSteps,
+      style,
     ];
   }
 
@@ -232,6 +502,7 @@ class ClipSpec {
       speed: result[5]! as double,
       keepPitch: result[6]! as bool,
       speedSteps: (result[7]! as List<Object?>).cast<SpeedStepSpec>(),
+      style: result[8]! as ClipStyleSpec,
     );
   }
 
@@ -251,7 +522,8 @@ class ClipSpec {
         _deepEquals(sourceOutUs, other.sourceOutUs) &&
         _deepEquals(speed, other.speed) &&
         _deepEquals(keepPitch, other.keepPitch) &&
-        _deepEquals(speedSteps, other.speedSteps);
+        _deepEquals(speedSteps, other.speedSteps) &&
+        _deepEquals(style, other.style);
   }
 
   @override
@@ -260,7 +532,7 @@ class ClipSpec {
 
   @override
   String toString() {
-    return 'ClipSpec(uri: $uri, kind: $kind, sourceDurationUs: $sourceDurationUs, sourceInUs: $sourceInUs, sourceOutUs: $sourceOutUs, speed: $speed, keepPitch: $keepPitch, speedSteps: $speedSteps)';
+    return 'ClipSpec(uri: $uri, kind: $kind, sourceDurationUs: $sourceDurationUs, sourceInUs: $sourceInUs, sourceOutUs: $sourceOutUs, speed: $speed, keepPitch: $keepPitch, speedSteps: $speedSteps, style: $style)';
   }
 }
 
@@ -271,6 +543,7 @@ class CompositionSpec {
     required this.canvasWidth,
     required this.canvasHeight,
     required this.frameRate,
+    required this.background,
   });
 
   /// Main-track clips in timeline order.
@@ -284,8 +557,11 @@ class CompositionSpec {
   /// Frames per second used for still images.
   int frameRate;
 
+  /// What fills the canvas behind the clips.
+  BackgroundSpec background;
+
   List<Object?> _toList() {
-    return <Object?>[clips, canvasWidth, canvasHeight, frameRate];
+    return <Object?>[clips, canvasWidth, canvasHeight, frameRate, background];
   }
 
   Object encode() {
@@ -299,6 +575,7 @@ class CompositionSpec {
       canvasWidth: result[1]! as int,
       canvasHeight: result[2]! as int,
       frameRate: result[3]! as int,
+      background: result[4]! as BackgroundSpec,
     );
   }
 
@@ -314,7 +591,8 @@ class CompositionSpec {
     return _deepEquals(clips, other.clips) &&
         _deepEquals(canvasWidth, other.canvasWidth) &&
         _deepEquals(canvasHeight, other.canvasHeight) &&
-        _deepEquals(frameRate, other.frameRate);
+        _deepEquals(frameRate, other.frameRate) &&
+        _deepEquals(background, other.background);
   }
 
   @override
@@ -323,7 +601,7 @@ class CompositionSpec {
 
   @override
   String toString() {
-    return 'CompositionSpec(clips: $clips, canvasWidth: $canvasWidth, canvasHeight: $canvasHeight, frameRate: $frameRate)';
+    return 'CompositionSpec(clips: $clips, canvasWidth: $canvasWidth, canvasHeight: $canvasHeight, frameRate: $frameRate, background: $background)';
   }
 }
 
@@ -459,23 +737,38 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is SpecMediaKind) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    } else if (value is PlaybackStatus) {
+    } else if (value is SpecFitMode) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    } else if (value is SpeedStepSpec) {
+    } else if (value is SpecBackgroundKind) {
       buffer.putUint8(131);
-      writeValue(buffer, value.encode());
-    } else if (value is ClipSpec) {
+      writeValue(buffer, value.index);
+    } else if (value is PlaybackStatus) {
       buffer.putUint8(132);
-      writeValue(buffer, value.encode());
-    } else if (value is CompositionSpec) {
+      writeValue(buffer, value.index);
+    } else if (value is SpeedStepSpec) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    } else if (value is PlayerStateEvent) {
+    } else if (value is TransformSampleSpec) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    } else if (value is WaveformData) {
+    } else if (value is ClipStyleSpec) {
       buffer.putUint8(135);
+      writeValue(buffer, value.encode());
+    } else if (value is BackgroundSpec) {
+      buffer.putUint8(136);
+      writeValue(buffer, value.encode());
+    } else if (value is ClipSpec) {
+      buffer.putUint8(137);
+      writeValue(buffer, value.encode());
+    } else if (value is CompositionSpec) {
+      buffer.putUint8(138);
+      writeValue(buffer, value.encode());
+    } else if (value is PlayerStateEvent) {
+      buffer.putUint8(139);
+      writeValue(buffer, value.encode());
+    } else if (value is WaveformData) {
+      buffer.putUint8(140);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -490,16 +783,28 @@ class _PigeonCodec extends StandardMessageCodec {
         return value == null ? null : SpecMediaKind.values[value];
       case 130:
         final value = readValue(buffer) as int?;
-        return value == null ? null : PlaybackStatus.values[value];
+        return value == null ? null : SpecFitMode.values[value];
       case 131:
-        return SpeedStepSpec.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : SpecBackgroundKind.values[value];
       case 132:
-        return ClipSpec.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PlaybackStatus.values[value];
       case 133:
-        return CompositionSpec.decode(readValue(buffer)!);
+        return SpeedStepSpec.decode(readValue(buffer)!);
       case 134:
-        return PlayerStateEvent.decode(readValue(buffer)!);
+        return TransformSampleSpec.decode(readValue(buffer)!);
       case 135:
+        return ClipStyleSpec.decode(readValue(buffer)!);
+      case 136:
+        return BackgroundSpec.decode(readValue(buffer)!);
+      case 137:
+        return ClipSpec.decode(readValue(buffer)!);
+      case 138:
+        return CompositionSpec.decode(readValue(buffer)!);
+      case 139:
+        return PlayerStateEvent.decode(readValue(buffer)!);
+      case 140:
         return WaveformData.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
