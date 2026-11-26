@@ -148,6 +148,14 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.project != widget.project) {
       _snapTargets = snapTargets(widget.project);
+      final clips = widget.project.mainTrack.clips;
+      if (_trim != null && !clips.any((c) => c.id == _trim!.clipId)) {
+        _trim = null;
+        _trimOrigin = null;
+      }
+      if (_reorder != null && !clips.any((c) => c.id == _reorder!.clipId)) {
+        _reorder = null;
+      }
     }
   }
 
@@ -290,11 +298,12 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   void _onTrimEnd() {
     final trim = _trim;
     final clip = _trimOrigin;
+    if (trim == null || clip == null) return;
     setState(() {
       _trim = null;
       _trimOrigin = null;
     });
-    if (trim == null || clip == null) return;
+    if (!widget.project.mainTrack.clips.any((c) => c.id == clip.id)) return;
     if (trim.sourceInUs == clip.sourceInUs &&
         trim.sourceOutUs == clip.sourceOutUs) {
       return;
@@ -355,8 +364,8 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
 
   void _onReorderEnd() {
     final reorder = _reorder;
-    setState(() => _reorder = null);
     if (reorder == null) return;
+    setState(() => _reorder = null);
     final index = widget.project.mainTrack.clips.indexWhere(
       (c) => c.id == reorder.clipId,
     );

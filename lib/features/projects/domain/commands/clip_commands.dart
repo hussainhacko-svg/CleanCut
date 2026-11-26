@@ -2,6 +2,8 @@
 /// duplicate, reorder and speed ("Flow").
 library;
 
+import 'dart:math' as math;
+
 import 'package:cleancut/features/projects/domain/history/edit_command.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
@@ -61,11 +63,10 @@ final class TrimClipCommand extends EditCommand {
     if (clip.media.durationUs case final d? when sourceOutUs > d) {
       throw InvalidEditException('Trim ends after the media: $sourceOutUs');
     }
+    final minDuration = math.min(minClipDurationUs, clip.durationUs);
     if (sourceOutUs <= sourceInUs ||
-        _timelineUs(sourceOutUs - sourceInUs, clip.speed) < minClipDurationUs) {
-      throw const InvalidEditException(
-        'Trim leaves less than $minClipDurationUs us',
-      );
+        _timelineUs(sourceOutUs - sourceInUs, clip.speed) < minDuration) {
+      throw InvalidEditException('Trim leaves less than $minDuration us');
     }
     if (sourceInUs == clip.sourceInUs && sourceOutUs == clip.sourceOutUs) {
       return project;
@@ -83,8 +84,11 @@ final class TrimClipCommand extends EditCommand {
   }
 }
 
-/// Source length that keeps [clip] at least [minClipDurationUs] long.
-int _minSourceUs(Clip clip) => (minClipDurationUs * clip.speed).ceil();
+/// Source length that keeps [clip] at least [minClipDurationUs] long, or no
+/// shorter than its current length when it is already below the minimum.
+int _minSourceUs(Clip clip) => clip.durationUs < minClipDurationUs
+    ? clip.sourceDurationUs
+    : (minClipDurationUs * clip.speed).ceil();
 
 /// The closest valid source start for [clip] to [sourceInUs] when dragging
 /// its start edge: not before the media, and leaving at least

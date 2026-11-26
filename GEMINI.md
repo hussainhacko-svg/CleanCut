@@ -46,10 +46,19 @@ you finish a chunk of work, and leave the next agent the same courtesy.
     no audio output in testing).
   - **Thumbnails fixed (Phase 2 bug):** tiles used the nearest keyframe
     only, so sparse-keyframe videos (screen recordings) repeated frame 0.
-    `ThumbnailTiming` now decodes the exact frame when the previous
-    keyframe is > 0.5 s away (looked up via `MediaExtractor`, no decoding);
-    the video thumbnail cache key is versioned (`thumb|v2|`) so stale
-    frames aren't reused. Emulator: ~40 exact tiles in 4-8 s worst case.
+    `ThumbnailTiming` now decodes the exact frame when the closest
+    keyframe is > 0.5 s away (looked up via `MediaExtractor` with
+    `SEEK_TO_CLOSEST_SYNC`, no decoding); the video thumbnail cache key is
+    versioned (`thumb|v2|`) so stale frames aren't reused. Emulator: ~40
+    exact tiles in 4-8 s worst case.
+  - **Post-Phase-4 audit fixes (by Gemini; reviewed and committed by Claude):**
+    fixed short/fast clip trim crash (`clip_commands.dart`), post-trim seek
+    ordering & stale-duration clamp (`playback_controller.dart`), mid-trim
+    clip removal + wasted `onLongPressCancel` rebuilds (`timeline_view.dart`),
+    tablet `SpeedPanel` label overlap + tappable labels (`speed_panel.dart`),
+    and `SEEK_TO_CLOSEST_SYNC` fast-path for 1 s GOPs in `ThumbnailExtractor`
+    (the `KeyframeIndex.open` move is harmless but wasn't a real leak: `open`
+    catches its own errors).
 
 ## Design source
 

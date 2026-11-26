@@ -180,6 +180,52 @@ void main() {
         ).apply(p);
       }
     });
+
+    test('short fast clips can extend without crashing TrimClipCommand', () {
+      // 0.5 s clip at 10x speed (50 ms full) trimmed to [200ms, 500ms) = 30 ms.
+      final startTrimmed = withClip(
+        project(mainSeconds: [0.5]),
+        0,
+        (c) => c.copyWith(sourceInUs: 200000, sourceOutUs: 500000, speed: 10),
+      );
+      final c1 = startTrimmed.mainTrack.clips.single;
+      // Dragging right cannot shorten it further; dragging left extends to 0.
+      expect(clampTrimStart(c1, 400000), 200000);
+      expect(clampTrimStart(c1, 0), 0);
+      for (final raw in [-s, 0, 100000, 200000, 400000, 500000]) {
+        TrimClipCommand(
+          'm0',
+          sourceInUs: clampTrimStart(c1, raw),
+          sourceOutUs: c1.sourceOutUs,
+        ).apply(startTrimmed);
+      }
+      // Shortening an already-below-minimum clip further is still rejected.
+      expect(
+        () => const TrimClipCommand(
+          'm0',
+          sourceInUs: 250000,
+          sourceOutUs: 500000,
+        ).apply(startTrimmed),
+        throwsInvalidEdit,
+      );
+
+      // Same from the end: [0, 300ms) at 10x = 30 ms.
+      final endTrimmed = withClip(
+        project(mainSeconds: [0.5]),
+        0,
+        (c) => c.copyWith(sourceInUs: 0, sourceOutUs: 300000, speed: 10),
+      );
+      final c2 = endTrimmed.mainTrack.clips.single;
+      expect(clampTrimEnd(c2, 100000), 300000);
+      expect(clampTrimEnd(c2, 500000), 500000);
+      for (final raw in [0, 100000, 300000, 450000, 500000, s]) {
+        TrimClipCommand(
+          'm0',
+          sourceInUs: c2.sourceInUs,
+          sourceOutUs: clampTrimEnd(c2, raw),
+        ).apply(endTrimmed);
+      }
+    });
   });
 
   group('SplitClipCommand', () {

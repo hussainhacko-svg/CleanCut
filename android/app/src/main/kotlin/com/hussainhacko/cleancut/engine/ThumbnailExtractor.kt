@@ -48,17 +48,18 @@ class ThumbnailExtractor(private val context: Context) {
             }
 
             val retriever = MediaMetadataRetriever()
-            val keyframes = KeyframeIndex.open(context, parsed)
+            var keyframes: KeyframeIndex? = null
             try {
+                keyframes = KeyframeIndex.open(context, parsed)
                 retriever.setDataSource(context, parsed)
                 files.mapIndexed { i, file ->
                     coroutineContext.ensureActive()
                     if (!file.isFile) {
                         // The nearest sync frame is fast and usually close enough; when
-                        // the keyframe before the target is far away, decode exactly.
+                        // the closest keyframe is far away, decode exactly.
                         val exact = ThumbnailTiming.needsExactFrame(
                             timesUs[i],
-                            keyframes?.previousSyncUs(timesUs[i]),
+                            keyframes?.closestSyncUs(timesUs[i]),
                         )
                         val option = if (exact) {
                             MediaMetadataRetriever.OPTION_CLOSEST
@@ -88,9 +89,9 @@ class ThumbnailExtractor(private val context: Context) {
 
     /** Sync-frame times of a video's first video track, read from its index (no decoding). */
     private class KeyframeIndex private constructor(private val extractor: MediaExtractor) {
-        /** Time of the sync frame at or before [timeUs], or null when unknown. */
-        fun previousSyncUs(timeUs: Long): Long? {
-            extractor.seekTo(timeUs, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
+        /** Time of the sync frame closest to [timeUs], or null when unknown. */
+        fun closestSyncUs(timeUs: Long): Long? {
+            extractor.seekTo(timeUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
             return extractor.sampleTime.takeIf { it >= 0 }
         }
 

@@ -86,7 +86,7 @@ Tools whose phase hasn't shipped show "Coming in a later update." Icons that exi
 
 - Opens over the dock on phones (the timeline shrinks above it) and in place of the properties panel on tablets; closes with ✕, system back, or when the selection changes.
 - Range **0.1×–10×** (owner decision; the kit shows 1/8×–4×). Labels sit at even distances and the speed grows geometrically between them, so 1× is the middle.
-- Drag anywhere on the ruler (bubble follows, haptic tick + snap at each label), tap to jump, tap the bubble to type an exact value, Reset → 1×. The speed is applied once, on release, so the preview reloads once; each change is one undo step.
+- Drag anywhere on the ruler (bubble follows, haptic tick + snap at each label), tap to jump, tap a label (48dp target) to pick that speed, tap the bubble to type an exact value, Reset → 1×. Labels shrink to fit narrow panels (tablet). The speed is applied once, on release, so the preview reloads once; each change is one undo step.
 - Speed curves (montage, hero, bullet, flash ramps, custom) come later as a "Normal | Curve" tab row in this panel.
 
 ### Timeline (VCLIP "Timeline")

@@ -15,14 +15,17 @@ class ThumbnailTimingTest {
     private val tolerance = ThumbnailTiming.SYNC_TOLERANCE_US
 
     @Test
-    fun `a keyframe close before the target is good enough`() {
-        assertFalse(ThumbnailTiming.needsExactFrame(targetUs = 4_000_000, previousSyncUs = 4_000_000))
+    fun `a keyframe close to the target is good enough`() {
+        assertFalse(ThumbnailTiming.needsExactFrame(targetUs = 4_000_000, closestSyncUs = 4_000_000))
         assertFalse(ThumbnailTiming.needsExactFrame(4_000_000, 4_000_000 - tolerance))
+        // Normal 1 s GOP: the following keyframe is also within tolerance.
+        assertFalse(ThumbnailTiming.needsExactFrame(4_000_000, 4_000_000 + tolerance))
     }
 
     @Test
     fun `a distant keyframe needs the exact frame`() {
         assertTrue(ThumbnailTiming.needsExactFrame(4_000_000, 4_000_000 - tolerance - 1))
+        assertTrue(ThumbnailTiming.needsExactFrame(4_000_000, 4_000_000 + tolerance + 1))
         // Screen recording: only one keyframe, at 0.
         assertTrue(ThumbnailTiming.needsExactFrame(10_000_000, 0))
     }

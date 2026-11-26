@@ -163,19 +163,38 @@ class _SpeedPanelState extends State<SpeedPanel> {
                   ),
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 4),
               SizedBox(
-                height: 20,
+                height: 48,
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
                     for (final (i, mark) in SpeedScale.marks.indexed)
                       Positioned(
-                        left: xOf(SpeedScale.markPosition(i)) - 30,
-                        width: 60,
-                        child: _MarkLabel(
-                          text: l10n.speedValue(mark),
-                          selected: mark == speed,
+                        left:
+                            xOf(SpeedScale.markPosition(i)) -
+                            track / (SpeedScale.marks.length - 1) / 2,
+                        top: 0,
+                        bottom: 0,
+                        width: track / (SpeedScale.marks.length - 1),
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => _commit(mark),
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 2,
+                              ),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: _MarkLabel(
+                                  text: l10n.speedValue(mark),
+                                  selected: mark == speed,
+                                  fontSize: width < 360 ? 12 : 14,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                   ],
@@ -246,16 +265,17 @@ class _Bubble extends StatelessWidget {
 
 /// A speed label under the ruler; the current one in the accent gradient.
 class _MarkLabel extends StatelessWidget {
-  const new({required this.text, required this.selected});
+  const new({required this.text, required this.selected, this.fontSize = 14});
 
   final String text;
   final bool selected;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final style = theme.textTheme.bodyMedium?.copyWith(
-      fontSize: 14,
+      fontSize: fontSize,
       fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
       color: theme.colorScheme.onSurface,
     );

@@ -188,5 +188,51 @@ void main() {
         greaterThanOrEqualTo(48),
       );
     });
+
+    testWidgets('tapping a speed label picks that speed', (tester) async {
+      await pumpPanel(tester);
+      await tester.tap(find.text('2×'));
+      await tester.tap(find.text('0.25×'));
+      expect(changes, [2, 0.25]);
+    });
+
+    testWidgets('labels do not overlap at tablet panel width', (tester) async {
+      await tester.pumpWidget(
+        localizedApp(
+          Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 320,
+                child: SpeedPanel(
+                  speed: 1,
+                  keepPitch: true,
+                  onChanged: (_) {},
+                  onKeepPitchChanged: (_) {},
+                  onClose: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      final labels = ['0.1×', '0.25×', '0.5×', '1×', '2×', '5×', '10×'];
+      // Pick the lower of the two '1×' widgets (mark label, not the bubble).
+      final rects = [
+        for (final label in labels)
+          tester
+              .widgetList(find.text(label))
+              .indexed
+              .map((e) => tester.getRect(find.text(label).at(e.$1)))
+              .reduce((a, b) => a.top > b.top ? a : b),
+      ];
+      for (var i = 0; i < rects.length - 1; i++) {
+        expect(
+          rects[i].right,
+          lessThanOrEqualTo(rects[i + 1].left),
+          reason: '${labels[i]} overlaps ${labels[i + 1]}',
+        );
+      }
+    });
   });
 }

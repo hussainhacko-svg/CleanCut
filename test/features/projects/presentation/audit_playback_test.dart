@@ -111,6 +111,25 @@ void main() {
       expect(engine.specs, hasLength(1));
       expect(engine.specs.single.clips, hasLength(2));
     });
+
+    test('seekTo waits for load and uses the new duration', () async {
+      final playback = await start();
+      await playback.load(project(mainSeconds: [3]));
+      engine
+        ..emitState(durationUs: 3000000)
+        ..calls.clear()
+        ..setGate = Completer<void>();
+
+      final loading = playback.load(project(mainSeconds: [6]));
+      final seeking = playback.seekTo(5500000);
+      await Future<void>.delayed(Duration.zero);
+      // Seek must not run before the new composition has been sent.
+      expect(engine.calls, ['set']);
+      engine.setGate!.complete();
+      await Future.wait([loading, seeking]);
+      expect(engine.calls, ['set', 'seek']);
+      expect(engine.seeks.single, 5500000);
+    });
   });
 
   group('ClipThumbnails', () {

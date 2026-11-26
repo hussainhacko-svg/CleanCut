@@ -1,6 +1,9 @@
 // Phase 4 dock actions on the selected main clip: split, duplicate, delete
 // and the Speed panel.
+import 'package:cleancut/features/projects/domain/commands/clip_commands.dart';
+import 'package:cleancut/features/projects/domain/model/clip.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
+import 'package:cleancut/features/projects/domain/model/tracks.dart';
 import 'package:cleancut/features/projects/domain/timeline/timeline_scale.dart';
 import 'package:cleancut/features/projects/presentation/editor/editor_state.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/speed_panel.dart';
@@ -329,6 +332,65 @@ void main() {
           .requireValue
           .history;
       expect(h.canUndo, isFalse);
+    });
+
+    testWidgets('extending an image via trim seeks to the new extended end', (
+      tester,
+    ) async {
+      env = TestEnv(
+        projects: [
+          project().copyWith(
+            mainTrack: MainTrack(
+              clips: [Clip.fromMedia(id: 'i0', media: image())],
+            ),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: env.overrides,
+          child: localizedApp(const ProjectScreen(projectId: 'p1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      // Native player initially reports the original 3 s duration.
+      env.engine.emitState(durationUs: 3 * s);
+      await tester.pump();
+      await zoomIn(tester);
+      await selectClip(tester, 0);
+
+      // Drag end handle +100 px (+1 s) so the image grows from 3 s to 4 s.
+      await tester.drag(
+        find.byKey(const ValueKey('trimEnd')),
+        const Offset(100, 0),
+      );
+      await tester.pump();
+      expect(present(tester).durationUs, 4 * s);
+      // Seek must target the new 4 s end frame, not clamp to the stale 3 s.
+      expect(env.engine.seeks.last, greaterThan(3900000));
+      expect(env.engine.seeks.last, lessThan(4 * s));
+    });
+
+    testWidgets('removing a clip mid-trim does not throw on release', (
+      tester,
+    ) async {
+      await pumpEditor(tester);
+      await zoomIn(tester);
+      await selectClip(tester, 0);
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byKey(const ValueKey('trimEnd'))),
+      );
+      await gesture.moveBy(const Offset(-30, 0));
+      await tester.pump();
+      // Clip disappears before the finger lifts.
+      containerOf(tester)
+          .read(projectSessionProvider('p1').notifier)
+          .apply(const DeleteClipCommand('m0'));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(ids(tester), ['m1']);
     });
   });
 }
