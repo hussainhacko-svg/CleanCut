@@ -279,43 +279,12 @@ docs/PLAN.md, docs/DESIGN.md
 
 | Phase | State | Where |
 |---|---|---|
-| 0–4 | done | `main` |
-| 5 — transform & style | **in review** | `feat/phase-5` (PR open) |
+| 0–5 | done | `main` (Phase 5 = PR #10, tag `v0.01`, CI green) |
+| 6 — filters & effects | next | — |
 
-**Phase 5, committed (all on `feat/phase-5`):** schema v3 model (crop,
-border, background, keyframes); engine rendering (`ClipLook.kt`,
-`ClipRenderEffect.kt`, live look swaps + `experimentalRedrawLastFrame()` in
-`PreviewPlayer`); Crop panel + on-preview `CropOverlay`; Transform panel +
-`TransformGizmo`; Ratio | Background panel + `MediaPicker.pickImage()`;
-keyframe ◇/◆ toggles and timeline diamonds; CI on release tags only.
-Emulator-checked by Claude and Gemini (2026-11-27).
-
-**Review fixes (Claude, 2026-11-27, committed; emulator-verified by Gemini, 2026-11-27):** editors read values back
-with `ClipTransform.editableAt` (the keyframe within half a frame, the one an
-edit updates), so gizmo and ruler drags beside a keyframe no longer cancel
-themselves; the gizmo only cancels when a value *it* set changes outside and
-otherwise follows the new value (a drag started while playing on an animated
-clip keeps going); gizmo and crop handles hide while the playhead is off the
-selected clip; a constant rotation is stored within ±180° and a keyframed one
-keeps the turn nearest its current value (`wrapDegrees`, `sameAngle`); crop
-drags map fingers with the rotation at drag start; the gizmo, crop overlay
-and rotation ruler seal their undo step when removed mid-gesture.
-
-**Timeline & kit fixes (Gemini, 2026-11-27; reviewed and committed by Claude):** kept `TimelineView` in the same
-widget tree slot across phone panel open/close (`project_screen.dart`) and
-synced its initial scroll offset to `playbackPositionProvider` on mount
-(`timeline_view.dart`), so opening/closing a tool panel (or switching
-phone↔tablet layout) no longer resets the timeline strip to `0s` (covered by
-3 widget tests in `editor_test.dart`). Also applied 3 VCLIP Figma parity
-tweaks: white left labels on `GradientSliderRow` (`Alignment.jpg`), and bold
-white captions on selected Ratio (`Ratio.jpg`) and Crop (`Crop.jpg`) presets.
-
-**Phase 5, remaining:**
-1. Physical-device-only check: tactile feel of haptics (emulator has no
-   vibration motor).
-2. Reset on a keyframed property only resets the playhead's value — owner
-   decided to leave it as is.
-3. Review and merge the `feat/phase-5` PR.
+**Phase 5 leftovers:** tactile feel of haptics needs a physical device
+(emulator has no vibration motor). Reset on a keyframed property only
+resets the playhead's value — owner decided to leave it as is.
 
 **Open items:** Phase 2 physical low-end device check (1080p ≥ 30 fps, seek
 < 150 ms); audible keep-pitch check; split/delete/speed for overlay and audio
