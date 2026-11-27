@@ -152,6 +152,18 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   );
 
   @override
+  void initState() {
+    super.initState();
+    // Align with the current playhead on mount (e.g. after switching between
+    // phone and tablet layouts while playback is past zero).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_userScrolling) {
+        _jumpTo(ref.read(playbackPositionProvider(widget.projectId)));
+      }
+    });
+  }
+
+  @override
   void didUpdateWidget(TimelineView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.project != widget.project) {

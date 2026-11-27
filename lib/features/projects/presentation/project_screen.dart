@@ -439,16 +439,17 @@ class _Editor extends ConsumerWidget {
             const SizedBox(height: 4),
             transport,
             const SizedBox(height: 6),
-            if (panel != null)
-              // An open tool panel slides over the dock (kit "Speed"). It
-              // takes what it needs but leaves the timeline at least
-              // [_minTimelineHeight], scrolling inside on short screens.
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, area) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(child: timeline),
+            // Keep TimelineView in the same tree slot whether a tool panel or
+            // the dock is below it so opening/closing a panel preserves its
+            // scroll state. An open panel takes what it needs while leaving
+            // at least [_minTimelineHeight], scrolling inside on short screens.
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, area) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: timeline),
+                    if (panel != null)
                       ConstrainedBox(
                         constraints: BoxConstraints(
                           maxHeight: math.max(
@@ -457,16 +458,15 @@ class _Editor extends ConsumerWidget {
                           ),
                         ),
                         child: SingleChildScrollView(child: panel),
-                      ),
+                      )
+                    else ...[
+                      ToolDock(tools: tools, onTool: onTool),
+                      const SizedBox(height: 4),
                     ],
-                  ),
+                  ],
                 ),
-              )
-            else ...[
-              Expanded(child: timeline),
-              ToolDock(tools: tools, onTool: onTool),
-              const SizedBox(height: 4),
-            ],
+              ),
+            ),
           ],
         );
       },
