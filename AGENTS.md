@@ -282,7 +282,7 @@ docs/PLAN.md, docs/DESIGN.md
 |---|---|---|
 | 0–5 | done | `main` (Phase 5 = PR #10, tag `v0.01`, CI green) |
 | Clipcraft UI redesign | done | `main` (PR #13) |
-| 6A — filters & adjustments | ready for review (pushed, no PR yet) | `feat/phase-6a-filters-adjust` |
+| 6A — filters & adjustments | in review (PR #14) | `feat/phase-6a-filters-adjust` |
 | 6B/6C — blur, mask & transitions | next | — |
 
 **Phase 5 leftovers:** tactile feel of haptics needs a physical device
