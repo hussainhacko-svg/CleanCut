@@ -110,7 +110,7 @@ void main() {
 
       final decoded = codec.decode(codec.encode(graded));
       expect(decoded, graded);
-      expect(decoded.schemaVersion, 4);
+      expect(decoded.schemaVersion, Project.currentSchemaVersion);
       expect(
         decoded.mainTrack.clips.first.filter,
         const ClipFilter(id: 'film_cinema', intensity: 0.75),

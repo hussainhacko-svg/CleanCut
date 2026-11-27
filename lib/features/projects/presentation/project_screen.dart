@@ -9,10 +9,13 @@ import 'package:cleancut/features/projects/domain/commands/clip_commands.dart';
 import 'package:cleancut/features/projects/domain/commands/project_commands.dart';
 import 'package:cleancut/features/projects/domain/commands/style_commands.dart';
 import 'package:cleancut/features/projects/domain/history/edit_command.dart';
+import 'package:cleancut/features/projects/domain/model/animatable.dart';
 import 'package:cleancut/features/projects/domain/model/canvas_background.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart';
+import 'package:cleancut/features/projects/domain/model/clip_effects.dart';
 import 'package:cleancut/features/projects/domain/model/clip_style.dart';
 import 'package:cleancut/features/projects/domain/model/clip_transform.dart';
+import 'package:cleancut/features/projects/domain/model/keyframe.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/model/project_canvas.dart';
@@ -20,10 +23,13 @@ import 'package:cleancut/features/projects/domain/project_repository.dart';
 import 'package:cleancut/features/projects/domain/timeline/timeline_selection.dart';
 import 'package:cleancut/features/projects/presentation/editor/editor_state.dart';
 import 'package:cleancut/features/projects/presentation/editor/overlays/crop_overlay.dart';
+import 'package:cleancut/features/projects/presentation/editor/overlays/mask_overlay.dart';
 import 'package:cleancut/features/projects/presentation/editor/overlays/transform_gizmo.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/adjust_panel.dart';
+import 'package:cleancut/features/projects/presentation/editor/panels/blur_panel.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/crop_panel.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/filters_panel.dart';
+import 'package:cleancut/features/projects/presentation/editor/panels/mask_panel.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/ratio_panel.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/speed_panel.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/transform_panel.dart';
@@ -181,7 +187,9 @@ class _Editor extends ConsumerWidget {
           DockTool.crop ||
           DockTool.transform ||
           DockTool.filters ||
-          DockTool.adjust:
+          DockTool.adjust ||
+          DockTool.blur ||
+          DockTool.mask:
         final selection = ref.read(
           timelineSelectionControllerProvider(projectId),
         );
@@ -203,6 +211,25 @@ class _Editor extends ConsumerWidget {
           DockTool.animation ||
           DockTool.volume:
         _soon(messenger, l10n);
+    }
+  }
+
+  /// Seeks to the start of clip [clipId] unless the playhead already shows it
+  /// (the very end of the project counts as on the last clip, like
+  /// [_OnClipOnly]).
+  void _seekOntoClip(WidgetRef ref, String clipId) {
+    final clips = project.mainTrack.clips;
+    final index = clips.indexWhere((c) => c.id == clipId);
+    if (index < 0) return;
+    final startUs = project.mainTrack.startOf(index);
+    final endUs = startUs + clips[index].durationUs;
+    final positionUs = ref.read(playbackPositionProvider(projectId));
+    final isLast = index == clips.length - 1;
+    final onClip =
+        positionUs >= startUs &&
+        (positionUs < endUs || (isLast && positionUs == endUs));
+    if (!onClip) {
+      unawaited(ref.read(playbackProvider(projectId).notifier).seekTo(startUs));
     }
   }
 
@@ -242,17 +269,7 @@ class _Editor extends ConsumerWidget {
             .open(ToolPanelKind.speed);
       case DockTool.crop:
         // The crop handles sit over the frame on screen, so show this clip.
-        final index = project.mainTrack.clips.indexWhere((c) => c.id == clipId);
-        if (index >= 0) {
-          final startUs = project.mainTrack.startOf(index);
-          final endUs = startUs + project.mainTrack.clips[index].durationUs;
-          final positionUs = ref.read(playbackPositionProvider(projectId));
-          if (positionUs < startUs || positionUs >= endUs) {
-            unawaited(
-              ref.read(playbackProvider(projectId).notifier).seekTo(startUs),
-            );
-          }
-        }
+        _seekOntoClip(ref, clipId);
         ref
             .read(openToolPanelProvider(projectId).notifier)
             .open(ToolPanelKind.crop);
@@ -268,6 +285,16 @@ class _Editor extends ConsumerWidget {
         ref
             .read(openToolPanelProvider(projectId).notifier)
             .open(ToolPanelKind.adjust);
+      case DockTool.blur:
+        ref
+            .read(openToolPanelProvider(projectId).notifier)
+            .open(ToolPanelKind.blur);
+      case DockTool.mask:
+        // The mask handles sit over the clip on screen, so seek onto it.
+        _seekOntoClip(ref, clipId);
+        ref
+            .read(openToolPanelProvider(projectId).notifier)
+            .open(ToolPanelKind.mask);
       // Only clip tools are routed here.
       case _:
         _soon(messenger, l10n);
@@ -331,13 +358,26 @@ class _Editor extends ConsumerWidget {
         projectId: projectId,
         clip: clip,
       ),
+      ToolPanelKind.blur => _ClipBlurPanel(
+        projectId: projectId,
+        clip: clip,
+        clipStartUs: clipStartUs,
+        keyframeToleranceUs: keyframeToleranceUs(project),
+      ),
+      ToolPanelKind.mask => _ClipMaskPanel(
+        projectId: projectId,
+        clip: clip,
+        clipStartUs: clipStartUs,
+        keyframeToleranceUs: keyframeToleranceUs(project),
+      ),
       ToolPanelKind.ratio => const SizedBox.shrink(),
     };
   }
 
-  /// The active preview overlay (crop handles while Crop is open, or the
-  /// direct-manipulation transform gizmo whenever a main clip is selected),
-  /// shown only while the playhead is on that clip.
+  /// The active preview overlay (crop handles while Crop is open, mask handles
+  /// while Mask is open with an active shape, or the direct-manipulation
+  /// transform gizmo whenever a main clip is selected), shown only while the
+  /// playhead is on that clip.
   Widget? _previewOverlay(WidgetRef ref, TimelineSelection selection) {
     if (selection is! MainClipSelection) return null;
     final clips = project.mainTrack.clips;
@@ -347,21 +387,33 @@ class _Editor extends ConsumerWidget {
     final clipStartUs = project.mainTrack.startOf(index);
     final canvasRatio = project.canvas.aspect.ratio;
     final kind = ref.watch(openToolPanelProvider(projectId));
-    final overlay = kind == ToolPanelKind.crop
-        ? _ClipCropOverlay(
-            projectId: projectId,
-            clip: clip,
-            clipStartUs: clipStartUs,
-            canvasRatio: canvasRatio,
-          )
-        : _ClipTransformGizmo(
-            projectId: projectId,
-            clip: clip,
-            clipStartUs: clipStartUs,
-            canvasRatio: canvasRatio,
-            showFrame: kind == ToolPanelKind.transform,
-            keyframeToleranceUs: keyframeToleranceUs(project),
-          );
+    final Widget overlay;
+    if (kind == ToolPanelKind.crop) {
+      overlay = _ClipCropOverlay(
+        projectId: projectId,
+        clip: clip,
+        clipStartUs: clipStartUs,
+        canvasRatio: canvasRatio,
+      );
+    } else if (kind == ToolPanelKind.mask && clip.mask != null) {
+      overlay = _ClipMaskOverlay(
+        projectId: projectId,
+        clip: clip,
+        mask: clip.mask!,
+        clipStartUs: clipStartUs,
+        canvasRatio: canvasRatio,
+        keyframeToleranceUs: keyframeToleranceUs(project),
+      );
+    } else {
+      overlay = _ClipTransformGizmo(
+        projectId: projectId,
+        clip: clip,
+        clipStartUs: clipStartUs,
+        canvasRatio: canvasRatio,
+        showFrame: kind == ToolPanelKind.transform,
+        keyframeToleranceUs: keyframeToleranceUs(project),
+      );
+    }
     return _OnClipOnly(
       projectId: projectId,
       startUs: clipStartUs,
@@ -1015,6 +1067,330 @@ class _ClipAdjustPanel extends ConsumerWidget {
         ..apply(SetClipAdjustmentsCommand(clip.id, next, coalesce: false))
         ..seal(),
       onClose: ref.read(openToolPanelProvider(projectId).notifier).close,
+    );
+  }
+}
+
+/// [BlurPanel] bound to [clip]: slider drags coalesce at a captured playhead
+/// time and seal on release; presets, typed values, resets and keyframes are
+/// discrete undo steps.
+class _ClipBlurPanel extends ConsumerStatefulWidget {
+  const new({
+    required this.projectId,
+    required this.clip,
+    required this.clipStartUs,
+    required this.keyframeToleranceUs,
+  });
+
+  final String projectId;
+  final Clip clip;
+  final int clipStartUs;
+  final int keyframeToleranceUs;
+
+  @override
+  ConsumerState<_ClipBlurPanel> createState() => _ClipBlurPanelState();
+}
+
+class _ClipBlurPanelState extends ConsumerState<_ClipBlurPanel> {
+  int? _dragAtUs;
+
+  @override
+  void didUpdateWidget(_ClipBlurPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.clip.id != oldWidget.clip.id) _dragAtUs = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final clip = widget.clip;
+    final clipStartUs = widget.clipStartUs;
+    final toleranceUs = widget.keyframeToleranceUs;
+    final session = ref.read(projectSessionProvider(widget.projectId).notifier);
+    final position = playbackPositionProvider(widget.projectId);
+    int atUs() => ref.read(position) - clipStartUs;
+    void applyDiscrete(EditCommand command) {
+      session
+        ..apply(command)
+        ..seal();
+    }
+
+    final dragAtUs = _dragAtUs;
+    final snapshot = ref.watch(
+      position.select((positionUs) {
+        final at = (dragAtUs ?? positionUs - clipStartUs).clamp(
+          0,
+          clip.durationUs,
+        );
+        final near = clip.blur.keyframeNear(at, toleranceUs: toleranceUs);
+        return (
+          amount: near?.value ?? clip.blur.valueAt(at, lerpDouble),
+          activeKf: near != null,
+        );
+      }),
+    );
+
+    return BlurPanel(
+      amount: snapshot.amount,
+      animated: clip.blur.isAnimated,
+      keyframeActive: snapshot.activeKf,
+      onToggleKeyframe: () =>
+          applyDiscrete(ToggleClipBlurKeyframeCommand(clip.id, atUs: atUs())),
+      onDrag: (amount) {
+        final dragAt = _dragAtUs ??= atUs();
+        session.apply(
+          SetClipBlurCommand(clip.id, atUs: dragAt, amount: amount),
+        );
+      },
+      onDragEnd: () {
+        if (mounted) setState(() => _dragAtUs = null);
+        session.seal();
+      },
+      onSet: (amount) => applyDiscrete(
+        SetClipBlurCommand(
+          clip.id,
+          atUs: atUs(),
+          amount: amount,
+          coalesce: false,
+        ),
+      ),
+      onClose: ref.read(openToolPanelProvider(widget.projectId).notifier).close,
+    );
+  }
+}
+
+/// [MaskPanel] bound to [clip]: shape taps, invert, typed values and keyframes
+/// are discrete undo steps; slider drags coalesce at a captured playhead time.
+class _ClipMaskPanel extends ConsumerStatefulWidget {
+  const new({
+    required this.projectId,
+    required this.clip,
+    required this.clipStartUs,
+    required this.keyframeToleranceUs,
+  });
+
+  final String projectId;
+  final Clip clip;
+  final int clipStartUs;
+  final int keyframeToleranceUs;
+
+  @override
+  ConsumerState<_ClipMaskPanel> createState() => _ClipMaskPanelState();
+}
+
+class _ClipMaskPanelState extends ConsumerState<_ClipMaskPanel> {
+  int? _dragAtUs;
+
+  @override
+  void didUpdateWidget(_ClipMaskPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.clip.id != oldWidget.clip.id) _dragAtUs = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final clip = widget.clip;
+    final mask = clip.mask;
+    final clipStartUs = widget.clipStartUs;
+    final toleranceUs = widget.keyframeToleranceUs;
+    final session = ref.read(projectSessionProvider(widget.projectId).notifier);
+    final position = playbackPositionProvider(widget.projectId);
+    int atUs() => ref.read(position) - clipStartUs;
+    void applyDiscrete(EditCommand command) {
+      session
+        ..apply(command)
+        ..seal();
+    }
+
+    final dragAtUs = _dragAtUs;
+    final snapshot = mask == null
+        ? null
+        : ref.watch(
+            position.select((positionUs) {
+              final at = (dragAtUs ?? positionUs - clipStartUs).clamp(
+                0,
+                clip.durationUs,
+              );
+              return (
+                resolved: mask.editableAt(at, toleranceUs: toleranceUs),
+                centerKf: mask.hasKeyframeNear(
+                  MaskProperty.center,
+                  at,
+                  toleranceUs: toleranceUs,
+                ),
+                sizeKf: mask.hasKeyframeNear(
+                  MaskProperty.size,
+                  at,
+                  toleranceUs: toleranceUs,
+                ),
+                rotKf: mask.hasKeyframeNear(
+                  MaskProperty.rotation,
+                  at,
+                  toleranceUs: toleranceUs,
+                ),
+                featherKf: mask.hasKeyframeNear(
+                  MaskProperty.feather,
+                  at,
+                  toleranceUs: toleranceUs,
+                ),
+              );
+            }),
+          );
+
+    final animatedProperties = mask == null
+        ? const <MaskProperty>{}
+        : {
+            for (final prop in MaskProperty.values)
+              if (mask.isAnimatedProperty(prop)) prop,
+          };
+    final activeKeyframes = snapshot == null
+        ? const <MaskProperty>{}
+        : {
+            if (snapshot.centerKf) MaskProperty.center,
+            if (snapshot.sizeKf) MaskProperty.size,
+            if (snapshot.rotKf) MaskProperty.rotation,
+            if (snapshot.featherKf) MaskProperty.feather,
+          };
+
+    return MaskPanel(
+      shape: mask?.shape,
+      resolved: snapshot?.resolved,
+      invert: mask?.invert ?? false,
+      animatedProperties: animatedProperties,
+      activeKeyframes: activeKeyframes,
+      onToggleKeyframe: mask == null
+          ? null
+          : (property) => applyDiscrete(
+              ToggleClipMaskKeyframeCommand(clip.id, property, atUs: atUs()),
+            ),
+      onSelectShape: (shape) =>
+          applyDiscrete(SetClipMaskShapeCommand(clip.id, shape)),
+      onDrag: ({center, size, rotation, feather, invert}) {
+        if (clip.mask == null) return;
+        final dragAt = _dragAtUs ??= atUs();
+        session.apply(
+          SetClipMaskValuesCommand(
+            clip.id,
+            atUs: dragAt,
+            center: center,
+            size: size,
+            rotation: rotation,
+            feather: feather,
+            invert: invert,
+          ),
+        );
+      },
+      onDragEnd: () {
+        if (mounted) setState(() => _dragAtUs = null);
+        session.seal();
+      },
+      onSet: ({center, size, rotation, feather, invert}) {
+        if (clip.mask == null) return;
+        applyDiscrete(
+          SetClipMaskValuesCommand(
+            clip.id,
+            atUs: atUs(),
+            center: center,
+            size: size,
+            rotation: rotation,
+            feather: feather,
+            invert: invert,
+            coalesce: false,
+          ),
+        );
+      },
+      onClose: ref.read(openToolPanelProvider(widget.projectId).notifier).close,
+    );
+  }
+}
+
+/// [MaskOverlay] bound to [clip]'s active [mask]: drags and pinches coalesce
+/// into one undo step at a playhead time captured on gesture start.
+class _ClipMaskOverlay extends ConsumerStatefulWidget {
+  const new({
+    required this.projectId,
+    required this.clip,
+    required this.mask,
+    required this.clipStartUs,
+    required this.canvasRatio,
+    required this.keyframeToleranceUs,
+  });
+
+  final String projectId;
+  final Clip clip;
+  final ClipMask mask;
+  final int clipStartUs;
+  final double canvasRatio;
+  final int keyframeToleranceUs;
+
+  @override
+  ConsumerState<_ClipMaskOverlay> createState() => _ClipMaskOverlayState();
+}
+
+class _ClipMaskOverlayState extends ConsumerState<_ClipMaskOverlay> {
+  int? _gestureAtUs;
+
+  @override
+  void didUpdateWidget(_ClipMaskOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.clip.id != oldWidget.clip.id ||
+        widget.mask.shape != oldWidget.mask.shape) {
+      _gestureAtUs = null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final clip = widget.clip;
+    final mask = widget.mask;
+    final clipStartUs = widget.clipStartUs;
+    final session = ref.read(projectSessionProvider(widget.projectId).notifier);
+    final positionProvider = playbackPositionProvider(widget.projectId);
+    final gestureAtUs = _gestureAtUs;
+    final toleranceUs = widget.keyframeToleranceUs;
+    final snapshot = ref.watch(
+      positionProvider.select((positionUs) {
+        final at = (gestureAtUs ?? positionUs - clipStartUs).clamp(
+          0,
+          clip.durationUs,
+        );
+        return (
+          transform: clip.transform.at(at),
+          mask: mask.editableAt(at, toleranceUs: toleranceUs),
+        );
+      }),
+    );
+    final media = clip.media;
+    final sourceRatio = media.displayWidth > 0 && media.displayHeight > 0
+        ? media.displayWidth / media.displayHeight
+        : widget.canvasRatio;
+    return MaskOverlay(
+      shape: mask.shape,
+      mask: snapshot.mask,
+      invert: mask.invert,
+      clipTransform: snapshot.transform,
+      sourceRatio: sourceRatio,
+      crop: clip.crop,
+      fitMode: clip.fitMode,
+      onChangeStart: () => setState(
+        () => _gestureAtUs = ref.read(positionProvider) - clipStartUs,
+      ),
+      onChanged: ({center, size, rotation, feather}) {
+        final atUs = _gestureAtUs ??= ref.read(positionProvider) - clipStartUs;
+        session.apply(
+          SetClipMaskValuesCommand(
+            clip.id,
+            atUs: atUs,
+            center: center,
+            size: size,
+            rotation: rotation,
+            feather: feather,
+          ),
+        );
+      },
+      onChangeEnd: () {
+        if (mounted) setState(() => _gestureAtUs = null);
+        session.seal();
+      },
     );
   }
 }

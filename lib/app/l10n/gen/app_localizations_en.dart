@@ -561,4 +561,52 @@ class AppLocalizationsEn extends AppLocalizations {
   String adjustResetField(String field) {
     return 'Reset $field';
   }
+
+  @override
+  String get toolBlur => 'Blur';
+
+  @override
+  String get toolMask => 'Mask';
+
+  @override
+  String get blurStrength => 'Strength';
+
+  @override
+  String get maskNone => 'None';
+
+  @override
+  String get maskLinear => 'Linear';
+
+  @override
+  String get maskMirror => 'Mirror';
+
+  @override
+  String get maskCircle => 'Circle';
+
+  @override
+  String get maskRect => 'Rectangle';
+
+  @override
+  String get maskHeart => 'Heart';
+
+  @override
+  String get maskStar => 'Star';
+
+  @override
+  String get maskFeather => 'Feather';
+
+  @override
+  String get maskRotation => 'Rotation';
+
+  @override
+  String get maskSize => 'Size';
+
+  @override
+  String get maskInvert => 'Invert';
+
+  @override
+  String get maskPosition => 'Position';
+
+  @override
+  String get maskOverlayLabel => 'Mask handles';
 }

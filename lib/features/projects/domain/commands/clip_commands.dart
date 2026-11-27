@@ -6,6 +6,7 @@ import 'dart:math' as math;
 
 import 'package:cleancut/features/projects/domain/history/edit_command.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart';
+import 'package:cleancut/features/projects/domain/model/keyframe.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/model/retiming.dart';
@@ -26,14 +27,15 @@ Project _withClips(Project project, List<Clip> clips) =>
 /// Re-times [clip]'s keyframes after its timeline length changed from
 /// [clip]'s to [updated]'s (speed or curve change), so they stay on the
 /// same frames.
-Clip _retimed(Clip clip, Clip updated) =>
-    clip.durationUs <= 0 || updated.durationUs <= 0
-    ? updated
-    : updated.copyWith(
-        transform: clip.transform.scaledInTime(
-          updated.durationUs / clip.durationUs,
-        ),
-      );
+Clip _retimed(Clip clip, Clip updated) {
+  if (clip.durationUs <= 0 || updated.durationUs <= 0) return updated;
+  final factor = updated.durationUs / clip.durationUs;
+  return updated.copyWith(
+    transform: clip.transform.scaledInTime(factor),
+    blur: scaleKeyframes(clip.blur, factor),
+    mask: clip.mask?.scaledInTime(factor),
+  );
+}
 
 /// Sets the used source range `[sourceInUs, sourceOutUs)` of clip [clipId].
 ///
@@ -84,6 +86,8 @@ final class TrimClipCommand extends EditCommand {
       sourceInUs: sourceInUs,
       sourceOutUs: sourceOutUs,
       transform: clip.transform.shifted(shift),
+      blur: shiftKeyframes(clip.blur, shift, lerpDouble),
+      mask: clip.mask?.shifted(shift),
     );
     return _withClips(project, updated);
   }
@@ -156,12 +160,16 @@ final class SplitClipCommand extends EditCommand {
       sourceOutUs: cut,
       speedCurve: halves?.$1,
       transform: clip.transform.clipped(offset),
+      blur: clipKeyframes(clip.blur, offset, lerpDouble),
+      mask: clip.mask?.clipped(offset),
     );
     final second = clip.copyWith(
       id: newId(),
       sourceInUs: cut,
       speedCurve: halves?.$2,
       transform: clip.transform.shifted(-offset),
+      blur: shiftKeyframes(clip.blur, -offset, lerpDouble),
+      mask: clip.mask?.shifted(-offset),
     );
     final updated = [...project.mainTrack.clips]
       ..replaceRange(index, index + 1, [first, second]);

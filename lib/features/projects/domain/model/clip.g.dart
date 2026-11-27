@@ -33,6 +33,14 @@ _Clip _$ClipFromJson(Map<String, dynamic> json) => _Clip(
   adjustments: json['adjustments'] == null
       ? ClipAdjustments.none
       : ClipAdjustments.fromJson(json['adjustments'] as Map<String, dynamic>),
+  blur: json['blur'] == null
+      ? const Animatable<double>.constant(0)
+      : const AnimatableDoubleConverter().fromJson(
+          json['blur'] as Map<String, dynamic>,
+        ),
+  mask: json['mask'] == null
+      ? null
+      : ClipMask.fromJson(json['mask'] as Map<String, dynamic>),
   volume: (json['volume'] as num?)?.toDouble() ?? 1.0,
   muted: json['muted'] as bool? ?? false,
 );
@@ -51,6 +59,8 @@ Map<String, dynamic> _$ClipToJson(_Clip instance) => <String, dynamic>{
   'border': instance.border.toJson(),
   'filter': instance.filter?.toJson(),
   'adjustments': instance.adjustments.toJson(),
+  'blur': const AnimatableDoubleConverter().toJson(instance.blur),
+  'mask': instance.mask?.toJson(),
   'volume': instance.volume,
   'muted': instance.muted,
 };

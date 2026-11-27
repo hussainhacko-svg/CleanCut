@@ -50,6 +50,12 @@ enum DockTool {
   /// Adjustments.
   adjust(AppIcons.toolAdjust),
 
+  /// Whole-clip blur.
+  blur(AppIcons.toolBlur),
+
+  /// Shape mask.
+  mask(AppIcons.toolMask),
+
   /// Speed.
   speed(AppIcons.toolSpeed),
 
@@ -86,6 +92,8 @@ enum DockTool {
     crop => l10n.toolCrop,
     transform => l10n.toolTransform,
     adjust => l10n.toolAdjust,
+    blur => l10n.toolBlur,
+    mask => l10n.toolMask,
     speed => l10n.toolSpeed,
     animation => l10n.toolAnimation,
     volume => l10n.toolVolume,
@@ -113,6 +121,8 @@ List<DockTool> dockToolsFor(TimelineSelection selection) => switch (selection) {
     DockTool.crop,
     DockTool.transform,
     DockTool.adjust,
+    DockTool.blur,
+    DockTool.mask,
     DockTool.speed,
     DockTool.animation,
     DockTool.volume,

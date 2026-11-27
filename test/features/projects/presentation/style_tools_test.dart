@@ -500,6 +500,28 @@ void main() {
     expect(env.engine.seeks.last, 2 * s);
   });
 
+  testWidgets('opening Crop or Mask at the very end keeps the playhead there', (
+    tester,
+  ) async {
+    await pumpEditor(tester);
+    await tester.tap(find.byType(MainClipView).at(1));
+    await tester.pump();
+    env.engine.emitPosition(5 * s);
+    await tester.pump();
+    final seeksBefore = env.engine.seeks.length;
+    await tester.tap(find.byTooltip('Crop'));
+    await tester.pump();
+    expect(env.engine.seeks.length, seeksBefore);
+
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pump();
+    await tester.ensureVisible(find.byTooltip('Mask'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Mask'));
+    await tester.pump();
+    expect(env.engine.seeks.length, seeksBefore);
+  });
+
   testWidgets('full screen during Crop shows the clip cropped, and the crop '
       'handles get the uncropped frame back on return', (tester) async {
     await openCrop(tester);

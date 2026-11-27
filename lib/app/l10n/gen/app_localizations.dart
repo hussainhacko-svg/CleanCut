@@ -1077,6 +1077,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reset {field}'**
   String adjustResetField(String field);
+
+  /// No description provided for @toolBlur.
+  ///
+  /// In en, this message translates to:
+  /// **'Blur'**
+  String get toolBlur;
+
+  /// No description provided for @toolMask.
+  ///
+  /// In en, this message translates to:
+  /// **'Mask'**
+  String get toolMask;
+
+  /// No description provided for @blurStrength.
+  ///
+  /// In en, this message translates to:
+  /// **'Strength'**
+  String get blurStrength;
+
+  /// No description provided for @maskNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get maskNone;
+
+  /// No description provided for @maskLinear.
+  ///
+  /// In en, this message translates to:
+  /// **'Linear'**
+  String get maskLinear;
+
+  /// No description provided for @maskMirror.
+  ///
+  /// In en, this message translates to:
+  /// **'Mirror'**
+  String get maskMirror;
+
+  /// No description provided for @maskCircle.
+  ///
+  /// In en, this message translates to:
+  /// **'Circle'**
+  String get maskCircle;
+
+  /// No description provided for @maskRect.
+  ///
+  /// In en, this message translates to:
+  /// **'Rectangle'**
+  String get maskRect;
+
+  /// No description provided for @maskHeart.
+  ///
+  /// In en, this message translates to:
+  /// **'Heart'**
+  String get maskHeart;
+
+  /// No description provided for @maskStar.
+  ///
+  /// In en, this message translates to:
+  /// **'Star'**
+  String get maskStar;
+
+  /// No description provided for @maskFeather.
+  ///
+  /// In en, this message translates to:
+  /// **'Feather'**
+  String get maskFeather;
+
+  /// No description provided for @maskRotation.
+  ///
+  /// In en, this message translates to:
+  /// **'Rotation'**
+  String get maskRotation;
+
+  /// No description provided for @maskSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get maskSize;
+
+  /// No description provided for @maskInvert.
+  ///
+  /// In en, this message translates to:
+  /// **'Invert'**
+  String get maskInvert;
+
+  /// No description provided for @maskPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Position'**
+  String get maskPosition;
+
+  /// No description provided for @maskOverlayLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Mask handles'**
+  String get maskOverlayLabel;
 }
 
 class _AppLocalizationsDelegate

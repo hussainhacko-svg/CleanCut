@@ -1,4 +1,6 @@
+import 'package:cleancut/features/projects/domain/model/animatable.dart';
 import 'package:cleancut/features/projects/domain/model/clip_color.dart';
+import 'package:cleancut/features/projects/domain/model/clip_effects.dart';
 import 'package:cleancut/features/projects/domain/model/clip_style.dart';
 import 'package:cleancut/features/projects/domain/model/clip_transform.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
@@ -46,6 +48,10 @@ abstract class Clip with _$Clip {
     @Default(ClipBorder()) ClipBorder border,
     ClipFilter? filter,
     @Default(ClipAdjustments.none) ClipAdjustments adjustments,
+    @AnimatableDoubleConverter()
+    @Default(Animatable<double>.constant(0))
+    Animatable<double> blur,
+    ClipMask? mask,
     @Default(1.0) double volume,
     @Default(false) bool muted,
   }) = _Clip;
@@ -113,6 +119,14 @@ abstract class Clip with _$Clip {
           .round(),
   };
 
+  /// Sorted, distinct times of every keyframe on this clip (transform, blur,
+  /// and mask), for timeline markers.
+  List<int> get keyframeTimes => {
+    ...transform.keyframeTimes,
+    ...blur.keyframeTimes,
+    ...?mask?.keyframeTimes,
+  }.toList()..sort();
+
   /// Broken invariants, empty when the clip is valid.
   List<String> validate() => [
     if (sourceInUs < 0) 'sourceInUs < 0',
@@ -129,6 +143,13 @@ abstract class Clip with _$Clip {
       for (final problem in f.validate()) 'filter: $problem',
     ],
     for (final problem in adjustments.validate()) 'adjustments: $problem',
+    if (blur.allValues.any(
+      (b) => !(b.isFinite && b >= BlurLimits.min && b <= BlurLimits.max),
+    ))
+      'blur out of range',
+    if (mask case final m?) ...[
+      for (final problem in m.validate()) 'mask: $problem',
+    ],
     for (final problem in transform.validate()) 'transform: $problem',
     if (volume < 0) 'volume < 0',
     if (media.kind == MediaKind.audio) 'audio media in a visual clip',

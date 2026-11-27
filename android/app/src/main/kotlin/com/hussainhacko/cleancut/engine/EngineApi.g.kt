@@ -230,6 +230,24 @@ enum class SpecFitMode(val raw: Int) {
   }
 }
 
+/** Geometric shape of a clip mask (Phase 6B). */
+enum class SpecMaskShape(val raw: Int) {
+  LINEAR(0),
+  MIRROR(1),
+  CIRCLE(2),
+  RECT(3),
+  HEART(4),
+  STAR(5);
+
+  companion object {
+    private val pigeonValues = values()
+
+    fun ofRaw(raw: Int): SpecMaskShape? {
+      return pigeonValues.getOrNull(raw)
+    }
+  }
+}
+
 /** What fills the canvas behind the clips. */
 enum class SpecBackgroundKind(val raw: Int) {
   COLOR(0),
@@ -309,10 +327,10 @@ data class SpeedStepSpec (
 }
 
 /**
- * A clip's placement at clip-relative timeline time [timeUs]; the engine
- * interpolates linearly between samples. Positions are canvas-normalized
- * center offsets (x = 1 is the right edge, y = 1 the bottom edge),
- * [rotation] is clockwise degrees.
+ * A clip's placement and whole-clip blur at clip-relative timeline time
+ * [timeUs]; the engine interpolates linearly between samples. Positions are
+ * canvas-normalized center offsets (x = 1 is the right edge, y = 1 the bottom
+ * edge), [rotation] is clockwise degrees, [blur] is in `0..1`.
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
@@ -322,7 +340,8 @@ data class TransformSampleSpec (
   val y: Double,
   val scale: Double,
   val rotation: Double,
-  val opacity: Double
+  val opacity: Double,
+  val blur: Double
 )
  {
   companion object {
@@ -333,7 +352,8 @@ data class TransformSampleSpec (
       val scale = pigeonVar_list[3] as Double
       val rotation = pigeonVar_list[4] as Double
       val opacity = pigeonVar_list[5] as Double
-      return TransformSampleSpec(timeUs, x, y, scale, rotation, opacity)
+      val blur = pigeonVar_list[6] as Double
+      return TransformSampleSpec(timeUs, x, y, scale, rotation, opacity, blur)
     }
   }
   fun toList(): List<Any?> {
@@ -344,6 +364,7 @@ data class TransformSampleSpec (
       scale,
       rotation,
       opacity,
+      blur,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -354,7 +375,7 @@ data class TransformSampleSpec (
       return true
     }
     val other = other as TransformSampleSpec
-    return EngineApiPigeonUtils.deepEquals(this.timeUs, other.timeUs) && EngineApiPigeonUtils.deepEquals(this.x, other.x) && EngineApiPigeonUtils.deepEquals(this.y, other.y) && EngineApiPigeonUtils.deepEquals(this.scale, other.scale) && EngineApiPigeonUtils.deepEquals(this.rotation, other.rotation) && EngineApiPigeonUtils.deepEquals(this.opacity, other.opacity)
+    return EngineApiPigeonUtils.deepEquals(this.timeUs, other.timeUs) && EngineApiPigeonUtils.deepEquals(this.x, other.x) && EngineApiPigeonUtils.deepEquals(this.y, other.y) && EngineApiPigeonUtils.deepEquals(this.scale, other.scale) && EngineApiPigeonUtils.deepEquals(this.rotation, other.rotation) && EngineApiPigeonUtils.deepEquals(this.opacity, other.opacity) && EngineApiPigeonUtils.deepEquals(this.blur, other.blur)
   }
 
   override fun hashCode(): Int {
@@ -365,10 +386,131 @@ data class TransformSampleSpec (
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.scale)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.rotation)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.opacity)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.blur)
     return result
   }
   override fun toString(): String {
-    return "TransformSampleSpec(timeUs=$timeUs, x=$x, y=$y, scale=$scale, rotation=$rotation, opacity=$opacity)"
+    return "TransformSampleSpec(timeUs=$timeUs, x=$x, y=$y, scale=$scale, rotation=$rotation, opacity=$opacity, blur=$blur)"
+  }
+}
+
+/**
+ * A clip mask's geometry at clip-relative timeline time [timeUs]; the engine
+ * interpolates linearly between samples.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class MaskSampleSpec (
+  val timeUs: Long,
+  /** Normalized center offset relative to the clip's half-extents. */
+  val centerX: Double,
+  val centerY: Double,
+  /** Half-extents as multiples of the clip's shorter half-side. */
+  val sizeX: Double,
+  val sizeY: Double,
+  /** Clockwise degrees in clip space. */
+  val rotation: Double,
+  /** Softness in `0..1` (fraction of the clip's shorter half-side). */
+  val feather: Double
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): MaskSampleSpec {
+      val timeUs = pigeonVar_list[0] as Long
+      val centerX = pigeonVar_list[1] as Double
+      val centerY = pigeonVar_list[2] as Double
+      val sizeX = pigeonVar_list[3] as Double
+      val sizeY = pigeonVar_list[4] as Double
+      val rotation = pigeonVar_list[5] as Double
+      val feather = pigeonVar_list[6] as Double
+      return MaskSampleSpec(timeUs, centerX, centerY, sizeX, sizeY, rotation, feather)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      timeUs,
+      centerX,
+      centerY,
+      sizeX,
+      sizeY,
+      rotation,
+      feather,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as MaskSampleSpec
+    return EngineApiPigeonUtils.deepEquals(this.timeUs, other.timeUs) && EngineApiPigeonUtils.deepEquals(this.centerX, other.centerX) && EngineApiPigeonUtils.deepEquals(this.centerY, other.centerY) && EngineApiPigeonUtils.deepEquals(this.sizeX, other.sizeX) && EngineApiPigeonUtils.deepEquals(this.sizeY, other.sizeY) && EngineApiPigeonUtils.deepEquals(this.rotation, other.rotation) && EngineApiPigeonUtils.deepEquals(this.feather, other.feather)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.timeUs)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.centerX)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.centerY)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.sizeX)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.sizeY)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.rotation)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.feather)
+    return result
+  }
+  override fun toString(): String {
+    return "MaskSampleSpec(timeUs=$timeUs, centerX=$centerX, centerY=$centerY, sizeX=$sizeX, sizeY=$sizeY, rotation=$rotation, feather=$feather)"
+  }
+}
+
+/**
+ * Shape mask applied to a clip (Phase 6B).
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class MaskSpec (
+  val shape: SpecMaskShape,
+  val invert: Boolean,
+  /** At least one sample; one sample means a constant mask. */
+  val samples: List<MaskSampleSpec>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): MaskSpec {
+      val shape = pigeonVar_list[0] as SpecMaskShape
+      val invert = pigeonVar_list[1] as Boolean
+      val samples = pigeonVar_list[2] as List<MaskSampleSpec>
+      return MaskSpec(shape, invert, samples)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      shape,
+      invert,
+      samples,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as MaskSpec
+    return EngineApiPigeonUtils.deepEquals(this.shape, other.shape) && EngineApiPigeonUtils.deepEquals(this.invert, other.invert) && EngineApiPigeonUtils.deepEquals(this.samples, other.samples)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.shape)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.invert)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.samples)
+    return result
+  }
+  override fun toString(): String {
+    return "MaskSpec(shape=$shape, invert=$invert, samples=$samples)"
   }
 }
 
@@ -476,7 +618,9 @@ data class ClipStyleSpec (
   /** Blend strength of [filterId] in `0..1`. */
   val filterIntensity: Double,
   /** Per-clip color and tone adjustments. */
-  val adjustments: ColorAdjustmentsSpec
+  val adjustments: ColorAdjustmentsSpec,
+  /** Optional shape mask (null = unmasked). */
+  val mask: MaskSpec? = null
 )
  {
   companion object {
@@ -495,7 +639,8 @@ data class ClipStyleSpec (
       val filterId = pigeonVar_list[11] as String?
       val filterIntensity = pigeonVar_list[12] as Double
       val adjustments = pigeonVar_list[13] as ColorAdjustmentsSpec
-      return ClipStyleSpec(fitMode, cropLeft, cropTop, cropRight, cropBottom, flipX, flipY, transform, borderWidth, borderArgb, borderRadius, filterId, filterIntensity, adjustments)
+      val mask = pigeonVar_list[14] as MaskSpec?
+      return ClipStyleSpec(fitMode, cropLeft, cropTop, cropRight, cropBottom, flipX, flipY, transform, borderWidth, borderArgb, borderRadius, filterId, filterIntensity, adjustments, mask)
     }
   }
   fun toList(): List<Any?> {
@@ -514,6 +659,7 @@ data class ClipStyleSpec (
       filterId,
       filterIntensity,
       adjustments,
+      mask,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -524,7 +670,7 @@ data class ClipStyleSpec (
       return true
     }
     val other = other as ClipStyleSpec
-    return EngineApiPigeonUtils.deepEquals(this.fitMode, other.fitMode) && EngineApiPigeonUtils.deepEquals(this.cropLeft, other.cropLeft) && EngineApiPigeonUtils.deepEquals(this.cropTop, other.cropTop) && EngineApiPigeonUtils.deepEquals(this.cropRight, other.cropRight) && EngineApiPigeonUtils.deepEquals(this.cropBottom, other.cropBottom) && EngineApiPigeonUtils.deepEquals(this.flipX, other.flipX) && EngineApiPigeonUtils.deepEquals(this.flipY, other.flipY) && EngineApiPigeonUtils.deepEquals(this.transform, other.transform) && EngineApiPigeonUtils.deepEquals(this.borderWidth, other.borderWidth) && EngineApiPigeonUtils.deepEquals(this.borderArgb, other.borderArgb) && EngineApiPigeonUtils.deepEquals(this.borderRadius, other.borderRadius) && EngineApiPigeonUtils.deepEquals(this.filterId, other.filterId) && EngineApiPigeonUtils.deepEquals(this.filterIntensity, other.filterIntensity) && EngineApiPigeonUtils.deepEquals(this.adjustments, other.adjustments)
+    return EngineApiPigeonUtils.deepEquals(this.fitMode, other.fitMode) && EngineApiPigeonUtils.deepEquals(this.cropLeft, other.cropLeft) && EngineApiPigeonUtils.deepEquals(this.cropTop, other.cropTop) && EngineApiPigeonUtils.deepEquals(this.cropRight, other.cropRight) && EngineApiPigeonUtils.deepEquals(this.cropBottom, other.cropBottom) && EngineApiPigeonUtils.deepEquals(this.flipX, other.flipX) && EngineApiPigeonUtils.deepEquals(this.flipY, other.flipY) && EngineApiPigeonUtils.deepEquals(this.transform, other.transform) && EngineApiPigeonUtils.deepEquals(this.borderWidth, other.borderWidth) && EngineApiPigeonUtils.deepEquals(this.borderArgb, other.borderArgb) && EngineApiPigeonUtils.deepEquals(this.borderRadius, other.borderRadius) && EngineApiPigeonUtils.deepEquals(this.filterId, other.filterId) && EngineApiPigeonUtils.deepEquals(this.filterIntensity, other.filterIntensity) && EngineApiPigeonUtils.deepEquals(this.adjustments, other.adjustments) && EngineApiPigeonUtils.deepEquals(this.mask, other.mask)
   }
 
   override fun hashCode(): Int {
@@ -543,10 +689,11 @@ data class ClipStyleSpec (
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.filterId)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.filterIntensity)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.adjustments)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.mask)
     return result
   }
   override fun toString(): String {
-    return "ClipStyleSpec(fitMode=$fitMode, cropLeft=$cropLeft, cropTop=$cropTop, cropRight=$cropRight, cropBottom=$cropBottom, flipX=$flipX, flipY=$flipY, transform=$transform, borderWidth=$borderWidth, borderArgb=$borderArgb, borderRadius=$borderRadius, filterId=$filterId, filterIntensity=$filterIntensity, adjustments=$adjustments)"
+    return "ClipStyleSpec(fitMode=$fitMode, cropLeft=$cropLeft, cropTop=$cropTop, cropRight=$cropRight, cropBottom=$cropBottom, flipX=$flipX, flipY=$flipY, transform=$transform, borderWidth=$borderWidth, borderArgb=$borderArgb, borderRadius=$borderRadius, filterId=$filterId, filterIntensity=$filterIntensity, adjustments=$adjustments, mask=$mask)"
   }
 }
 
@@ -883,55 +1030,70 @@ private open class EngineApiPigeonCodec : StandardMessageCodec() {
       }
       131.toByte() -> {
         (readValue(buffer) as Long?)?.let {
-          SpecBackgroundKind.ofRaw(it.toInt())
+          SpecMaskShape.ofRaw(it.toInt())
         }
       }
       132.toByte() -> {
         (readValue(buffer) as Long?)?.let {
-          PlaybackStatus.ofRaw(it.toInt())
+          SpecBackgroundKind.ofRaw(it.toInt())
         }
       }
       133.toByte() -> {
-        (readValue(buffer) as? List<Any?>)?.let {
-          SpeedStepSpec.fromList(it)
+        (readValue(buffer) as Long?)?.let {
+          PlaybackStatus.ofRaw(it.toInt())
         }
       }
       134.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          TransformSampleSpec.fromList(it)
+          SpeedStepSpec.fromList(it)
         }
       }
       135.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          ColorAdjustmentsSpec.fromList(it)
+          TransformSampleSpec.fromList(it)
         }
       }
       136.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          ClipStyleSpec.fromList(it)
+          MaskSampleSpec.fromList(it)
         }
       }
       137.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          BackgroundSpec.fromList(it)
+          MaskSpec.fromList(it)
         }
       }
       138.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          ClipSpec.fromList(it)
+          ColorAdjustmentsSpec.fromList(it)
         }
       }
       139.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          CompositionSpec.fromList(it)
+          ClipStyleSpec.fromList(it)
         }
       }
       140.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          PlayerStateEvent.fromList(it)
+          BackgroundSpec.fromList(it)
         }
       }
       141.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          ClipSpec.fromList(it)
+        }
+      }
+      142.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          CompositionSpec.fromList(it)
+        }
+      }
+      143.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          PlayerStateEvent.fromList(it)
+        }
+      }
+      144.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
           WaveformData.fromList(it)
         }
@@ -949,48 +1111,60 @@ private open class EngineApiPigeonCodec : StandardMessageCodec() {
         stream.write(130)
         writeValue(stream, value.raw.toLong())
       }
-      is SpecBackgroundKind -> {
+      is SpecMaskShape -> {
         stream.write(131)
         writeValue(stream, value.raw.toLong())
       }
-      is PlaybackStatus -> {
+      is SpecBackgroundKind -> {
         stream.write(132)
         writeValue(stream, value.raw.toLong())
       }
-      is SpeedStepSpec -> {
+      is PlaybackStatus -> {
         stream.write(133)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is TransformSampleSpec -> {
+      is SpeedStepSpec -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is ColorAdjustmentsSpec -> {
+      is TransformSampleSpec -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is ClipStyleSpec -> {
+      is MaskSampleSpec -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is BackgroundSpec -> {
+      is MaskSpec -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is ClipSpec -> {
+      is ColorAdjustmentsSpec -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is CompositionSpec -> {
+      is ClipStyleSpec -> {
         stream.write(139)
         writeValue(stream, value.toList())
       }
-      is PlayerStateEvent -> {
+      is BackgroundSpec -> {
         stream.write(140)
         writeValue(stream, value.toList())
       }
-      is WaveformData -> {
+      is ClipSpec -> {
         stream.write(141)
+        writeValue(stream, value.toList())
+      }
+      is CompositionSpec -> {
+        stream.write(142)
+        writeValue(stream, value.toList())
+      }
+      is PlayerStateEvent -> {
+        stream.write(143)
+        writeValue(stream, value.toList())
+      }
+      is WaveformData -> {
+        stream.write(144)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)

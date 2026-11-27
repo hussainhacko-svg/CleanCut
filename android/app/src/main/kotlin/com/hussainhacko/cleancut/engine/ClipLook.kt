@@ -3,9 +3,13 @@ package com.hussainhacko.cleancut.engine
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
+import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * Pure-Kotlin description of how a clip and the canvas background look (Phase 5).
@@ -16,7 +20,7 @@ import kotlin.math.sin
 /** How a clip is sized into the canvas before its transform. */
 enum class FitMode { FIT, FILL, STRETCH }
 
-/** A clip's placement at clip-relative timeline time [timeUs]. */
+/** A clip's placement and whole-clip blur at clip-relative timeline time [timeUs]. */
 data class TransformSample(
     val timeUs: Long,
     val x: Double = 0.0,
@@ -24,6 +28,7 @@ data class TransformSample(
     val scale: Double = 1.0,
     val rotation: Double = 0.0,
     val opacity: Double = 1.0,
+    val blur: Double = 0.0,
 ) {
     /** Linear blend towards [other] by [t] in [0, 1]. */
     fun lerp(other: TransformSample, t: Double, timeUs: Long) = TransformSample(
@@ -33,12 +38,185 @@ data class TransformSample(
         scale = scale + (other.scale - scale) * t,
         rotation = rotation + (other.rotation - rotation) * t,
         opacity = opacity + (other.opacity - opacity) * t,
+        blur = blur + (other.blur - blur) * t,
     )
 
     companion object {
         val IDENTITY = TransformSample(0)
     }
 }
+
+/** Geometric shape of a clip mask (Phase 6B). */
+enum class MaskShape(val shaderKind: Int) {
+    LINEAR(1),
+    MIRROR(2),
+    CIRCLE(3),
+    RECT(4),
+    HEART(5),
+    STAR(6),
+}
+
+/** A clip mask's geometry at clip-relative timeline time [timeUs]. */
+data class MaskSample(
+    val timeUs: Long,
+    val centerX: Double = 0.0,
+    val centerY: Double = 0.0,
+    val sizeX: Double = 0.7,
+    val sizeY: Double = 0.7,
+    val rotation: Double = 0.0,
+    val feather: Double = 0.0,
+) {
+    /** Linear blend towards [other] by [t] in [0, 1]. */
+    fun lerp(other: MaskSample, t: Double, timeUs: Long) = MaskSample(
+        timeUs = timeUs,
+        centerX = centerX + (other.centerX - centerX) * t,
+        centerY = centerY + (other.centerY - centerY) * t,
+        sizeX = sizeX + (other.sizeX - sizeX) * t,
+        sizeY = sizeY + (other.sizeY - sizeY) * t,
+        rotation = rotation + (other.rotation - rotation) * t,
+        feather = feather + (other.feather - feather) * t,
+    )
+
+    companion object {
+        val DEFAULT = MaskSample(0)
+    }
+}
+
+/** Shape mask applied to a clip (Phase 6B). */
+data class ClipMaskStyle(
+    val shape: MaskShape,
+    val invert: Boolean = false,
+    /** Sorted by time, never empty; one sample = constant. */
+    val samples: List<MaskSample> = listOf(MaskSample.DEFAULT),
+) {
+    /** The mask parameters at clip-relative [timeUs], linearly interpolated between samples. */
+    fun sampleAt(timeUs: Long): MaskSample {
+        val first = samples.first()
+        if (samples.size == 1 || timeUs <= first.timeUs) return first
+        val last = samples.last()
+        if (timeUs >= last.timeUs) return last
+        var lo = 0
+        var hi = samples.size - 1
+        while (hi - lo > 1) {
+            val mid = (lo + hi) ushr 1
+            if (samples[mid].timeUs <= timeUs) lo = mid else hi = mid
+        }
+        val a = samples[lo]
+        val b = samples[hi]
+        val t = (timeUs - a.timeUs).toDouble() / (b.timeUs - a.timeUs)
+        return a.lerp(b, t, timeUs)
+    }
+
+    companion object {
+        fun of(spec: MaskSpec?): ClipMaskStyle? {
+            if (spec == null) return null
+            val shape = when (spec.shape) {
+                SpecMaskShape.LINEAR -> MaskShape.LINEAR
+                SpecMaskShape.MIRROR -> MaskShape.MIRROR
+                SpecMaskShape.CIRCLE -> MaskShape.CIRCLE
+                SpecMaskShape.RECT -> MaskShape.RECT
+                SpecMaskShape.HEART -> MaskShape.HEART
+                SpecMaskShape.STAR -> MaskShape.STAR
+            }
+            val samples = spec.samples
+                .map {
+                    MaskSample(
+                        timeUs = it.timeUs,
+                        centerX = finite(it.centerX, 0.0).coerceIn(-1.5, 1.5),
+                        centerY = finite(it.centerY, 0.0).coerceIn(-1.5, 1.5),
+                        sizeX = finite(it.sizeX, 0.7).coerceIn(0.05, 4.0),
+                        sizeY = finite(it.sizeY, 0.7).coerceIn(0.05, 4.0),
+                        rotation = finite(it.rotation, 0.0),
+                        feather = finite(it.feather, 0.0).coerceIn(0.0, 1.0),
+                    )
+                }
+                .sortedBy { it.timeUs }
+                .distinctBy { it.timeUs }
+                .ifEmpty { listOf(MaskSample.DEFAULT) }
+            return ClipMaskStyle(shape = shape, invert = spec.invert, samples = samples)
+        }
+
+        /**
+         * Signed distance in pixels (`< 0` inside, `> 0` outside) matching `maskSdf` in
+         * [ClipRenderEffect], so mask geometry can be unit-tested on the JVM.
+         */
+        fun sdf(shape: MaskShape, px: Double, py: Double, rx: Double, ry: Double): Double {
+            val sx = max(rx, 1.0)
+            val sy = max(ry, 1.0)
+            return when (shape) {
+                MaskShape.LINEAR -> py
+                MaskShape.MIRROR -> abs(py) - sy
+                MaskShape.CIRCLE -> {
+                    val qx = px / sx
+                    val qy = py / sy
+                    val k0 = hypot(qx, qy)
+                    if (k0 < 1e-5) -min(sx, sy)
+                    else {
+                        val k1 = hypot(qx / sx, qy / sy)
+                        k0 * (k0 - 1.0) / max(k1, 1e-5)
+                    }
+                }
+                MaskShape.RECT -> {
+                    val qx = abs(px) - sx
+                    val qy = abs(py) - sy
+                    hypot(max(qx, 0.0), max(qy, 0.0)) + min(max(qx, qy), 0.0)
+                }
+                MaskShape.HEART -> {
+                    // Matches GLSL IQ sdHeart mapped to [-sx, sx] x [-sy, sy] (y down).
+                    val qx = abs(px / sx) * 0.60355339
+                    val qy = (-py / sy) * 0.55177670 + 0.55177670
+                    val raw = if (qy + qx > 1.0) {
+                        hypot(qx - 0.25, qy - 0.75) - sqrt(2.0) / 4.0
+                    } else {
+                        val d1 = qx * qx + (qy - 1.0) * (qy - 1.0)
+                        val m = 0.5 * max(qx + qy, 0.0)
+                        val d2 = (qx - m) * (qx - m) + (qy - m) * (qy - m)
+                        val sgn = if (qx >= qy) 1.0 else -1.0
+                        sqrt(min(d1, d2)) * sgn
+                    }
+                    raw * min(sx / 0.60355339, sy / 0.55177670)
+                }
+                MaskShape.STAR -> {
+                    // Matches GLSL IQ sdStar5 (outer radius 1.0, inner rf = 0.45, top point up).
+                    var x = abs(px / sx)
+                    var y = -py / sy
+                    val k1x = 0.809016994375
+                    val k1y = -0.587785252292
+                    val k2x = -0.809016994375
+                    val k2y = -0.587785252292
+                    val d1 = max(k1x * x + k1y * y, 0.0)
+                    x -= 2.0 * d1 * k1x
+                    y -= 2.0 * d1 * k1y
+                    val d2 = max(k2x * x + k2y * y, 0.0)
+                    x -= 2.0 * d2 * k2x
+                    y -= 2.0 * d2 * k2y
+                    x = abs(x)
+                    y -= 1.0
+                    val bax = 0.45 * 0.587785252292
+                    val bay = 0.45 * 0.809016994375 - 1.0
+                    val h = ((x * bax + y * bay) / (bax * bax + bay * bay)).coerceIn(0.0, 1.0)
+                    val cross = y * bax - x * bay
+                    val raw = hypot(x - bax * h, y - bay * h) * (if (cross >= 0.0) 1.0 else -1.0)
+                    raw * min(sx, sy)
+                }
+            }
+        }
+
+        /** Mask alpha in `[0, 1]` from signed pixel distance [sd], matching `FRAGMENT_MAIN`. */
+        fun alpha(sd: Double, featherPx: Double, invert: Boolean): Double {
+            val halfF = max(0.5, featherPx * 0.5)
+            val t = ((sd + halfF) / (2.0 * halfF)).coerceIn(0.0, 1.0)
+            val smooth = t * t * (3.0 - 2.0 * t)
+            val a = 1.0 - smooth
+            return if (invert) 1.0 - a else a
+        }
+
+        private fun finite(v: Double, fallback: Double) = if (v.isFinite()) v else fallback
+    }
+}
+
+/** Offscreen target size and Gaussian step (in target texels) for whole-clip blur. */
+data class ClipBlurPlan(val width: Int, val height: Int, val spread: Double)
 
 /** Crop in normalized displayed-frame coordinates, y down. */
 data class CropBox(val left: Double = 0.0, val top: Double = 0.0, val right: Double = 1.0, val bottom: Double = 1.0) {
@@ -115,6 +293,8 @@ data class ClipStyle(
     val filterIntensity: Double = 0.0,
     /** Color and tone adjustments. */
     val adjustments: ColorAdjustments = ColorAdjustments.DEFAULT,
+    /** Optional shape mask (null = unmasked). */
+    val mask: ClipMaskStyle? = null,
 ) {
     /** The transform at clip-relative [timeUs], interpolated linearly between samples. */
     fun transformAt(timeUs: Long): TransformSample {
@@ -156,6 +336,7 @@ data class ClipStyle(
                         scale = finite(it.scale, 1.0).coerceIn(0.01, 100.0),
                         rotation = finite(it.rotation, 0.0),
                         opacity = finite(it.opacity, 1.0).coerceIn(0.0, 1.0),
+                        blur = finite(it.blur, 0.0).coerceIn(0.0, 1.0),
                     )
                 }
                 .sortedBy { it.timeUs }
@@ -181,7 +362,44 @@ data class ClipStyle(
                     finite(spec.filterIntensity, 0.0).coerceIn(0.0, 1.0)
                 },
                 adjustments = ColorAdjustments.of(spec.adjustments),
+                mask = ClipMaskStyle.of(spec.mask),
             )
+        }
+
+        /** Number of size steps between the sharpest and the softest whole-clip blur target. */
+        const val CLIP_BLUR_LEVELS = 16
+
+        private const val CLIP_BLUR_MAX_SHORT = 360.0
+        private const val CLIP_BLUR_MIN_SHORT = 32.0
+
+        /**
+         * Offscreen target and Gaussian spread for whole-clip blur at [blur] in `[0, 1]`.
+         *
+         * The blur radius, as a fraction of the clip's short side, is
+         * `(0.6 + 1.2 b) / S(b)` with `S` shrinking exponentially from 360 to 32: it grows
+         * smoothly and doesn't depend on the source resolution. The target only takes
+         * [CLIP_BLUR_LEVELS] + 1 sizes (so dragging or animating blur doesn't reallocate GL
+         * targets every frame), never larger than the crop; [ClipBlurPlan.spread] makes up the
+         * difference between that size and `S`.
+         */
+        fun clipBlurPlan(cropWidth: Double, cropHeight: Double, blur: Double): ClipBlurPlan {
+            val cw = max(1.0, cropWidth)
+            val ch = max(1.0, cropHeight)
+            val b = if (blur.isFinite()) blur.coerceIn(0.0, 1.0) else 0.0
+            val ratioMinMax = CLIP_BLUR_MIN_SHORT / CLIP_BLUR_MAX_SHORT
+            val ideal = CLIP_BLUR_MAX_SHORT * ratioMinMax.pow(b)
+            // The level at or just above the ideal size.
+            val level = (b * CLIP_BLUR_LEVELS).toInt().coerceIn(0, CLIP_BLUR_LEVELS)
+            val levelShort = CLIP_BLUR_MAX_SHORT * ratioMinMax.pow(level.toDouble() / CLIP_BLUR_LEVELS)
+            val shortSide = min(levelShort.roundToInt(), max(1, min(cw, ch).roundToInt())).coerceAtLeast(1)
+            val spread = (0.6 + 1.2 * b) * shortSide / ideal
+            val ratio = cw / ch
+            val (w, h) = if (ratio >= 1.0) {
+                Pair(max(1, (shortSide * ratio).roundToInt()), shortSide)
+            } else {
+                Pair(shortSide, max(1, (shortSide / ratio).roundToInt()))
+            }
+            return ClipBlurPlan(w, h, spread)
         }
 
         private fun finite(v: Double, fallback: Double) = if (v.isFinite()) v else fallback
@@ -201,6 +419,7 @@ data class ClipFrameGeometry(
     val radiusPx: Double,
     val borderPx: Double,
     val opacity: Double,
+    val blur: Double = 0.0,
 ) {
     /**
      * Maps canvas pixel ([px], [py]) to normalized clip coordinates (0–1 across the clip rectangle,
@@ -251,6 +470,7 @@ data class ClipFrameGeometry(
                 radiusPx = style.borderRadius * 2 * min(halfW, halfH),
                 borderPx = style.borderWidth * min(w, h),
                 opacity = t.opacity,
+                blur = t.blur,
             )
         }
     }

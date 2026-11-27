@@ -196,5 +196,21 @@
   "adjustSharpen": "Sharpen",
   "adjustVignette": "Vignette",
   "adjustResetField": "Reset {field}",
-  "@adjustResetField": {"description": "Tooltip for resetting a single adjustment slider to zero.", "placeholders": {"field": {"type": "String"}}}
+  "@adjustResetField": {"description": "Tooltip for resetting a single adjustment slider to zero.", "placeholders": {"field": {"type": "String"}}},
+  "toolBlur": "Blur",
+  "toolMask": "Mask",
+  "blurStrength": "Strength",
+  "maskNone": "None",
+  "maskLinear": "Linear",
+  "maskMirror": "Mirror",
+  "maskCircle": "Circle",
+  "maskRect": "Rectangle",
+  "maskHeart": "Heart",
+  "maskStar": "Star",
+  "maskFeather": "Feather",
+  "maskRotation": "Rotation",
+  "maskSize": "Size",
+  "maskInvert": "Invert",
+  "maskPosition": "Position",
+  "maskOverlayLabel": "Mask handles"
 }

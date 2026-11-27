@@ -4,11 +4,14 @@
 library;
 
 import 'package:cleancut/features/projects/domain/history/edit_command.dart';
+import 'package:cleancut/features/projects/domain/model/animatable.dart';
 import 'package:cleancut/features/projects/domain/model/canvas_background.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart';
 import 'package:cleancut/features/projects/domain/model/clip_color.dart';
+import 'package:cleancut/features/projects/domain/model/clip_effects.dart';
 import 'package:cleancut/features/projects/domain/model/clip_style.dart';
 import 'package:cleancut/features/projects/domain/model/clip_transform.dart';
+import 'package:cleancut/features/projects/domain/model/keyframe.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/model/time.dart';
 import 'package:cleancut/features/projects/domain/model/vec2.dart';
@@ -363,4 +366,192 @@ final class SetClipAdjustmentsCommand extends EditCommand {
   @override
   Project apply(Project project) =>
       _updateClip(project, clipId, (c) => c.copyWith(adjustments: adjustments));
+}
+
+/// Sets the whole-clip blur amount of clip [clipId] at clip-relative [atUs].
+///
+/// Constant blur updates the whole clip; keyframed blur inserts or updates a
+/// keyframe within half a frame of [atUs]. Slider drags coalesce; preset taps,
+/// typed values and resets pass `coalesce: false`.
+final class SetClipBlurCommand extends EditCommand {
+  /// Creates the command.
+  const new(
+    this.clipId, {
+    required this.atUs,
+    required this.amount,
+    this.coalesce = true,
+  });
+
+  /// Target clip.
+  final String clipId;
+
+  /// Clip-relative time; clamped into the clip.
+  final int atUs;
+
+  /// Blur strength in `0..1`; clamped into [BlurLimits].
+  final double amount;
+
+  /// Whether consecutive blur edits at [atUs] merge into one undo step.
+  final bool coalesce;
+
+  @override
+  Object? get coalesceKey =>
+      coalesce ? (SetClipBlurCommand, clipId, atUs) : null;
+
+  @override
+  Project apply(Project project) => _updateClip(
+    project,
+    clipId,
+    (c) => c.copyWith(
+      blur: c.blur.withValueAt(
+        _clampToClip(c, atUs),
+        BlurLimits.clamp(amount),
+        toleranceUs: keyframeToleranceUs(project),
+      ),
+    ),
+  );
+}
+
+/// Adds or removes a blur keyframe on clip [clipId] at clip-relative [atUs].
+final class ToggleClipBlurKeyframeCommand extends EditCommand {
+  /// Creates the command.
+  const new(this.clipId, {required this.atUs});
+
+  /// Target clip.
+  final String clipId;
+
+  /// Clip-relative time; clamped into the clip.
+  final int atUs;
+
+  @override
+  Project apply(Project project) => _updateClip(
+    project,
+    clipId,
+    (c) => c.copyWith(
+      blur: c.blur.toggledKeyframeAt(
+        _clampToClip(c, atUs),
+        lerpDouble,
+        toleranceUs: keyframeToleranceUs(project),
+      ),
+    ),
+  );
+}
+
+/// Selects or clears the mask shape of clip [clipId] (one undo step).
+///
+/// A null [shape] removes the mask. Switching shapes on an already-masked clip
+/// keeps its center, rotation, feather and invert, and adapts its size (see
+/// [ClipMask.withShape]).
+final class SetClipMaskShapeCommand extends EditCommand {
+  /// Creates the command.
+  const new(this.clipId, this.shape);
+
+  /// Target clip.
+  final String clipId;
+
+  /// Desired shape, or null to remove the mask.
+  final MaskShape? shape;
+
+  @override
+  Project apply(Project project) => _updateClip(project, clipId, (c) {
+    final nextShape = shape;
+    if (nextShape == null) return c.copyWith(mask: null);
+    final existing = c.mask;
+    if (existing == null) {
+      return c.copyWith(mask: ClipMask.defaultFor(nextShape));
+    }
+    return c.copyWith(mask: existing.withShape(nextShape));
+  });
+}
+
+/// Updates mask parameters of clip [clipId] at clip-relative [atUs].
+///
+/// Constant properties update the whole clip; keyframed ones insert or update
+/// a keyframe within half a frame of [atUs]. Throws [InvalidEditException]
+/// when the clip has no mask.
+final class SetClipMaskValuesCommand extends EditCommand {
+  /// Creates the command. Null fields are left unchanged.
+  const new(
+    this.clipId, {
+    required this.atUs,
+    this.center,
+    this.size,
+    this.rotation,
+    this.feather,
+    this.invert,
+    this.coalesce = true,
+  });
+
+  /// Target clip.
+  final String clipId;
+
+  /// Clip-relative time; clamped into the clip.
+  final int atUs;
+
+  /// New normalized mask center.
+  final Vec2? center;
+
+  /// New mask half-extents relative to the clip's shorter half-side.
+  final Vec2? size;
+
+  /// New clockwise mask rotation in degrees.
+  final double? rotation;
+
+  /// New edge softness in `0..1`.
+  final double? feather;
+
+  /// Whether inside and outside are flipped.
+  final bool? invert;
+
+  /// Whether consecutive mask edits at [atUs] merge into one undo step.
+  final bool coalesce;
+
+  @override
+  Object? get coalesceKey =>
+      coalesce ? (SetClipMaskValuesCommand, clipId, atUs) : null;
+
+  @override
+  Project apply(Project project) => _updateClip(project, clipId, (c) {
+    final mask = c.mask;
+    if (mask == null) throw InvalidEditException('Clip $clipId has no mask');
+    return c.copyWith(
+      mask: mask.withValuesAt(
+        _clampToClip(c, atUs),
+        center: center,
+        size: size,
+        rotation: rotation,
+        feather: feather,
+        invert: invert,
+        toleranceUs: keyframeToleranceUs(project),
+      ),
+    );
+  });
+}
+
+/// Adds or removes a keyframe of [property] on clip [clipId]'s mask at [atUs].
+final class ToggleClipMaskKeyframeCommand extends EditCommand {
+  /// Creates the command.
+  const new(this.clipId, this.property, {required this.atUs});
+
+  /// Target clip.
+  final String clipId;
+
+  /// Mask property to (un)keyframe.
+  final MaskProperty property;
+
+  /// Clip-relative time; clamped into the clip.
+  final int atUs;
+
+  @override
+  Project apply(Project project) => _updateClip(project, clipId, (c) {
+    final mask = c.mask;
+    if (mask == null) throw InvalidEditException('Clip $clipId has no mask');
+    return c.copyWith(
+      mask: mask.toggledKeyframe(
+        property,
+        _clampToClip(c, atUs),
+        toleranceUs: keyframeToleranceUs(project),
+      ),
+    );
+  });
 }
