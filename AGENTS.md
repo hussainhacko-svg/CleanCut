@@ -275,7 +275,7 @@ docs/PLAN.md, docs/DESIGN.md
 | Phase | State | Where |
 |---|---|---|
 | 0–4 | done | `main` |
-| 5 — transform & style | **in progress** | `feat/phase-5` (local, not pushed) |
+| 5 — transform & style | **in review** | `feat/phase-5` (PR open) |
 
 **Phase 5, committed (all on `feat/phase-5`):** schema v3 model (crop,
 border, background, keyframes); engine rendering (`ClipLook.kt`,
@@ -285,7 +285,7 @@ border, background, keyframes); engine rendering (`ClipLook.kt`,
 keyframe ◇/◆ toggles and timeline diamonds; CI on release tags only.
 Emulator-checked by Claude and Gemini (2026-11-27).
 
-**Review fixes (Claude, 2026-11-27, committed):** editors read values back
+**Review fixes (Claude, 2026-11-27, committed; emulator-verified by Gemini, 2026-11-27):** editors read values back
 with `ClipTransform.editableAt` (the keyframe within half a frame, the one an
 edit updates), so gizmo and ruler drags beside a keyframe no longer cancel
 themselves; the gizmo only cancels when a value *it* set changes outside and
@@ -296,15 +296,21 @@ keeps the turn nearest its current value (`wrapDegrees`, `sameAngle`); crop
 drags map fingers with the rotation at drag start; the gizmo, crop overlay
 and rotation ruler seal their undo step when removed mid-gesture.
 
+**Timeline & kit fixes (Gemini, 2026-11-27; reviewed and committed by Claude):** kept `TimelineView` in the same
+widget tree slot across phone panel open/close (`project_screen.dart`) and
+synced its initial scroll offset to `playbackPositionProvider` on mount
+(`timeline_view.dart`), so opening/closing a tool panel (or switching
+phone↔tablet layout) no longer resets the timeline strip to `0s` (covered by
+3 widget tests in `editor_test.dart`). Also applied 3 VCLIP Figma parity
+tweaks: white left labels on `GradientSliderRow` (`Alignment.jpg`), and bold
+white captions on selected Ratio (`Ratio.jpg`) and Crop (`Crop.jpg`) presets.
+
 **Phase 5, remaining:**
-1. Emulator re-check of the review fixes on a keyframed clip (gizmo drag
-   beside a keyframe, drag started while playing, scrub off the selected
-   clip hides the gizmo).
-2. Physical-device-only check: tactile feel of haptics (emulator has no
+1. Physical-device-only check: tactile feel of haptics (emulator has no
    vibration motor).
-3. Reset on a keyframed property only resets the playhead's value — owner
+2. Reset on a keyframed property only resets the playhead's value — owner
    decided to leave it as is.
-4. Open a PR for `feat/phase-5` when the owner decides.
+3. Review and merge the `feat/phase-5` PR.
 
 **Open items:** Phase 2 physical low-end device check (1080p ≥ 30 fps, seek
 < 150 ms); audible keep-pitch check; split/delete/speed for overlay and audio
