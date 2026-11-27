@@ -35,8 +35,9 @@ abstract class Project with _$Project {
   /// 2: clips may have a `speedCurve` (Phase 4 Flow curves).
   /// 3: `canvas.background` replaces `canvas.backgroundArgb`; clips may
   /// have `crop` and `border` (Phase 5).
-  /// 4: clips may have `filter` and `adjustments` (Phase 6).
-  static const int currentSchemaVersion = 4;
+  /// 4: clips may have `filter` and `adjustments` (Phase 6A).
+  /// 5: clips may have `blur` and `mask` (Phase 6B).
+  static const int currentSchemaVersion = 5;
 
   /// Length of the whole edit: the end of the latest track.
   int get durationUs {

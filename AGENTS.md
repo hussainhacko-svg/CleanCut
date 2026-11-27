@@ -73,9 +73,9 @@ lib/
     projects/
       domain/                   # PURE DART
         model/                  # Project, Clip, tracks, time, canvas, speed_curve,
-                                # clip_transform, clip_style, canvas_background,
-                                # keyframe, animatable, easing, retiming,
-                                # crop_editing, transform_editing
+                                # clip_transform, clip_style, clip_color, clip_effects,
+                                # canvas_background, keyframe, animatable, easing,
+                                # retiming, crop_editing, transform_editing, mask_editing
         commands/               # clip_, project_, style_commands (EditCommands)
         history/                # EditCommand + History (undo/redo, coalescing)
         timeline/               # ruler, scale, snapping, reorder, selection
@@ -94,11 +94,12 @@ lib/
           editor_state.dart     # zoom, selection, OpenToolPanel providers
           tool_dock.dart        # DockTool / ToolPanelKind
           timeline/timeline_view.dart
-          overlays/             # crop_overlay, transform_gizmo
+          overlays/             # crop_overlay, transform_gizmo, mask_overlay
           panels/               # tool_panel (sheet chrome), panel_widgets (shared
                                 # tabs, bubbles, slider rows, swatches, value dialog),
                                 # speed_panel, speed_scale, curve_widgets,
-                                # crop_panel, transform_panel, ratio_panel
+                                # crop_panel, transform_panel, ratio_panel,
+                                # filters_panel, adjust_panel, blur_panel, mask_panel
     settings/                   # domain/app_settings, data/file_settings_repository,
                                 # presentation/settings_screen + providers
 pigeons/                        # bridge definitions (source of truth)
@@ -148,9 +149,10 @@ docs/PLAN.md, docs/DESIGN.md
   points over source progress (0–1), monotone cubic in log-speed space;
   model and engine both use the same **64 constant-speed steps**. Trim
   stretches a curve; split divides it (each half resampled from the original).
-- **Schema:** `Project.currentSchemaVersion` is **4** (v2 speed curves, v3
-  crop/border/background/keyframes, v4 filter/adjustments). Any format change
-  bumps it with a migration in `project_codec.dart` and a migration test.
+- **Schema:** `Project.currentSchemaVersion` is **5** (v2 speed curves, v3
+  crop/border/background/keyframes, v4 filter/adjustments, v5 blur/mask). Any
+  format change bumps it with a migration in `project_codec.dart` and a
+  migration test.
 - Minimum clip length is 0.1 s.
 
 ## 5. State management — Riverpod 3
@@ -282,8 +284,20 @@ docs/PLAN.md, docs/DESIGN.md
 |---|---|---|
 | 0–5 | done | `main` (Phase 5 = PR #10, tag `v0.01`, CI green) |
 | Clipcraft UI redesign | done | `main` (PR #13) |
-| 6A — filters & adjustments | in review (PR #14) | `feat/phase-6a-filters-adjust` |
-| 6B/6C — blur, mask & transitions | next | — |
+| 6A — filters & adjustments | done | `main` (PR #14) |
+| Playhead-past-end fix | done | `main` (PR #15) |
+| 6B — blur & mask | in review | `feat/phase-6b-blur-mask` |
+| 6C — transitions | next | — |
+
+**Phase 6B handoff:** whole-clip Gaussian blur (`Animatable<double>`) and 6 SDF
+shape masks (`linear`, `mirror`, `circle`, `rect`, `heart`, `star`) with
+feather, invert, keyframes, `BlurPanel`, `MaskPanel`, `MaskOverlay`, schema v5
+migration, and Pigeon + GL shader support. Review fixes are included: sharpen
+no longer undoes blur, blur targets use 17 fixed sizes with a
+resolution-independent radius, Crop/Mask keep the playhead at the very end of
+the last clip, and shape switches adapt mask size. Emulator smoke test passed
+(blur, blur + sharpen, all 6 shapes, mask on a flipped, cropped, rotated clip,
+playback; no GL errors). Export is untested until Phase 10.
 
 **Phase 5 leftovers:** tactile feel of haptics needs a physical device
 (emulator has no vibration motor). Reset on a keyframed property only

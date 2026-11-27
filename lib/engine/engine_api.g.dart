@@ -117,6 +117,9 @@ enum SpecMediaKind { video, image }
 /// How a clip is sized into the canvas before its transform.
 enum SpecFitMode { fit, fill, stretch }
 
+/// Geometric shape of a clip mask (Phase 6B).
+enum SpecMaskShape { linear, mirror, circle, rect, heart, star }
+
 /// What fills the canvas behind the clips.
 enum SpecBackgroundKind { color, gradient, blur, image }
 
@@ -171,10 +174,10 @@ class SpeedStepSpec {
   }
 }
 
-/// A clip's placement at clip-relative timeline time [timeUs]; the engine
-/// interpolates linearly between samples. Positions are canvas-normalized
-/// center offsets (x = 1 is the right edge, y = 1 the bottom edge),
-/// [rotation] is clockwise degrees.
+/// A clip's placement and whole-clip blur at clip-relative timeline time
+/// [timeUs]; the engine interpolates linearly between samples. Positions are
+/// canvas-normalized center offsets (x = 1 is the right edge, y = 1 the bottom
+/// edge), [rotation] is clockwise degrees, [blur] is in `0..1`.
 class TransformSampleSpec {
   TransformSampleSpec({
     required this.timeUs,
@@ -183,6 +186,7 @@ class TransformSampleSpec {
     required this.scale,
     required this.rotation,
     required this.opacity,
+    required this.blur,
   });
 
   int timeUs;
@@ -197,8 +201,10 @@ class TransformSampleSpec {
 
   double opacity;
 
+  double blur;
+
   List<Object?> _toList() {
-    return <Object?>[timeUs, x, y, scale, rotation, opacity];
+    return <Object?>[timeUs, x, y, scale, rotation, opacity, blur];
   }
 
   Object encode() {
@@ -214,6 +220,7 @@ class TransformSampleSpec {
       scale: result[3]! as double,
       rotation: result[4]! as double,
       opacity: result[5]! as double,
+      blur: result[6]! as double,
     );
   }
 
@@ -231,7 +238,8 @@ class TransformSampleSpec {
         _deepEquals(y, other.y) &&
         _deepEquals(scale, other.scale) &&
         _deepEquals(rotation, other.rotation) &&
-        _deepEquals(opacity, other.opacity);
+        _deepEquals(opacity, other.opacity) &&
+        _deepEquals(blur, other.blur);
   }
 
   @override
@@ -240,7 +248,139 @@ class TransformSampleSpec {
 
   @override
   String toString() {
-    return 'TransformSampleSpec(timeUs: $timeUs, x: $x, y: $y, scale: $scale, rotation: $rotation, opacity: $opacity)';
+    return 'TransformSampleSpec(timeUs: $timeUs, x: $x, y: $y, scale: $scale, rotation: $rotation, opacity: $opacity, blur: $blur)';
+  }
+}
+
+/// A clip mask's geometry at clip-relative timeline time [timeUs]; the engine
+/// interpolates linearly between samples.
+class MaskSampleSpec {
+  MaskSampleSpec({
+    required this.timeUs,
+    required this.centerX,
+    required this.centerY,
+    required this.sizeX,
+    required this.sizeY,
+    required this.rotation,
+    required this.feather,
+  });
+
+  int timeUs;
+
+  /// Normalized center offset relative to the clip's half-extents.
+  double centerX;
+
+  double centerY;
+
+  /// Half-extents as multiples of the clip's shorter half-side.
+  double sizeX;
+
+  double sizeY;
+
+  /// Clockwise degrees in clip space.
+  double rotation;
+
+  /// Softness in `0..1` (fraction of the clip's shorter half-side).
+  double feather;
+
+  List<Object?> _toList() {
+    return <Object?>[timeUs, centerX, centerY, sizeX, sizeY, rotation, feather];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static MaskSampleSpec decode(Object result) {
+    result as List<Object?>;
+    return MaskSampleSpec(
+      timeUs: result[0]! as int,
+      centerX: result[1]! as double,
+      centerY: result[2]! as double,
+      sizeX: result[3]! as double,
+      sizeY: result[4]! as double,
+      rotation: result[5]! as double,
+      feather: result[6]! as double,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MaskSampleSpec || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(timeUs, other.timeUs) &&
+        _deepEquals(centerX, other.centerX) &&
+        _deepEquals(centerY, other.centerY) &&
+        _deepEquals(sizeX, other.sizeX) &&
+        _deepEquals(sizeY, other.sizeY) &&
+        _deepEquals(rotation, other.rotation) &&
+        _deepEquals(feather, other.feather);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'MaskSampleSpec(timeUs: $timeUs, centerX: $centerX, centerY: $centerY, sizeX: $sizeX, sizeY: $sizeY, rotation: $rotation, feather: $feather)';
+  }
+}
+
+/// Shape mask applied to a clip (Phase 6B).
+class MaskSpec {
+  MaskSpec({required this.shape, required this.invert, required this.samples});
+
+  SpecMaskShape shape;
+
+  bool invert;
+
+  /// At least one sample; one sample means a constant mask.
+  List<MaskSampleSpec> samples;
+
+  List<Object?> _toList() {
+    return <Object?>[shape, invert, samples];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static MaskSpec decode(Object result) {
+    result as List<Object?>;
+    return MaskSpec(
+      shape: result[0]! as SpecMaskShape,
+      invert: result[1]! as bool,
+      samples: (result[2]! as List<Object?>).cast<MaskSampleSpec>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MaskSpec || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(shape, other.shape) &&
+        _deepEquals(invert, other.invert) &&
+        _deepEquals(samples, other.samples);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'MaskSpec(shape: $shape, invert: $invert, samples: $samples)';
   }
 }
 
@@ -362,6 +502,7 @@ class ClipStyleSpec {
     this.filterId,
     required this.filterIntensity,
     required this.adjustments,
+    this.mask,
   });
 
   SpecFitMode fitMode;
@@ -400,6 +541,9 @@ class ClipStyleSpec {
   /// Per-clip color and tone adjustments.
   ColorAdjustmentsSpec adjustments;
 
+  /// Optional shape mask (null = unmasked).
+  MaskSpec? mask;
+
   List<Object?> _toList() {
     return <Object?>[
       fitMode,
@@ -416,6 +560,7 @@ class ClipStyleSpec {
       filterId,
       filterIntensity,
       adjustments,
+      mask,
     ];
   }
 
@@ -440,6 +585,7 @@ class ClipStyleSpec {
       filterId: result[11] as String?,
       filterIntensity: result[12]! as double,
       adjustments: result[13]! as ColorAdjustmentsSpec,
+      mask: result[14] as MaskSpec?,
     );
   }
 
@@ -465,7 +611,8 @@ class ClipStyleSpec {
         _deepEquals(borderRadius, other.borderRadius) &&
         _deepEquals(filterId, other.filterId) &&
         _deepEquals(filterIntensity, other.filterIntensity) &&
-        _deepEquals(adjustments, other.adjustments);
+        _deepEquals(adjustments, other.adjustments) &&
+        _deepEquals(mask, other.mask);
   }
 
   @override
@@ -474,7 +621,7 @@ class ClipStyleSpec {
 
   @override
   String toString() {
-    return 'ClipStyleSpec(fitMode: $fitMode, cropLeft: $cropLeft, cropTop: $cropTop, cropRight: $cropRight, cropBottom: $cropBottom, flipX: $flipX, flipY: $flipY, transform: $transform, borderWidth: $borderWidth, borderArgb: $borderArgb, borderRadius: $borderRadius, filterId: $filterId, filterIntensity: $filterIntensity, adjustments: $adjustments)';
+    return 'ClipStyleSpec(fitMode: $fitMode, cropLeft: $cropLeft, cropTop: $cropTop, cropRight: $cropRight, cropBottom: $cropBottom, flipX: $flipX, flipY: $flipY, transform: $transform, borderWidth: $borderWidth, borderArgb: $borderArgb, borderRadius: $borderRadius, filterId: $filterId, filterIntensity: $filterIntensity, adjustments: $adjustments, mask: $mask)';
   }
 }
 
@@ -862,38 +1009,47 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is SpecFitMode) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    } else if (value is SpecBackgroundKind) {
+    } else if (value is SpecMaskShape) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    } else if (value is PlaybackStatus) {
+    } else if (value is SpecBackgroundKind) {
       buffer.putUint8(132);
       writeValue(buffer, value.index);
-    } else if (value is SpeedStepSpec) {
+    } else if (value is PlaybackStatus) {
       buffer.putUint8(133);
-      writeValue(buffer, value.encode());
-    } else if (value is TransformSampleSpec) {
+      writeValue(buffer, value.index);
+    } else if (value is SpeedStepSpec) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    } else if (value is ColorAdjustmentsSpec) {
+    } else if (value is TransformSampleSpec) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    } else if (value is ClipStyleSpec) {
+    } else if (value is MaskSampleSpec) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    } else if (value is BackgroundSpec) {
+    } else if (value is MaskSpec) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    } else if (value is ClipSpec) {
+    } else if (value is ColorAdjustmentsSpec) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    } else if (value is CompositionSpec) {
+    } else if (value is ClipStyleSpec) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    } else if (value is PlayerStateEvent) {
+    } else if (value is BackgroundSpec) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    } else if (value is WaveformData) {
+    } else if (value is ClipSpec) {
       buffer.putUint8(141);
+      writeValue(buffer, value.encode());
+    } else if (value is CompositionSpec) {
+      buffer.putUint8(142);
+      writeValue(buffer, value.encode());
+    } else if (value is PlayerStateEvent) {
+      buffer.putUint8(143);
+      writeValue(buffer, value.encode());
+    } else if (value is WaveformData) {
+      buffer.putUint8(144);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -911,27 +1067,34 @@ class _PigeonCodec extends StandardMessageCodec {
         return value == null ? null : SpecFitMode.values[value];
       case 131:
         final value = readValue(buffer) as int?;
-        return value == null ? null : SpecBackgroundKind.values[value];
+        return value == null ? null : SpecMaskShape.values[value];
       case 132:
         final value = readValue(buffer) as int?;
-        return value == null ? null : PlaybackStatus.values[value];
+        return value == null ? null : SpecBackgroundKind.values[value];
       case 133:
-        return SpeedStepSpec.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PlaybackStatus.values[value];
       case 134:
-        return TransformSampleSpec.decode(readValue(buffer)!);
+        return SpeedStepSpec.decode(readValue(buffer)!);
       case 135:
-        return ColorAdjustmentsSpec.decode(readValue(buffer)!);
+        return TransformSampleSpec.decode(readValue(buffer)!);
       case 136:
-        return ClipStyleSpec.decode(readValue(buffer)!);
+        return MaskSampleSpec.decode(readValue(buffer)!);
       case 137:
-        return BackgroundSpec.decode(readValue(buffer)!);
+        return MaskSpec.decode(readValue(buffer)!);
       case 138:
-        return ClipSpec.decode(readValue(buffer)!);
+        return ColorAdjustmentsSpec.decode(readValue(buffer)!);
       case 139:
-        return CompositionSpec.decode(readValue(buffer)!);
+        return ClipStyleSpec.decode(readValue(buffer)!);
       case 140:
-        return PlayerStateEvent.decode(readValue(buffer)!);
+        return BackgroundSpec.decode(readValue(buffer)!);
       case 141:
+        return ClipSpec.decode(readValue(buffer)!);
+      case 142:
+        return CompositionSpec.decode(readValue(buffer)!);
+      case 143:
+        return PlayerStateEvent.decode(readValue(buffer)!);
+      case 144:
         return WaveformData.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);

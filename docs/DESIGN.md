@@ -62,7 +62,7 @@ Horizontally scrolling row (`ToolDock`, height 64dp); items ≥ 60dp wide with 2
 | State | Dock items |
 |---|---|
 | Nothing selected | ⊕ Add media · Music · Voice · Text · Effect · Overlay · Ratio |
-| Video/photo or overlay clip selected | ‹ Back · Split · Duplicate · Filters · Crop · Transform · Adjust · Speed · Animation · Volume · Delete |
+| Video/photo or overlay clip selected | ‹ Back · Split · Duplicate · Filters · Crop · Transform · Adjust · Blur · Mask · Speed · Animation · Volume · Delete |
 | Text selected (Phase 8, kit "Edit") | ‹ Back · Split · Edit · Delete · Color · Font · Align |
 | Audio selected | ‹ Back · Split · Volume · Speed · Delete |
 
@@ -136,6 +136,12 @@ Tools whose phase hasn't shipped show "Coming in a later update." All icons come
 - **Ratio** dock item opens a two-tab panel (`Ratio | Background`) with tab-scoped Reset:
   - **Ratio:** kit rounded aspect outlines (`Original`, 9:16, 16:9, 1:1, 4:5, 3:4, 4:3).
   - **Background:** Color (swatches), Gradient (presets + angle slider), Blur (presets + strength slider), Image (image-only Photo Picker + blur slider). Resolution moves to the Phase 10 export sheet.
+
+### Blur & Mask panels & `MaskOverlay` (Phase 6B)
+
+- **Blur** dock item opens `BlurPanel`: quick strength presets (25%, 50%, 75%, 100%), a `GradientSliderRow` (0–100%, snap-to-zero haptic, tap-to-type), a keyframe ◇/◆ toggle, and Reset (returns to 0%).
+- **Mask** dock item opens `MaskPanel`: horizontal shape strip (`None`, `Linear`, `Mirror`, `Circle`, `Rectangle`, `Heart`, `Star`) with custom vector glyphs, plus `Feather` (0–100%), `Rotation` (−180°..180°, 90° snaps), `Size` (hidden for Linear), `Invert` switch, per-property keyframe ◇/◆ toggles (Feather, Rotation, Size, Position), and Reset (clears mask to None). Switching shapes keeps position, rotation, feather and invert; Heart/Star even out the size, and a closed shape made from Linear/Mirror starts at its default size.
+- **On-preview `MaskOverlay`:** active while Mask is open with a shape selected and the playhead is on the clip (opening Mask seeks onto the clip if needed). Draws the exact shape outline plus a secondary feather falloff ring, magnetic center-axis snap guides, 1-finger move/resize/rotate/feather handles (48dp touch targets), and 2-finger pinch/twist with 90° snap angle pills.
 
 ### Timeline (VCLIP "Timeline")
 

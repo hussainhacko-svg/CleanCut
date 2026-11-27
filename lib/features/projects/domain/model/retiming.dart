@@ -3,6 +3,7 @@
 library;
 
 import 'package:cleancut/features/projects/domain/model/animatable.dart';
+import 'package:cleancut/features/projects/domain/model/clip_effects.dart';
 import 'package:cleancut/features/projects/domain/model/clip_transform.dart';
 import 'package:cleancut/features/projects/domain/model/keyframe.dart';
 import 'package:cleancut/features/projects/domain/model/vec2.dart';
@@ -107,5 +108,32 @@ extension ClipTransformRetiming on ClipTransform {
     scale: scaleKeyframes(scale, factor),
     rotation: scaleKeyframes(rotation, factor),
     opacity: scaleKeyframes(opacity, factor),
+  );
+}
+
+/// Keyframe re-timing applied to every property of a [ClipMask].
+extension ClipMaskRetiming on ClipMask {
+  /// See [shiftKeyframes].
+  ClipMask shifted(int deltaUs) => copyWith(
+    center: shiftKeyframes(center, deltaUs, Vec2.lerp),
+    size: shiftKeyframes(size, deltaUs, Vec2.lerp),
+    rotation: shiftKeyframes(rotation, deltaUs, lerpDouble),
+    feather: shiftKeyframes(feather, deltaUs, lerpDouble),
+  );
+
+  /// See [clipKeyframes].
+  ClipMask clipped(int endUs) => copyWith(
+    center: clipKeyframes(center, endUs, Vec2.lerp),
+    size: clipKeyframes(size, endUs, Vec2.lerp),
+    rotation: clipKeyframes(rotation, endUs, lerpDouble),
+    feather: clipKeyframes(feather, endUs, lerpDouble),
+  );
+
+  /// See [scaleKeyframes].
+  ClipMask scaledInTime(double factor) => copyWith(
+    center: scaleKeyframes(center, factor),
+    size: scaleKeyframes(size, factor),
+    rotation: scaleKeyframes(rotation, factor),
+    feather: scaleKeyframes(feather, factor),
   );
 }

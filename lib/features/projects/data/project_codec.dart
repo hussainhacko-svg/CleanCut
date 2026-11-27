@@ -87,11 +87,16 @@ const Map<int, JsonMigration> projectMigrations = {
   // 3 -> 4: clips gained optional `filter` and `adjustments`, whose defaults
   // (no filter, neutral adjustments) need no data.
   3: _addClipColor,
+  // 4 -> 5: clips gained `blur` (default constant 0) and optional `mask`
+  // (default null), neither needing existing JSON to change.
+  4: _addBlurAndMask,
 };
 
 Map<String, dynamic> _addSpeedCurves(Map<String, dynamic> json) => json;
 
 Map<String, dynamic> _addClipColor(Map<String, dynamic> json) => json;
+
+Map<String, dynamic> _addBlurAndMask(Map<String, dynamic> json) => json;
 
 Map<String, dynamic> _canvasBackground(Map<String, dynamic> json) {
   final canvas = json['canvas'];

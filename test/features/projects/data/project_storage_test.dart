@@ -40,14 +40,15 @@ void main() {
     });
 
     test('runs migrations in order up to the current version', () {
-      // Simulates a future schema 5 whose project name moved twice.
+      // Simulates a future schema 6 whose project name moved twice.
       final migrating = ProjectCodec(
-        currentVersion: 5,
+        currentVersion: 6,
         migrations: {
           1: (json) => {...json, 'title': json['label']},
           2: (json) => {...json, 'name': json['title']},
           3: (json) => json,
           4: (json) => json,
+          5: (json) => json,
         },
       );
       final v1 = project().toJson()
@@ -55,7 +56,7 @@ void main() {
         ..['label'] = 'Old'
         ..['schemaVersion'] = 1;
       final migrated = migrating.migrate(v1);
-      expect(migrated['schemaVersion'], 5);
+      expect(migrated['schemaVersion'], 6);
       expect(migrated['name'], 'Old');
     });
 

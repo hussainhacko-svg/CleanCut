@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Clip {
 
- String get id; MediaRef get media; int get sourceInUs; int get sourceOutUs; double get speed; SpeedCurve? get speedCurve; bool get keepPitch; ClipTransform get transform; FitMode get fitMode; CropRect get crop; ClipBorder get border; ClipFilter? get filter; ClipAdjustments get adjustments; double get volume; bool get muted;
+ String get id; MediaRef get media; int get sourceInUs; int get sourceOutUs; double get speed; SpeedCurve? get speedCurve; bool get keepPitch; ClipTransform get transform; FitMode get fitMode; CropRect get crop; ClipBorder get border; ClipFilter? get filter; ClipAdjustments get adjustments;@AnimatableDoubleConverter() Animatable<double> get blur; ClipMask? get mask; double get volume; bool get muted;
 /// Create a copy of Clip
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,20 +30,20 @@ $ClipCopyWith<Clip> get copyWith => _$ClipCopyWithImpl<Clip>(this as Clip, _$ide
 @override
 bool operator ==(Object other) {
   final _this = this as Clip;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Clip&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.media, _this.media) || other.media == _this.media)&&(identical(other.sourceInUs, _this.sourceInUs) || other.sourceInUs == _this.sourceInUs)&&(identical(other.sourceOutUs, _this.sourceOutUs) || other.sourceOutUs == _this.sourceOutUs)&&(identical(other.speed, _this.speed) || other.speed == _this.speed)&&(identical(other.speedCurve, _this.speedCurve) || other.speedCurve == _this.speedCurve)&&(identical(other.keepPitch, _this.keepPitch) || other.keepPitch == _this.keepPitch)&&(identical(other.transform, _this.transform) || other.transform == _this.transform)&&(identical(other.fitMode, _this.fitMode) || other.fitMode == _this.fitMode)&&(identical(other.crop, _this.crop) || other.crop == _this.crop)&&(identical(other.border, _this.border) || other.border == _this.border)&&(identical(other.filter, _this.filter) || other.filter == _this.filter)&&(identical(other.adjustments, _this.adjustments) || other.adjustments == _this.adjustments)&&(identical(other.volume, _this.volume) || other.volume == _this.volume)&&(identical(other.muted, _this.muted) || other.muted == _this.muted));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Clip&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.media, _this.media) || other.media == _this.media)&&(identical(other.sourceInUs, _this.sourceInUs) || other.sourceInUs == _this.sourceInUs)&&(identical(other.sourceOutUs, _this.sourceOutUs) || other.sourceOutUs == _this.sourceOutUs)&&(identical(other.speed, _this.speed) || other.speed == _this.speed)&&(identical(other.speedCurve, _this.speedCurve) || other.speedCurve == _this.speedCurve)&&(identical(other.keepPitch, _this.keepPitch) || other.keepPitch == _this.keepPitch)&&(identical(other.transform, _this.transform) || other.transform == _this.transform)&&(identical(other.fitMode, _this.fitMode) || other.fitMode == _this.fitMode)&&(identical(other.crop, _this.crop) || other.crop == _this.crop)&&(identical(other.border, _this.border) || other.border == _this.border)&&(identical(other.filter, _this.filter) || other.filter == _this.filter)&&(identical(other.adjustments, _this.adjustments) || other.adjustments == _this.adjustments)&&(identical(other.blur, _this.blur) || other.blur == _this.blur)&&(identical(other.mask, _this.mask) || other.mask == _this.mask)&&(identical(other.volume, _this.volume) || other.volume == _this.volume)&&(identical(other.muted, _this.muted) || other.muted == _this.muted));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as Clip;
-  return Object.hash(runtimeType,_this.id,_this.media,_this.sourceInUs,_this.sourceOutUs,_this.speed,_this.speedCurve,_this.keepPitch,_this.transform,_this.fitMode,_this.crop,_this.border,_this.filter,_this.adjustments,_this.volume,_this.muted);
+  return Object.hash(runtimeType,_this.id,_this.media,_this.sourceInUs,_this.sourceOutUs,_this.speed,_this.speedCurve,_this.keepPitch,_this.transform,_this.fitMode,_this.crop,_this.border,_this.filter,_this.adjustments,_this.blur,_this.mask,_this.volume,_this.muted);
 }
 
 @override
 String toString() {
   final _this = this as Clip;
-  return 'Clip(id: ${_this.id}, media: ${_this.media}, sourceInUs: ${_this.sourceInUs}, sourceOutUs: ${_this.sourceOutUs}, speed: ${_this.speed}, speedCurve: ${_this.speedCurve}, keepPitch: ${_this.keepPitch}, transform: ${_this.transform}, fitMode: ${_this.fitMode}, crop: ${_this.crop}, border: ${_this.border}, filter: ${_this.filter}, adjustments: ${_this.adjustments}, volume: ${_this.volume}, muted: ${_this.muted})';
+  return 'Clip(id: ${_this.id}, media: ${_this.media}, sourceInUs: ${_this.sourceInUs}, sourceOutUs: ${_this.sourceOutUs}, speed: ${_this.speed}, speedCurve: ${_this.speedCurve}, keepPitch: ${_this.keepPitch}, transform: ${_this.transform}, fitMode: ${_this.fitMode}, crop: ${_this.crop}, border: ${_this.border}, filter: ${_this.filter}, adjustments: ${_this.adjustments}, blur: ${_this.blur}, mask: ${_this.mask}, volume: ${_this.volume}, muted: ${_this.muted})';
 }
 
 
@@ -54,11 +54,11 @@ abstract mixin class $ClipCopyWith<$Res>  {
   factory $ClipCopyWith(Clip value, $Res Function(Clip) _then) = _$ClipCopyWithImpl;
 @useResult
 $Res call({
- String id, MediaRef media, int sourceInUs, int sourceOutUs, double speed, SpeedCurve? speedCurve, bool keepPitch, ClipTransform transform, FitMode fitMode, CropRect crop, ClipBorder border, ClipFilter? filter, ClipAdjustments adjustments, double volume, bool muted
+ String id, MediaRef media, int sourceInUs, int sourceOutUs, double speed, SpeedCurve? speedCurve, bool keepPitch, ClipTransform transform, FitMode fitMode, CropRect crop, ClipBorder border, ClipFilter? filter, ClipAdjustments adjustments,@AnimatableDoubleConverter() Animatable<double> blur, ClipMask? mask, double volume, bool muted
 });
 
 
-$MediaRefCopyWith<$Res> get media;$SpeedCurveCopyWith<$Res>? get speedCurve;$ClipTransformCopyWith<$Res> get transform;$CropRectCopyWith<$Res> get crop;$ClipBorderCopyWith<$Res> get border;$ClipFilterCopyWith<$Res>? get filter;$ClipAdjustmentsCopyWith<$Res> get adjustments;
+$MediaRefCopyWith<$Res> get media;$SpeedCurveCopyWith<$Res>? get speedCurve;$ClipTransformCopyWith<$Res> get transform;$CropRectCopyWith<$Res> get crop;$ClipBorderCopyWith<$Res> get border;$ClipFilterCopyWith<$Res>? get filter;$ClipAdjustmentsCopyWith<$Res> get adjustments;$ClipMaskCopyWith<$Res>? get mask;
 
 }
 /// @nodoc
@@ -71,7 +71,7 @@ class _$ClipCopyWithImpl<$Res>
 
 /// Create a copy of Clip
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? media = null,Object? sourceInUs = null,Object? sourceOutUs = null,Object? speed = null,Object? speedCurve = freezed,Object? keepPitch = null,Object? transform = null,Object? fitMode = null,Object? crop = null,Object? border = null,Object? filter = freezed,Object? adjustments = null,Object? volume = null,Object? muted = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? media = null,Object? sourceInUs = null,Object? sourceOutUs = null,Object? speed = null,Object? speedCurve = freezed,Object? keepPitch = null,Object? transform = null,Object? fitMode = null,Object? crop = null,Object? border = null,Object? filter = freezed,Object? adjustments = null,Object? blur = null,Object? mask = freezed,Object? volume = null,Object? muted = null,}) {
   return _then(Clip(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,media: null == media ? _self.media : media // ignore: cast_nullable_to_non_nullable
@@ -86,7 +86,9 @@ as FitMode,crop: null == crop ? _self.crop : crop // ignore: cast_nullable_to_no
 as CropRect,border: null == border ? _self.border : border // ignore: cast_nullable_to_non_nullable
 as ClipBorder,filter: freezed == filter ? _self.filter : filter // ignore: cast_nullable_to_non_nullable
 as ClipFilter?,adjustments: null == adjustments ? _self.adjustments : adjustments // ignore: cast_nullable_to_non_nullable
-as ClipAdjustments,volume: null == volume ? _self.volume : volume // ignore: cast_nullable_to_non_nullable
+as ClipAdjustments,blur: null == blur ? _self.blur : blur // ignore: cast_nullable_to_non_nullable
+as Animatable<double>,mask: freezed == mask ? _self.mask : mask // ignore: cast_nullable_to_non_nullable
+as ClipMask?,volume: null == volume ? _self.volume : volume // ignore: cast_nullable_to_non_nullable
 as double,muted: null == muted ? _self.muted : muted // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
@@ -159,6 +161,18 @@ $ClipAdjustmentsCopyWith<$Res> get adjustments {
   
   return $ClipAdjustmentsCopyWith<$Res>(_self.adjustments, (value) {
     return _then(_self.copyWith(adjustments: value));
+  });
+}/// Create a copy of Clip
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$ClipMaskCopyWith<$Res>? get mask {
+    if (_self.mask == null) {
+    return null;
+  }
+
+  return $ClipMaskCopyWith<$Res>(_self.mask!, (value) {
+    return _then(_self.copyWith(mask: value));
   });
 }
 }
@@ -242,10 +256,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  MediaRef media,  int sourceInUs,  int sourceOutUs,  double speed,  SpeedCurve? speedCurve,  bool keepPitch,  ClipTransform transform,  FitMode fitMode,  CropRect crop,  ClipBorder border,  ClipFilter? filter,  ClipAdjustments adjustments,  double volume,  bool muted)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  MediaRef media,  int sourceInUs,  int sourceOutUs,  double speed,  SpeedCurve? speedCurve,  bool keepPitch,  ClipTransform transform,  FitMode fitMode,  CropRect crop,  ClipBorder border,  ClipFilter? filter,  ClipAdjustments adjustments, @AnimatableDoubleConverter()  Animatable<double> blur,  ClipMask? mask,  double volume,  bool muted)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Clip() when $default != null:
-return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.speed,_that.speedCurve,_that.keepPitch,_that.transform,_that.fitMode,_that.crop,_that.border,_that.filter,_that.adjustments,_that.volume,_that.muted);case _:
+return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.speed,_that.speedCurve,_that.keepPitch,_that.transform,_that.fitMode,_that.crop,_that.border,_that.filter,_that.adjustments,_that.blur,_that.mask,_that.volume,_that.muted);case _:
   return orElse();
 
 }
@@ -263,10 +277,10 @@ return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.sp
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  MediaRef media,  int sourceInUs,  int sourceOutUs,  double speed,  SpeedCurve? speedCurve,  bool keepPitch,  ClipTransform transform,  FitMode fitMode,  CropRect crop,  ClipBorder border,  ClipFilter? filter,  ClipAdjustments adjustments,  double volume,  bool muted)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  MediaRef media,  int sourceInUs,  int sourceOutUs,  double speed,  SpeedCurve? speedCurve,  bool keepPitch,  ClipTransform transform,  FitMode fitMode,  CropRect crop,  ClipBorder border,  ClipFilter? filter,  ClipAdjustments adjustments, @AnimatableDoubleConverter()  Animatable<double> blur,  ClipMask? mask,  double volume,  bool muted)  $default,) {final _that = this;
 switch (_that) {
 case _Clip():
-return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.speed,_that.speedCurve,_that.keepPitch,_that.transform,_that.fitMode,_that.crop,_that.border,_that.filter,_that.adjustments,_that.volume,_that.muted);case _:
+return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.speed,_that.speedCurve,_that.keepPitch,_that.transform,_that.fitMode,_that.crop,_that.border,_that.filter,_that.adjustments,_that.blur,_that.mask,_that.volume,_that.muted);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -283,10 +297,10 @@ return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.sp
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  MediaRef media,  int sourceInUs,  int sourceOutUs,  double speed,  SpeedCurve? speedCurve,  bool keepPitch,  ClipTransform transform,  FitMode fitMode,  CropRect crop,  ClipBorder border,  ClipFilter? filter,  ClipAdjustments adjustments,  double volume,  bool muted)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  MediaRef media,  int sourceInUs,  int sourceOutUs,  double speed,  SpeedCurve? speedCurve,  bool keepPitch,  ClipTransform transform,  FitMode fitMode,  CropRect crop,  ClipBorder border,  ClipFilter? filter,  ClipAdjustments adjustments, @AnimatableDoubleConverter()  Animatable<double> blur,  ClipMask? mask,  double volume,  bool muted)?  $default,) {final _that = this;
 switch (_that) {
 case _Clip() when $default != null:
-return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.speed,_that.speedCurve,_that.keepPitch,_that.transform,_that.fitMode,_that.crop,_that.border,_that.filter,_that.adjustments,_that.volume,_that.muted);case _:
+return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.speed,_that.speedCurve,_that.keepPitch,_that.transform,_that.fitMode,_that.crop,_that.border,_that.filter,_that.adjustments,_that.blur,_that.mask,_that.volume,_that.muted);case _:
   return null;
 
 }
@@ -298,7 +312,7 @@ return $default(_that.id,_that.media,_that.sourceInUs,_that.sourceOutUs,_that.sp
 @JsonSerializable()
 
 class _Clip extends Clip {
-  const _Clip({required this.id, required this.media, required this.sourceInUs, required this.sourceOutUs, this.speed = 1.0, this.speedCurve, this.keepPitch = true, this.transform = const ClipTransform(), this.fitMode = FitMode.fit, this.crop = CropRect.full, this.border = const ClipBorder(), this.filter, this.adjustments = ClipAdjustments.none, this.volume = 1.0, this.muted = false}): super._();
+  const _Clip({required this.id, required this.media, required this.sourceInUs, required this.sourceOutUs, this.speed = 1.0, this.speedCurve, this.keepPitch = true, this.transform = const ClipTransform(), this.fitMode = FitMode.fit, this.crop = CropRect.full, this.border = const ClipBorder(), this.filter, this.adjustments = ClipAdjustments.none, @AnimatableDoubleConverter() this.blur = const Animatable<double>.constant(0), this.mask, this.volume = 1.0, this.muted = false}): super._();
   factory _Clip.fromJson(Map<String, dynamic> json) => _$ClipFromJson(json);
 
 @override final  String id;
@@ -314,6 +328,8 @@ class _Clip extends Clip {
 @override@JsonKey() final  ClipBorder border;
 @override final  ClipFilter? filter;
 @override@JsonKey() final  ClipAdjustments adjustments;
+@override@JsonKey()@AnimatableDoubleConverter() final  Animatable<double> blur;
+@override final  ClipMask? mask;
 @override@JsonKey() final  double volume;
 @override@JsonKey() final  bool muted;
 
@@ -330,18 +346,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Clip&&(identical(other.id, id) || other.id == id)&&(identical(other.media, media) || other.media == media)&&(identical(other.sourceInUs, sourceInUs) || other.sourceInUs == sourceInUs)&&(identical(other.sourceOutUs, sourceOutUs) || other.sourceOutUs == sourceOutUs)&&(identical(other.speed, speed) || other.speed == speed)&&(identical(other.speedCurve, speedCurve) || other.speedCurve == speedCurve)&&(identical(other.keepPitch, keepPitch) || other.keepPitch == keepPitch)&&(identical(other.transform, transform) || other.transform == transform)&&(identical(other.fitMode, fitMode) || other.fitMode == fitMode)&&(identical(other.crop, crop) || other.crop == crop)&&(identical(other.border, border) || other.border == border)&&(identical(other.filter, filter) || other.filter == filter)&&(identical(other.adjustments, adjustments) || other.adjustments == adjustments)&&(identical(other.volume, volume) || other.volume == volume)&&(identical(other.muted, muted) || other.muted == muted));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Clip&&(identical(other.id, id) || other.id == id)&&(identical(other.media, media) || other.media == media)&&(identical(other.sourceInUs, sourceInUs) || other.sourceInUs == sourceInUs)&&(identical(other.sourceOutUs, sourceOutUs) || other.sourceOutUs == sourceOutUs)&&(identical(other.speed, speed) || other.speed == speed)&&(identical(other.speedCurve, speedCurve) || other.speedCurve == speedCurve)&&(identical(other.keepPitch, keepPitch) || other.keepPitch == keepPitch)&&(identical(other.transform, transform) || other.transform == transform)&&(identical(other.fitMode, fitMode) || other.fitMode == fitMode)&&(identical(other.crop, crop) || other.crop == crop)&&(identical(other.border, border) || other.border == border)&&(identical(other.filter, filter) || other.filter == filter)&&(identical(other.adjustments, adjustments) || other.adjustments == adjustments)&&(identical(other.blur, blur) || other.blur == blur)&&(identical(other.mask, mask) || other.mask == mask)&&(identical(other.volume, volume) || other.volume == volume)&&(identical(other.muted, muted) || other.muted == muted));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,media,sourceInUs,sourceOutUs,speed,speedCurve,keepPitch,transform,fitMode,crop,border,filter,adjustments,volume,muted);
+    return Object.hash(runtimeType,id,media,sourceInUs,sourceOutUs,speed,speedCurve,keepPitch,transform,fitMode,crop,border,filter,adjustments,blur,mask,volume,muted);
 }
 
 @override
 String toString() {
-    return 'Clip(id: $id, media: $media, sourceInUs: $sourceInUs, sourceOutUs: $sourceOutUs, speed: $speed, speedCurve: $speedCurve, keepPitch: $keepPitch, transform: $transform, fitMode: $fitMode, crop: $crop, border: $border, filter: $filter, adjustments: $adjustments, volume: $volume, muted: $muted)';
+    return 'Clip(id: $id, media: $media, sourceInUs: $sourceInUs, sourceOutUs: $sourceOutUs, speed: $speed, speedCurve: $speedCurve, keepPitch: $keepPitch, transform: $transform, fitMode: $fitMode, crop: $crop, border: $border, filter: $filter, adjustments: $adjustments, blur: $blur, mask: $mask, volume: $volume, muted: $muted)';
 }
 
 
@@ -352,11 +368,11 @@ abstract mixin class _$ClipCopyWith<$Res> implements $ClipCopyWith<$Res> {
   factory _$ClipCopyWith(_Clip value, $Res Function(_Clip) _then) = __$ClipCopyWithImpl;
 @override @useResult
 $Res call({
- String id, MediaRef media, int sourceInUs, int sourceOutUs, double speed, SpeedCurve? speedCurve, bool keepPitch, ClipTransform transform, FitMode fitMode, CropRect crop, ClipBorder border, ClipFilter? filter, ClipAdjustments adjustments, double volume, bool muted
+ String id, MediaRef media, int sourceInUs, int sourceOutUs, double speed, SpeedCurve? speedCurve, bool keepPitch, ClipTransform transform, FitMode fitMode, CropRect crop, ClipBorder border, ClipFilter? filter, ClipAdjustments adjustments,@AnimatableDoubleConverter() Animatable<double> blur, ClipMask? mask, double volume, bool muted
 });
 
 
-@override $MediaRefCopyWith<$Res> get media;@override $SpeedCurveCopyWith<$Res>? get speedCurve;@override $ClipTransformCopyWith<$Res> get transform;@override $CropRectCopyWith<$Res> get crop;@override $ClipBorderCopyWith<$Res> get border;@override $ClipFilterCopyWith<$Res>? get filter;@override $ClipAdjustmentsCopyWith<$Res> get adjustments;
+@override $MediaRefCopyWith<$Res> get media;@override $SpeedCurveCopyWith<$Res>? get speedCurve;@override $ClipTransformCopyWith<$Res> get transform;@override $CropRectCopyWith<$Res> get crop;@override $ClipBorderCopyWith<$Res> get border;@override $ClipFilterCopyWith<$Res>? get filter;@override $ClipAdjustmentsCopyWith<$Res> get adjustments;@override $ClipMaskCopyWith<$Res>? get mask;
 
 }
 /// @nodoc
@@ -369,7 +385,7 @@ class __$ClipCopyWithImpl<$Res>
 
 /// Create a copy of Clip
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? media = null,Object? sourceInUs = null,Object? sourceOutUs = null,Object? speed = null,Object? speedCurve = freezed,Object? keepPitch = null,Object? transform = null,Object? fitMode = null,Object? crop = null,Object? border = null,Object? filter = freezed,Object? adjustments = null,Object? volume = null,Object? muted = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? media = null,Object? sourceInUs = null,Object? sourceOutUs = null,Object? speed = null,Object? speedCurve = freezed,Object? keepPitch = null,Object? transform = null,Object? fitMode = null,Object? crop = null,Object? border = null,Object? filter = freezed,Object? adjustments = null,Object? blur = null,Object? mask = freezed,Object? volume = null,Object? muted = null,}) {
   return _then(_Clip(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,media: null == media ? _self.media : media // ignore: cast_nullable_to_non_nullable
@@ -384,7 +400,9 @@ as FitMode,crop: null == crop ? _self.crop : crop // ignore: cast_nullable_to_no
 as CropRect,border: null == border ? _self.border : border // ignore: cast_nullable_to_non_nullable
 as ClipBorder,filter: freezed == filter ? _self.filter : filter // ignore: cast_nullable_to_non_nullable
 as ClipFilter?,adjustments: null == adjustments ? _self.adjustments : adjustments // ignore: cast_nullable_to_non_nullable
-as ClipAdjustments,volume: null == volume ? _self.volume : volume // ignore: cast_nullable_to_non_nullable
+as ClipAdjustments,blur: null == blur ? _self.blur : blur // ignore: cast_nullable_to_non_nullable
+as Animatable<double>,mask: freezed == mask ? _self.mask : mask // ignore: cast_nullable_to_non_nullable
+as ClipMask?,volume: null == volume ? _self.volume : volume // ignore: cast_nullable_to_non_nullable
 as double,muted: null == muted ? _self.muted : muted // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
@@ -458,6 +476,18 @@ $ClipAdjustmentsCopyWith<$Res> get adjustments {
   
   return $ClipAdjustmentsCopyWith<$Res>(_self.adjustments, (value) {
     return _then(_self.copyWith(adjustments: value));
+  });
+}/// Create a copy of Clip
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$ClipMaskCopyWith<$Res>? get mask {
+    if (_self.mask == null) {
+    return null;
+  }
+
+  return $ClipMaskCopyWith<$Res>(_self.mask!, (value) {
+    return _then(_self.copyWith(mask: value));
   });
 }
 }

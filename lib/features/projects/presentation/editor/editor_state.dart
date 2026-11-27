@@ -64,6 +64,12 @@ enum ToolPanelKind {
 
   /// Color and tone adjustments.
   adjust,
+
+  /// Whole-clip Gaussian blur.
+  blur,
+
+  /// Shape mask with feather, invert, and on-preview handles.
+  mask,
 }
 
 /// The tool panel open in a project's editor, if any. Closes whenever the

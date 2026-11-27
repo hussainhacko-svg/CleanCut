@@ -1001,7 +1001,7 @@ class MainClipView extends StatelessWidget {
     final colors = TimelineColors.of(context);
     final scheme = Theme.of(context).colorScheme;
     const radius = BorderRadius.all(Radius.circular(AppTokens.cardRadius));
-    final keyframeTimes = clip.transform.keyframeTimes;
+    final keyframeTimes = clip.keyframeTimes;
     final move = onLongPressMove;
     final strip = Stack(
       clipBehavior: ui.Clip.none,

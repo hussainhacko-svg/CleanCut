@@ -106,6 +106,12 @@ enum AppIcons {
   /// Clip tool: adjustments.
   toolAdjust('sliders'),
 
+  /// Clip tool: whole-clip blur.
+  toolBlur('blur'),
+
+  /// Clip tool: shape mask.
+  toolMask('mask'),
+
   /// Clip tool: speed.
   toolSpeed('speed'),
 

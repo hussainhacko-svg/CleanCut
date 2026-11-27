@@ -195,8 +195,8 @@ Each phase ends with a working, tested build and a tag `v0.<phase>.0`.
 ### Phase 6 — Filters & effects
 - [x] Filter presets from bundled LUTs with intensity + preview thumbnails
 - [x] Adjustments panel
-- [ ] Blur (whole clip)
-- [ ] Mask: linear, mirror, circle, rect, heart, star — on-preview handles, feather, invert
+- [x] Blur (whole clip)
+- [x] Mask: linear, mirror, circle, rect, heart, star — on-preview handles, feather, invert
 - [ ] Transitions between main-track clips (VCLIP ⧓ marker on each boundary; owner-added). Give the marker a real tap target without stealing taps from short clips
 
 ### Phase 7 — Photos & layers

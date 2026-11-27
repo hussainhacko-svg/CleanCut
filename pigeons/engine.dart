@@ -25,10 +25,10 @@ class SpeedStepSpec {
 /// How a clip is sized into the canvas before its transform.
 enum SpecFitMode { fit, fill, stretch }
 
-/// A clip's placement at clip-relative timeline time [timeUs]; the engine
-/// interpolates linearly between samples. Positions are canvas-normalized
-/// center offsets (x = 1 is the right edge, y = 1 the bottom edge),
-/// [rotation] is clockwise degrees.
+/// A clip's placement and whole-clip blur at clip-relative timeline time
+/// [timeUs]; the engine interpolates linearly between samples. Positions are
+/// canvas-normalized center offsets (x = 1 is the right edge, y = 1 the bottom
+/// edge), [rotation] is clockwise degrees, [blur] is in `0..1`.
 class TransformSampleSpec {
   TransformSampleSpec({
     required this.timeUs,
@@ -37,6 +37,7 @@ class TransformSampleSpec {
     required this.scale,
     required this.rotation,
     required this.opacity,
+    required this.blur,
   });
 
   final int timeUs;
@@ -45,6 +46,51 @@ class TransformSampleSpec {
   final double scale;
   final double rotation;
   final double opacity;
+  final double blur;
+}
+
+/// Geometric shape of a clip mask (Phase 6B).
+enum SpecMaskShape { linear, mirror, circle, rect, heart, star }
+
+/// A clip mask's geometry at clip-relative timeline time [timeUs]; the engine
+/// interpolates linearly between samples.
+class MaskSampleSpec {
+  MaskSampleSpec({
+    required this.timeUs,
+    required this.centerX,
+    required this.centerY,
+    required this.sizeX,
+    required this.sizeY,
+    required this.rotation,
+    required this.feather,
+  });
+
+  final int timeUs;
+
+  /// Normalized center offset relative to the clip's half-extents.
+  final double centerX;
+  final double centerY;
+
+  /// Half-extents as multiples of the clip's shorter half-side.
+  final double sizeX;
+  final double sizeY;
+
+  /// Clockwise degrees in clip space.
+  final double rotation;
+
+  /// Softness in `0..1` (fraction of the clip's shorter half-side).
+  final double feather;
+}
+
+/// Shape mask applied to a clip (Phase 6B).
+class MaskSpec {
+  MaskSpec({required this.shape, required this.invert, required this.samples});
+
+  final SpecMaskShape shape;
+  final bool invert;
+
+  /// At least one sample; one sample means a constant mask.
+  final List<MaskSampleSpec> samples;
 }
 
 /// Per-clip color and tone adjustments (Phase 6); 0 means no change.
@@ -91,6 +137,7 @@ class ClipStyleSpec {
     required this.filterId,
     required this.filterIntensity,
     required this.adjustments,
+    required this.mask,
   });
 
   final SpecFitMode fitMode;
@@ -123,6 +170,9 @@ class ClipStyleSpec {
 
   /// Per-clip color and tone adjustments.
   final ColorAdjustmentsSpec adjustments;
+
+  /// Optional shape mask (null = unmasked).
+  final MaskSpec? mask;
 }
 
 /// What fills the canvas behind the clips.

@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import kotlin.math.min
 
 /** Neutral adjustments spec (all 0). */
 fun adjustmentsSpec(
@@ -25,16 +26,17 @@ fun adjustmentsSpec(
 fun styleSpec(
     fitMode: SpecFitMode = SpecFitMode.FIT,
     crop: List<Double> = listOf(0.0, 0.0, 1.0, 1.0),
-    samples: List<TransformSampleSpec> = listOf(TransformSampleSpec(0, 0.0, 0.0, 1.0, 0.0, 1.0)),
+    samples: List<TransformSampleSpec> = listOf(TransformSampleSpec(0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0)),
     borderWidth: Double = 0.0,
     borderRadius: Double = 0.0,
     flipX: Boolean = false,
     filterId: String? = null,
     filterIntensity: Double = 0.0,
     adjustments: ColorAdjustmentsSpec = adjustmentsSpec(),
+    mask: MaskSpec? = null,
 ) = ClipStyleSpec(
     fitMode, crop[0], crop[1], crop[2], crop[3], flipX, false, samples,
-    borderWidth, 0xFFFFFFFF, borderRadius, filterId, filterIntensity, adjustments,
+    borderWidth, 0xFFFFFFFF, borderRadius, filterId, filterIntensity, adjustments, mask,
 )
 
 /** A black color background. */
@@ -48,8 +50,14 @@ fun backgroundSpec(
 class ClipLookTest {
     private val eps = 1e-6
 
-    private fun sample(t: Long, x: Double = 0.0, scale: Double = 1.0, rotation: Double = 0.0, opacity: Double = 1.0) =
-        TransformSampleSpec(t, x, 0.0, scale, rotation, opacity)
+    private fun sample(
+        t: Long,
+        x: Double = 0.0,
+        scale: Double = 1.0,
+        rotation: Double = 0.0,
+        opacity: Double = 1.0,
+        blur: Double = 0.0,
+    ) = TransformSampleSpec(t, x, 0.0, scale, rotation, opacity, blur)
 
     @Test
     fun `transform interpolates linearly between samples and holds at the ends`() {
@@ -64,10 +72,15 @@ class ClipLookTest {
         val style = ClipStyle.of(
             ClipStyleSpec(
                 SpecFitMode.FILL, Double.NaN, -1.0, 0.0, 2.0, false, false,
-                listOf(TransformSampleSpec(0, Double.NaN, 0.0, 0.0, Double.POSITIVE_INFINITY, 7.0)),
+                listOf(TransformSampleSpec(0, Double.NaN, 0.0, 0.0, Double.POSITIVE_INFINITY, 7.0, 5.0)),
                 Double.NaN, 0xFF000000, 9.0,
                 "film_gold", 4.0,
                 adjustmentsSpec(exposure = Double.NaN, brightness = 9.0, sharpen = -1.0, vignette = 3.0),
+                MaskSpec(
+                    SpecMaskShape.CIRCLE,
+                    true,
+                    listOf(MaskSampleSpec(0, Double.NaN, 9.0, 0.0, 99.0, Double.NEGATIVE_INFINITY, -2.0)),
+                ),
             ),
         )
         assertEquals(0.0, style.crop.left, eps)
@@ -80,6 +93,7 @@ class ClipLookTest {
         assertEquals(0.01, t.scale, eps)
         assertEquals(0.0, t.rotation, eps)
         assertEquals(1.0, t.opacity, eps)
+        assertEquals(1.0, t.blur, eps)
         assertEquals(0.0, style.borderWidth, eps)
         assertEquals(0.5, style.borderRadius, eps)
         assertEquals("film_gold", style.filterId)
@@ -88,6 +102,16 @@ class ClipLookTest {
         assertEquals(1.0, style.adjustments.brightness, eps)
         assertEquals(0.0, style.adjustments.sharpen, eps)
         assertEquals(1.0, style.adjustments.vignette, eps)
+        val mask = requireNotNull(style.mask)
+        val m = mask.samples.single()
+        assertEquals(MaskShape.CIRCLE, mask.shape)
+        assertEquals(true, mask.invert)
+        assertEquals(0.0, m.centerX, eps)
+        assertEquals(1.5, m.centerY, eps)
+        assertEquals(0.05, m.sizeX, eps)
+        assertEquals(4.0, m.sizeY, eps)
+        assertEquals(0.0, m.rotation, eps)
+        assertEquals(0.0, m.feather, eps)
     }
 
     @Test
@@ -129,7 +153,7 @@ class ClipLookTest {
     @Test
     fun `position, scale, rotation and opacity come from the transform`() {
         val style = ClipStyle.of(
-            styleSpec(samples = listOf(TransformSampleSpec(0, 0.5, -1.0, 0.5, 90.0, 0.25))),
+            styleSpec(samples = listOf(TransformSampleSpec(0, 0.5, -1.0, 0.5, 90.0, 0.25, 0.4))),
         )
         val g = ClipFrameGeometry.of(style, 100, 100, 100, 100, 0)
         assertEquals(75.0, g.centerX, eps)
@@ -138,6 +162,7 @@ class ClipLookTest {
         assertEquals(0.0, g.cos, eps)
         assertEquals(1.0, g.sin, eps)
         assertEquals(0.25, g.opacity, eps)
+        assertEquals(0.4, g.blur, eps)
     }
 
     @Test
@@ -231,5 +256,139 @@ class ClipLookTest {
         assertNotEquals(base, restyled)
         assertEquals(base.structureKey, restyled.structureKey)
         assertNotEquals(base.structureKey, plan(styleSpec(), backgroundSpec(), out = 3_000_000).structureKey)
+
+        // Changing blur or mask keeps the structure key intact (live look swap).
+        val blurredMasked = plan(
+            styleSpec(
+                samples = listOf(sample(0, blur = 0.6)),
+                mask = MaskSpec(
+                    SpecMaskShape.HEART,
+                    false,
+                    listOf(MaskSampleSpec(0, 0.0, 0.0, 0.7, 0.7, 15.0, 0.2)),
+                ),
+            ),
+            backgroundSpec(),
+        )
+        assertEquals(base.structureKey, blurredMasked.structureKey)
+    }
+
+    @Test
+    fun `clip blur target shrinks monotonically and tolerates tiny crops`() {
+        val p0 = ClipStyle.clipBlurPlan(1920.0, 1080.0, 0.0)
+        val pMid = ClipStyle.clipBlurPlan(1920.0, 1080.0, 0.5)
+        val pMax = ClipStyle.clipBlurPlan(1920.0, 1080.0, 1.0)
+        assertEquals(360, p0.height)
+        assertEquals(640, p0.width)
+        assert(pMid.height in (pMax.height + 1) until p0.height)
+        assertEquals(32, pMax.height)
+        assert(pMax.width > pMax.height)
+
+        // Tiny crop never returns 0.
+        val tiny = ClipStyle.clipBlurPlan(4.0, 2.0, 1.0)
+        assert(tiny.width >= 1 && tiny.height >= 1)
+    }
+
+    @Test
+    fun `clip blur reuses a few target sizes while the amount changes`() {
+        // A slider drag or keyframed blur must not reallocate GL targets every frame.
+        val sizes = (0..1000).map { ClipStyle.clipBlurPlan(1920.0, 1080.0, it / 1000.0) }
+            .map { it.width to it.height }
+            .toSet()
+        assert(sizes.size <= ClipStyle.CLIP_BLUR_LEVELS + 1) { "${sizes.size} sizes" }
+    }
+
+    @Test
+    fun `clip blur radius is continuous and independent of source resolution`() {
+        // Radius as a fraction of the clip's short side.
+        fun radius(w: Double, h: Double, b: Double) =
+            ClipStyle.clipBlurPlan(w, h, b).let { it.spread / min(it.width, it.height) }
+        var last = 0.0
+        for (i in 1..1000) {
+            val b = i / 1000.0
+            val hd = radius(1920.0, 1080.0, b)
+            assertEquals(hd, radius(426.0, 240.0, b), hd * 0.02)
+            assertEquals(hd, radius(80.0, 60.0, b), hd * 0.02)
+            assert(hd >= last * 0.999) { "radius drops at $b" }
+            last = hd
+            assert(ClipStyle.clipBlurPlan(1920.0, 1080.0, b).spread <= 2.5)
+        }
+    }
+
+    @Test
+    fun `mask samples interpolate linearly and hold at ends`() {
+        val mask = ClipMaskStyle.of(
+            MaskSpec(
+                SpecMaskShape.RECT,
+                false,
+                listOf(
+                    MaskSampleSpec(1000, 0.5, -0.5, 1.0, 0.8, 90.0, 0.4),
+                    MaskSampleSpec(0, -0.5, 0.5, 0.5, 0.4, 0.0, 0.0),
+                ),
+            ),
+        )!!
+        assertEquals(-0.5, mask.sampleAt(-10).centerX, eps)
+        val mid = mask.sampleAt(500)
+        assertEquals(0.0, mid.centerX, eps)
+        assertEquals(0.0, mid.centerY, eps)
+        assertEquals(0.75, mid.sizeX, eps)
+        assertEquals(0.6, mid.sizeY, eps)
+        assertEquals(45.0, mid.rotation, eps)
+        assertEquals(0.2, mid.feather, eps)
+        assertEquals(0.5, mask.sampleAt(2000).centerX, eps)
+    }
+
+    @Test
+    fun `mask SDF classifies inside, boundary and outside for every shape`() {
+        val r = 100.0
+        // Linear: y <= 0 inside, y > 0 outside.
+        assert(ClipMaskStyle.sdf(MaskShape.LINEAR, 0.0, -20.0, r, r) < 0)
+        assertEquals(0.0, ClipMaskStyle.sdf(MaskShape.LINEAR, 50.0, 0.0, r, r), eps)
+        assert(ClipMaskStyle.sdf(MaskShape.LINEAR, 0.0, 20.0, r, r) > 0)
+
+        // Mirror: |y| <= r inside.
+        assert(ClipMaskStyle.sdf(MaskShape.MIRROR, 0.0, 0.0, r, 40.0) < 0)
+        assertEquals(0.0, ClipMaskStyle.sdf(MaskShape.MIRROR, 10.0, 40.0, r, 40.0), eps)
+        assert(ClipMaskStyle.sdf(MaskShape.MIRROR, 0.0, 60.0, r, 40.0) > 0)
+
+        // Circle / ellipse.
+        assertEquals(-r, ClipMaskStyle.sdf(MaskShape.CIRCLE, 0.0, 0.0, r, r), eps)
+        assertEquals(0.0, ClipMaskStyle.sdf(MaskShape.CIRCLE, r, 0.0, r, r), 1e-4)
+        assert(ClipMaskStyle.sdf(MaskShape.CIRCLE, r + 20.0, 0.0, r, r) > 0)
+        assertEquals(0.0, ClipMaskStyle.sdf(MaskShape.CIRCLE, 200.0, 0.0, 200.0, 100.0), 1e-4)
+
+        // Rect.
+        assertEquals(-r, ClipMaskStyle.sdf(MaskShape.RECT, 0.0, 0.0, r, r), eps)
+        assertEquals(0.0, ClipMaskStyle.sdf(MaskShape.RECT, r, 20.0, r, r), eps)
+        assert(ClipMaskStyle.sdf(MaskShape.RECT, r + 10.0, 0.0, r, r) > 0)
+
+        // Heart: center inside, bottom tip on boundary, far corners outside.
+        assert(ClipMaskStyle.sdf(MaskShape.HEART, 0.0, 0.0, r, r) < 0)
+        assertEquals(0.0, ClipMaskStyle.sdf(MaskShape.HEART, 0.0, r, r, r), 1e-3)
+        assert(ClipMaskStyle.sdf(MaskShape.HEART, r, r, r, r) > 0)
+        assert(ClipMaskStyle.sdf(MaskShape.HEART, 0.0, -r - 20.0, r, r) > 0)
+
+        // Star: center inside, top point (0, -r) on boundary, outer corner outside.
+        assert(ClipMaskStyle.sdf(MaskShape.STAR, 0.0, 0.0, r, r) < 0)
+        assertEquals(0.0, ClipMaskStyle.sdf(MaskShape.STAR, 0.0, -r, r, r), 1e-3)
+        assert(ClipMaskStyle.sdf(MaskShape.STAR, 0.0, r * 0.45, r, r) in -1e-2..1e-2)
+        assert(ClipMaskStyle.sdf(MaskShape.STAR, r, r, r, r) > 0)
+    }
+
+    @Test
+    fun `mask alpha handles hard edges, feather and invert`() {
+        assertEquals(1.0, ClipMaskStyle.alpha(-10.0, 0.0, invert = false), eps)
+        assertEquals(0.5, ClipMaskStyle.alpha(0.0, 0.0, invert = false), eps)
+        assertEquals(0.0, ClipMaskStyle.alpha(10.0, 0.0, invert = false), eps)
+
+        // Inverted flips inside/outside.
+        assertEquals(0.0, ClipMaskStyle.alpha(-10.0, 0.0, invert = true), eps)
+        assertEquals(1.0, ClipMaskStyle.alpha(10.0, 0.0, invert = true), eps)
+
+        // Feathered edge produces intermediate values inside [-halfF, halfF].
+        val midIn = ClipMaskStyle.alpha(-5.0, 40.0, invert = false)
+        val midOut = ClipMaskStyle.alpha(5.0, 40.0, invert = false)
+        assert(midIn > 0.5 && midIn < 1.0)
+        assert(midOut > 0.0 && midOut < 0.5)
+        assertEquals(1.0, midIn + midOut, eps)
     }
 }
