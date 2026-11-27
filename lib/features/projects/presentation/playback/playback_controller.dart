@@ -89,10 +89,10 @@ class Playback extends _$Playback {
           isPlaying: e.isPlaying,
           durationUs: e.durationUs,
         );
-        _setPosition(e.positionUs);
+        _setPosition(_withinDuration(e.positionUs));
       }),
       _engine.positions.listen((u) {
-        if (u.textureId == _id) _setPosition(u.positionUs);
+        if (u.textureId == _id) _setPosition(_withinDuration(u.positionUs));
       }),
       _engine.errors.listen((e) {
         if (e.textureId == _id) {
@@ -179,6 +179,14 @@ class Playback extends _$Playback {
   /// Pauses playback.
   Future<void> pause() async {
     if (await _ready()) await _engine.pause();
+  }
+
+  /// [positionUs] capped at the edit's length: Media3 keeps advancing its
+  /// clock for a few hundred ms after the last frame, and the playhead must
+  /// not run past the timeline.
+  int _withinDuration(int positionUs) {
+    final maxUs = _knownDurationUs ?? state.durationUs;
+    return maxUs > 0 && positionUs > maxUs ? maxUs : positionUs;
   }
 
   void _setPosition(int positionUs) =>
