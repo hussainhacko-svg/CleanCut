@@ -201,6 +201,11 @@ docs/PLAN.md, docs/DESIGN.md
 - Small, focused commits that keep the build and tests green. Don't refactor
   unrelated code in the same change. The owner decides when to push and
   open PRs.
+- Branch off `main` and open one PR straight into `main` per chunk of work.
+  **Don't stack PRs** (base = another feature branch): the owner merges
+  quickly, so a stacked PR lands on its base branch instead of `main` (#6
+  did, and #7 had to re-send it). The owner merges; merged branches are
+  deleted.
 
 ## 9. UI rules (details in `docs/DESIGN.md`)
 
