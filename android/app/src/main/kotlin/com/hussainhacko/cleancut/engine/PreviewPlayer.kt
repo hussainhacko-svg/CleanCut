@@ -11,6 +11,7 @@ import androidx.media3.common.util.Size
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.transformer.CompositionPlayer
 import io.flutter.view.TextureRegistry
+import kotlin.math.min
 
 /** Receives the preview's events on the main thread. */
 interface PreviewListener {
@@ -159,7 +160,11 @@ class PreviewPlayer(
         if (player.isPlaying) handler.post(ticker)
     }
 
-    private fun positionUs(): Long = player.currentPosition.coerceAtLeast(0L) * 1000
+    private fun positionUs(): Long = reportedPositionUs(
+        player.currentPosition,
+        player.duration,
+        ended = player.playbackState == Player.STATE_ENDED,
+    )
 
     private fun state(): PlayerStateEvent {
         if (!hasComposition) {
@@ -180,8 +185,20 @@ class PreviewPlayer(
         )
     }
 
-    private companion object {
+    companion object {
         /** About 30 position updates a second while playing. */
-        const val POSITION_INTERVAL_MS = 33L
+        private const val POSITION_INTERVAL_MS = 33L
+
+        /**
+         * The playhead position to report, in µs, for a player at [positionMs] of
+         * [durationMs] ([C.TIME_UNSET] when unknown). CompositionPlayer keeps advancing
+         * for a few hundred ms after the last frame, so the position is capped at the
+         * duration, and an ended player reports exactly the duration.
+         */
+        fun reportedPositionUs(positionMs: Long, durationMs: Long, ended: Boolean): Long {
+            val position = positionMs.coerceAtLeast(0L)
+            if (durationMs == C.TIME_UNSET || durationMs < 0) return position * 1000
+            return (if (ended) durationMs else min(position, durationMs)) * 1000
+        }
     }
 }

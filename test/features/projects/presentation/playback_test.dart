@@ -60,6 +60,23 @@ void main() {
       expect(container.read(playbackPositionProvider('p1')), 1234);
     });
 
+    test('a native position past the end shows as the end', () async {
+      // Media3's CompositionPlayer keeps advancing for a few hundred ms after
+      // the last frame; the playhead must not run past the timeline.
+      final playback = await start();
+      await playback.load(project(mainSeconds: [6]));
+      engine
+        ..emitState(isPlaying: true, durationUs: 6000000)
+        ..emitPosition(6465000);
+      expect(container.read(playbackPositionProvider('p1')), 6000000);
+      engine.emitState(
+        status: PlaybackStatus.ended,
+        durationUs: 6000000,
+        positionUs: 6503000,
+      );
+      expect(container.read(playbackPositionProvider('p1')), 6000000);
+    });
+
     test('togglePlay plays when paused and pauses when playing', () async {
       final playback = await start();
       await playback.togglePlay();
