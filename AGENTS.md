@@ -113,8 +113,8 @@ android/app/src/main/kotlin/com/hussainhacko/cleancut/
 android/app/src/test/kotlin/…/engine/   # JVM unit tests
 test/                           # mirrors lib/ (core/, features/<f>/{domain,data,presentation})
   helpers/fakes.dart            # fakes (engine, picker, repositories) + TestEnv
-assets/icons/                   # kit-style SVGs: dock_*, tool_*, crop_*, lane_*, …
-assets/fonts/                   # Plus Jakarta Sans, Bebas Neue (+ OFL licenses)
+assets/icons/                   # Clipcraft duotone SVGs
+assets/fonts/                   # Manrope, JetBrains Mono (+ OFL licenses)
 docs/PLAN.md, docs/DESIGN.md
 .github/workflows/ci.yml
 ```
@@ -209,17 +209,18 @@ docs/PLAN.md, docs/DESIGN.md
 
 ## 9. UI rules (details in `docs/DESIGN.md`)
 
-- **The VCLIP Figma kit is the visual spec for every screen.** The Figma MCP
-  is over its plan limit, so use the exported frames in
-  `VCLIP-video editor (Community)/` (git-ignored, local only; one `.jpg` per
-  frame: `Speed`, `Crop`, `Ratio`, `Alignment`, `Adjust`, `Icons`, …). Where
-  the kit differs from older rules, the kit wins; record each adaptation in
-  `docs/DESIGN.md`.
-- **Bottom Dock** layout. Breakpoints: compact `< 600dp`, medium
-  `600–839dp`, expanded `≥ 840dp` (left tool rail + right properties panel).
+- **The Clipcraft design system (`Clipcraft_cleancut/`, git-ignored, local
+  only) is the visual spec for every screen** (replacing the earlier VCLIP
+  Figma kit). Keep the **CleanCut** app name and only the screens in
+  `docs/PLAN.md` (no Templates/AI/Cloud/Sign-in tabs). Record each
+  adaptation in `docs/DESIGN.md`.
+- **Editor layouts:** Phone (`< 840dp`) uses **Editor B** (edge-to-edge
+  preview behind a floating top bar and rounded bottom timeline/tool sheet);
+  Tablet (`≥ 840dp`) uses **Neon Focus** (top bar, large preview + floating
+  right Inspector/panel card, PlayRow, full-width timeline, bottom ToolTray).
 - Touch targets **≥ 48×48dp**; primary actions in the bottom thumb zone.
-- Material 3 styled with VCLIP tokens, **dark by default**, light in
-  settings. Colors only from `ColorScheme` / theme extensions — no
+- Material 3 styled with Clipcraft tokens, **dark only** (no light theme or
+  theme setting; owner decision). Colors only from `ColorScheme` / theme extensions — no
   `Color(0x…)` in widgets.
 - Every slider property: drag + tap-to-type + reset-to-default + haptic tick
   at default/snap points. Reuse `panels/panel_widgets.dart`
@@ -280,6 +281,7 @@ docs/PLAN.md, docs/DESIGN.md
 | Phase | State | Where |
 |---|---|---|
 | 0–5 | done | `main` (Phase 5 = PR #10, tag `v0.01`, CI green) |
+| Clipcraft UI redesign | in review | `feat/clipcraft-redesign` |
 | 6 — filters & effects | next | — |
 
 **Phase 5 leftovers:** tactile feel of haptics needs a physical device

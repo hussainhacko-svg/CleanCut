@@ -1,10 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-/// Icons from the VCLIP kit (`assets/icons`).
+/// Category-colored duotone icons from the Clipcraft icon pack (`assets/icons`).
 enum AppIcons {
-  /// Back to the home screen.
-  home('home'),
+  /// Home brand / film reel glyph.
+  film('film'),
+
+  /// Settings gear.
+  settings('settings'),
+
+  /// Plus / add action.
+  plus('plus'),
+
+  /// Back chevron.
+  chevronLeft('chevron_left'),
+
+  /// Forward chevron.
+  chevronRight('chevron_right'),
+
+  /// Overflow menu dots.
+  moreH('more_h'),
+
+  /// Open folder (empty state).
+  folderOpen('folder_open'),
+
+  /// About / info.
+  info('info'),
+
+  /// Keyframe / gestures diamond.
+  keyframe('keyframe'),
+
+  /// Snap magnet.
+  magnet('magnet'),
+
+  /// Back to the home screen from the editor.
+  home('chevron_left'),
 
   /// Export the video.
   export('export'),
@@ -12,7 +42,7 @@ enum AppIcons {
   /// Start playback.
   play('play'),
 
-  /// Pause playback (drawn to match [play]).
+  /// Pause playback.
   pause('pause'),
 
   /// Undo the last edit.
@@ -30,101 +60,117 @@ enum AppIcons {
   /// Close a panel or overlay.
   close('close'),
 
-  /// Dock: add media (white circle).
-  dockAdd('dock_add', multicolor: true),
+  /// Dock: add media.
+  dockAdd('plus'),
 
-  /// Dock: leave the clip tools (white circle with a chevron).
-  dockBack('dock_back', multicolor: true),
+  /// Dock: leave the clip tools (deselect).
+  dockBack('chevron_left'),
 
   /// Dock: music.
-  dockMusic('dock_music'),
+  dockMusic('music'),
 
   /// Dock: record a voiceover.
-  dockVoice('dock_voice'),
+  dockVoice('mic'),
 
   /// Dock: text.
-  dockText('dock_text'),
+  dockText('text'),
 
   /// Dock: effects.
-  dockEffect('dock_effect'),
+  dockEffect('effects'),
 
   /// Dock: overlay.
-  dockOverlay('dock_overlay'),
+  dockOverlay('layers'),
 
   /// Dock: canvas ratio.
-  dockRatio('dock_ratio'),
+  dockRatio('aspect_ratio'),
 
   /// Clip tool: split at the playhead.
-  toolSplit('tool_split'),
+  toolSplit('cut'),
 
-  /// Clip tool: duplicate (not in the kit; drawn in its style).
-  toolDuplicate('tool_duplicate'),
+  /// Clip tool: duplicate.
+  toolDuplicate('copy'),
 
   /// Clip tool: filters.
-  toolFilters('tool_filters'),
+  toolFilters('color'),
 
   /// Clip tool: crop.
-  toolCrop('tool_crop'),
+  toolCrop('crop'),
 
-  /// Clip tool: transform (not in the kit; drawn in its style).
-  toolTransform('tool_transform'),
+  /// Clip tool: transform.
+  toolTransform('transform'),
 
   /// Clip tool: adjustments.
-  toolAdjust('tool_adjust'),
+  toolAdjust('sliders'),
 
   /// Clip tool: speed.
-  toolSpeed('tool_speed'),
+  toolSpeed('speed'),
 
   /// Clip tool: animation.
-  toolAnimation('tool_animation'),
+  toolAnimation('sparkles'),
 
   /// Clip tool: volume.
-  toolVolume('tool_volume'),
+  toolVolume('volume'),
 
   /// Clip tool: delete.
-  toolDelete('tool_delete'),
+  toolDelete('trash'),
 
   /// Crop panel: mirror left-right.
-  cropMirror('crop_mirror'),
+  cropMirror('flip_h'),
 
   /// Crop panel: flip upside down.
-  cropFlip('crop_flip'),
+  cropFlip('flip_v'),
 
   /// Crop panel: rotate a quarter turn.
-  cropRotate('crop_rotate'),
+  cropRotate('rotate'),
 
   /// Crop panel: free (unlocked) crop preset.
-  cropFree('crop_free'),
+  cropFree('fit'),
 
-  /// Timeline: transition marker between clips (white circle).
-  transition('transition', multicolor: true),
+  /// Timeline: transition marker between clips.
+  transition('transition'),
 
   /// Timeline: mute the original audio.
-  mute('mute'),
+  mute('volume_off'),
 
   /// Lane pill glyph: overlay.
-  laneOverlay('lane_overlay'),
+  laneOverlay('layers'),
 
   /// Lane pill glyph: effect.
-  laneEffect('lane_effect'),
+  laneEffect('effects'),
 
   /// Lane pill glyph: audio.
-  laneAudio('lane_audio');
+  laneAudio('music');
 
-  new(this._file, {this.multicolor = false});
+  new(this._file);
 
   final String _file;
 
-  /// Drawn in its own colors (e.g. a white disc with a dark glyph); never
-  /// tinted.
-  final bool multicolor;
-
   /// Asset path of the SVG.
   String get asset => 'assets/icons/$_file.svg';
+
+  /// The pack's uncategorized glyphs, drawn in a fixed grey (`#9aa0b4`) that
+  /// fades on light surfaces. They take the ambient icon color instead.
+  static const Set<String> _neutralFiles = {
+    'chevron_left',
+    'chevron_right',
+    'close',
+    'info',
+    'more_h',
+    'plus',
+    'settings',
+    'sliders',
+  };
+
+  /// Whether this glyph follows the theme instead of a category color.
+  bool get neutral => _neutralFiles.contains(_file);
 }
 
-/// Draws an [AppIcons] glyph at [size], tinted with [color] (defaults to the
-/// ambient icon color).
+/// Draws an [AppIcons] glyph at [size].
+///
+/// Leave [color] null to keep a category icon's built-in Clipcraft duotone
+/// color; [AppIcons.neutral] glyphs then take the ambient icon color (so they
+/// follow the theme and dim when disabled). Pass [color] to tint any icon
+/// (e.g., white on filled buttons).
 class AppIcon extends StatelessWidget {
   /// Creates an icon.
   const new(this.icon, {this.size = 24, this.color, super.key});
@@ -135,12 +181,12 @@ class AppIcon extends StatelessWidget {
   /// Box size; the glyph keeps its aspect ratio inside it.
   final double size;
 
-  /// Tint; null uses `IconTheme.of(context).color`.
+  /// Optional tint; null keeps category colors and themes neutral glyphs.
   final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    final tint = icon.multicolor ? null : color ?? IconTheme.of(context).color;
+    final tint = color ?? (icon.neutral ? IconTheme.of(context).color : null);
     return SizedBox.square(
       dimension: size,
       child: SvgPicture.asset(

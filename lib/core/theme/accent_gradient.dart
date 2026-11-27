@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// The VCLIP accent gradient (orange → pink), used for selected tabs, the
-/// scrub bar and premium highlights. Registered by the app theme.
+/// The Clipcraft accent gradient (indigo → purple), used for selected tabs,
+/// sliders, keyframe indicators and highlights. Registered by the app theme.
 @immutable
 final class AccentGradient extends ThemeExtension<AccentGradient> {
   /// Creates the gradient from [start] to [end].
@@ -13,7 +13,7 @@ final class AccentGradient extends ThemeExtension<AccentGradient> {
   /// Last color (bottom-right).
   final Color end;
 
-  /// The gradient at the kit's 135° angle.
+  /// The gradient at a 135° diagonal angle.
   LinearGradient get linear => LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,

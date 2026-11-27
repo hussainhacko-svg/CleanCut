@@ -1,5 +1,6 @@
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/theme/accent_gradient.dart';
+import 'package:cleancut/core/theme/app_tokens.dart';
 import 'package:cleancut/core/utils/timecode.dart';
 import 'package:cleancut/core/widgets/app_icon.dart';
 import 'package:cleancut/features/projects/domain/model/canvas_background.dart';
@@ -68,57 +69,8 @@ class PreviewView extends ConsumerWidget {
   }
 }
 
-/// A 40dp round dark button (VCLIP play / full-screen buttons) with a 48dp
-/// touch target.
-class RoundIconButton extends StatelessWidget {
-  /// Creates the button.
-  const new({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-    this.iconSize = 14,
-    super.key,
-  });
-
-  /// Glyph inside the circle.
-  final AppIcons icon;
-
-  /// Accessible label.
-  final String tooltip;
-
-  /// Tap handler; null disables the button.
-  final VoidCallback? onPressed;
-
-  /// Glyph box size.
-  final double iconSize;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    // 48dp target; the visible circle is 40dp as in the kit.
-    return IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      style: IconButton.styleFrom(
-        fixedSize: const Size.square(48),
-        padding: EdgeInsets.zero,
-      ),
-      icon: Container(
-        width: 40,
-        height: 40,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainer,
-          shape: BoxShape.circle,
-        ),
-        child: AppIcon(icon, size: iconSize, color: scheme.onSurface),
-      ),
-    );
-  }
-}
-
-/// "00:06 / 00:12" readout. Watches the position on its own so playback
-/// only rebuilds this text.
+/// "00:06 / 00:12" readout in JetBrains Mono. Watches the position on its own
+/// so playback only rebuilds this text.
 class Timecode extends ConsumerWidget {
   /// Creates the readout for [projectId].
   const new({required this.projectId, this.style, super.key});
@@ -126,7 +78,7 @@ class Timecode extends ConsumerWidget {
   /// The open project.
   final String projectId;
 
-  /// Text style; defaults to 12px body text.
+  /// Text style; defaults to [AppTokens.timecodeStyle].
   final TextStyle? style;
 
   @override
@@ -139,17 +91,13 @@ class Timecode extends ConsumerWidget {
     return Text(
       l10n.editorTimecode(formatClockUs(position), formatClockUs(duration)),
       maxLines: 1,
-      textAlign: TextAlign.center,
-      style: (style ?? Theme.of(context).textTheme.bodySmall)?.copyWith(
-        fontSize: 12,
-        fontFeatures: const [FontFeature.tabularFigures()],
-      ),
+      style: style ?? AppTokens.timecodeStyle(context),
     );
   }
 }
 
-/// The row under the preview (VCLIP "Timeline"): play, undo · time · redo,
-/// full screen.
+/// The Clipcraft PlayRow: monospace timecode on the left, undo · primary
+/// play/pause · redo centered, full screen on the right.
 class TransportBar extends ConsumerWidget {
   /// Creates the bar.
   const new({
@@ -185,35 +133,61 @@ class TransportBar extends ConsumerWidget {
         IconButton(
           tooltip: tooltip,
           onPressed: onPressed,
-          // The kit shows these small and grey; they turn white when usable.
           icon: AppIcon(
             icon,
-            size: 11,
-            color: onPressed == null ? scheme.outline : scheme.onSurface,
+            size: 20,
+            color: onPressed == null
+                ? scheme.outline.withValues(alpha: 0.45)
+                : null,
           ),
         );
 
     return Padding(
-      padding: const EdgeInsetsDirectional.symmetric(horizontal: 9),
-      // Circles sit 13dp from the edges, as in the kit.
+      padding: const EdgeInsetsDirectional.symmetric(
+        horizontal: 12,
+        vertical: 2,
+      ),
       child: Row(
         children: [
-          RoundIconButton(
-            icon: isPlaying ? AppIcons.pause : AppIcons.play,
-            iconSize: 13,
+          Expanded(
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Timecode(projectId: projectId),
+            ),
+          ),
+          history(AppIcons.undo, l10n.commonUndo, onUndo),
+          IconButton(
             tooltip: isPlaying ? l10n.editorPause : l10n.editorPlay,
             onPressed: controller.togglePlay,
+            style: IconButton.styleFrom(
+              fixedSize: const Size.square(48),
+              padding: EdgeInsets.zero,
+            ),
+            icon: Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: scheme.primary,
+                shape: BoxShape.circle,
+              ),
+              child: AppIcon(
+                isPlaying ? AppIcons.pause : AppIcons.play,
+                size: 18,
+                color: scheme.onPrimary,
+              ),
+            ),
           ),
-          const Spacer(),
-          history(AppIcons.undo, l10n.commonUndo, onUndo),
-          // The kit's readout box is 98dp wide.
-          SizedBox(width: 98, child: Timecode(projectId: projectId)),
           history(AppIcons.redo, l10n.commonRedo, onRedo),
-          const Spacer(),
-          RoundIconButton(
-            icon: AppIcons.fullscreen,
-            tooltip: l10n.editorFullscreen,
-            onPressed: onFullscreen,
+          Expanded(
+            child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: IconButton(
+                tooltip: l10n.editorFullscreen,
+                onPressed: onFullscreen,
+                icon: const AppIcon(AppIcons.fullscreen, size: 20),
+              ),
+            ),
           ),
         ],
       ),
@@ -221,8 +195,8 @@ class TransportBar extends ConsumerWidget {
   }
 }
 
-/// Full-screen preview (VCLIP "Full screen"): the video edge to edge, a close
-/// mark, and a floating bar with play, times, scrub bar and exit.
+/// Full-screen preview: the video edge to edge on dark backing, a close mark,
+/// and a floating Clipcraft bar with play, times, gradient scrub bar and exit.
 class FullscreenPreview extends ConsumerWidget {
   /// Creates the page for [projectId] with its [canvas].
   const new({required this.projectId, required this.canvas, super.key});
@@ -273,23 +247,38 @@ class FullscreenPreview extends ConsumerWidget {
                   child: IconButton(
                     tooltip: l10n.editorExitFullscreen,
                     onPressed: close,
-                    // The kit's close glyph sits inside a 24px box.
-                    icon: AppIcon(AppIcons.close, color: scheme.onSurface),
+                    icon: Container(
+                      width: 40,
+                      height: 40,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainer.withValues(alpha: 0.78),
+                        shape: BoxShape.circle,
+                      ),
+                      child: AppIcon(
+                        AppIcons.close,
+                        size: 20,
+                        color: scheme.onSurface,
+                      ),
+                    ),
                   ),
                 ),
                 PositionedDirectional(
-                  start: 18,
-                  end: 18,
+                  start: 16,
+                  end: 16,
                   bottom: 16,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: scheme.surfaceContainer.withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(14),
+                      color: scheme.surfaceContainer.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(
+                        AppTokens.inspectorRadius,
+                      ),
+                      border: Border.all(color: scheme.outlineVariant),
                     ),
                     child: Padding(
                       padding: const EdgeInsetsDirectional.symmetric(
                         horizontal: 4,
-                        vertical: 6,
+                        vertical: 4,
                       ),
                       child: Row(
                         children: [
@@ -300,18 +289,16 @@ class FullscreenPreview extends ConsumerWidget {
                             onPressed: controller.togglePlay,
                             icon: AppIcon(
                               isPlaying ? AppIcons.pause : AppIcons.play,
-                              size: 13,
-                              color: scheme.onSurface,
+                              size: 18,
                             ),
                           ),
                           Expanded(child: ScrubBar(projectId: projectId)),
                           IconButton(
                             tooltip: l10n.editorExitFullscreen,
                             onPressed: close,
-                            icon: AppIcon(
+                            icon: const AppIcon(
                               AppIcons.exitFullscreen,
-                              size: 14,
-                              color: scheme.onSurface,
+                              size: 18,
                             ),
                           ),
                         ],
@@ -342,7 +329,7 @@ class ScrubBar extends ConsumerStatefulWidget {
 }
 
 class _ScrubBarState extends ConsumerState<ScrubBar> {
-  // Ephemeral drag state (AGENTS.md §4 allows local widget state).
+  // Ephemeral drag state (AGENTS.md §5 allows local widget state).
   double? _dragUs;
   bool _resumeAfterDrag = false;
 
@@ -357,13 +344,9 @@ class _ScrubBarState extends ConsumerState<ScrubBar> {
     final controller = ref.read(provider.notifier);
     final max = duration <= 0 ? 1.0 : duration.toDouble();
     final value = (_dragUs ?? position.toDouble()).clamp(0.0, max);
-    final timeStyle = theme.textTheme.bodySmall?.copyWith(
-      fontSize: 10,
-      color: theme.colorScheme.outline,
-      fontFeatures: const [FontFeature.tabularFigures()],
-    );
+    final timeStyle = AppTokens.timecodeStyle(context).copyWith(fontSize: 10);
 
-    // Time runs left to right in every locale (AGENTS.md §8).
+    // Time runs left to right in every locale (AGENTS.md §9).
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Row(
@@ -372,15 +355,14 @@ class _ScrubBarState extends ConsumerState<ScrubBar> {
           Expanded(
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
-                trackHeight: 2,
+                trackHeight: 2.5,
                 trackShape: _GradientTrackShape(gradient),
                 inactiveTrackColor: theme.colorScheme.outlineVariant,
                 thumbColor: gradient.end,
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
                 // An invisible 24dp overlay makes the bar a 48dp target.
                 overlayShape: const RoundSliderOverlayShape(),
-                // The kit shows no press halo.
-                overlayColor: gradient.end.withValues(alpha: 0),
+                overlayColor: gradient.end.withValues(alpha: 0.12),
               ),
               child: Slider(
                 value: value,

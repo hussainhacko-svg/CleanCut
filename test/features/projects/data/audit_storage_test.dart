@@ -5,8 +5,6 @@ import 'dart:io';
 import 'package:cleancut/features/projects/data/file_project_repository.dart';
 import 'package:cleancut/features/projects/data/project_codec.dart';
 import 'package:cleancut/features/projects/domain/project_repository.dart';
-import 'package:cleancut/features/settings/data/file_settings_repository.dart';
-import 'package:cleancut/features/settings/domain/app_settings.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../domain/fixtures.dart';
@@ -58,22 +56,6 @@ void main() {
     expect(
       Directory('${dir.path}/${p.id}').listSync().map((e) => e.path),
       everyElement(endsWith('project.json')),
-    );
-  });
-
-  test('concurrent settings saves keep the last value', () async {
-    final repo = FileSettingsRepository(File('${dir.path}/settings.json'));
-    await Future.wait([
-      for (var i = 0; i < 20; i++)
-        repo.save(
-          AppSettings(
-            theme: ThemePreference.values[i % ThemePreference.values.length],
-          ),
-        ),
-    ]);
-    expect(
-      (await repo.load()).theme,
-      ThemePreference.values[19 % ThemePreference.values.length],
     );
   });
 

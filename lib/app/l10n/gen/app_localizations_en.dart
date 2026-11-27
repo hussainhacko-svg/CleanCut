@@ -40,16 +40,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTitle => 'Settings';
 
   @override
-  String get settingsThemeSection => 'Theme';
+  String get settingsAboutSection => 'About';
 
   @override
-  String get themeDark => 'Dark';
-
-  @override
-  String get themeLight => 'Light';
-
-  @override
-  String get themeSystem => 'Same as device';
+  String get settingsLicenses => 'Open source licenses';
 
   @override
   String get homeNewProject => 'New project';
@@ -61,7 +55,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeEmptyTitle => 'No projects yet';
 
   @override
-  String get homeEmptyBody => 'Tap New project to pick videos and photos.';
+  String get homeEmptyBody => 'Tap + to pick videos and photos.';
 
   @override
   String get homeLoadFailed => 'Couldn\'t load your projects.';

@@ -95,6 +95,7 @@ class ValueBubble extends StatelessWidget {
           style: theme.textTheme.labelSmall?.copyWith(
             fontSize: 9,
             fontWeight: FontWeight.w700,
+            fontVariations: const [FontVariation.weight(700)],
             color: scheme.surface,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
@@ -134,6 +135,7 @@ class PanelLabel extends StatelessWidget {
     final style = theme.textTheme.bodyMedium?.copyWith(
       fontSize: fontSize,
       fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+      fontVariations: [FontVariation.weight(selected ? 700 : 400)],
       color: selected
           ? theme.colorScheme.onSurface
           : (muted ?? theme.colorScheme.onSurface),

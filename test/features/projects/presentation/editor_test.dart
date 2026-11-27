@@ -431,7 +431,9 @@ void main() {
   });
 
   group('Editor (tablet)', () {
-    testWidgets('uses the rail and the properties panel', (tester) async {
+    testWidgets('uses the Neon Focus floating inspector and bottom tray', (
+      tester,
+    ) async {
       tester.view
         ..physicalSize = const Size(1280, 800)
         ..devicePixelRatio = 1;
@@ -444,8 +446,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.byType(ToolRail), findsOneWidget);
-      expect(find.byType(ToolDock), findsNothing);
+      expect(find.byType(ToolDock), findsOneWidget);
       expect(find.byType(PropertiesPanel), findsOneWidget);
       expect(
         find.text('Select a clip on the timeline to edit it.'),

@@ -10,8 +10,6 @@ import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/project_repository.dart';
 import 'package:cleancut/features/projects/presentation/playback/playback_controller.dart';
 import 'package:cleancut/features/projects/presentation/project_providers.dart';
-import 'package:cleancut/features/settings/domain/app_settings.dart';
-import 'package:cleancut/features/settings/presentation/settings_providers.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,16 +53,6 @@ class InMemoryProjectRepository implements ProjectRepository {
 
   @override
   Future<void> delete(String id) async => projects.remove(id);
-}
-
-class InMemorySettingsRepository implements SettingsRepository {
-  AppSettings stored = const AppSettings();
-
-  @override
-  Future<AppSettings> load() async => stored;
-
-  @override
-  Future<void> save(AppSettings settings) async => stored = settings;
 }
 
 /// Returns [next] once per call; empty list means "cancelled".
@@ -210,14 +198,12 @@ class TestEnv {
     : repo = InMemoryProjectRepository(projects);
 
   final InMemoryProjectRepository repo;
-  final settings = InMemorySettingsRepository();
   final picker = FakeMediaPicker();
   final engine = FakeMediaEngine();
   final String Function() ids = sequentialIds('new');
 
   List<Override> get overrides => [
     projectRepositoryProvider.overrideWith((ref) async => repo),
-    settingsRepositoryProvider.overrideWith((ref) async => settings),
     mediaPickerProvider.overrideWithValue(picker),
     mediaEngineProvider.overrideWithValue(engine),
     idGeneratorProvider.overrideWithValue(ids),

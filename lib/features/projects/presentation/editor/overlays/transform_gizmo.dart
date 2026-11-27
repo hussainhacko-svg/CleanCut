@@ -465,6 +465,9 @@ class _TransformGizmoState extends State<TransformGizmo> {
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: scheme.onSurface,
                                   fontWeight: FontWeight.w600,
+                                  fontVariations: const [
+                                    FontVariation.weight(600),
+                                  ],
                                   fontFeatures: const [
                                     FontFeature.tabularFigures(),
                                   ],

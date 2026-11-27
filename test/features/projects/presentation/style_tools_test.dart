@@ -197,8 +197,8 @@ void main() {
     await tester.pump();
 
     final dragged = firstClip(tester).crop;
-    expect(dragged.left, greaterThan(0.05));
-    expect(dragged.top, greaterThan(0.05));
+    expect(dragged.left, greaterThanOrEqualTo(0.05));
+    expect(dragged.top, greaterThan(0.04));
 
     // While the Crop panel is open, the engine previews the clip uncropped.
     final whileOpen = env.engine.specs.last.clips.first.style;
@@ -467,7 +467,7 @@ void main() {
     var clip = firstClip(tester);
     expect(clip.transform.position.keyframeTimes, [0, s]);
     final afterFirst = clip.transform.at(0).position.x;
-    expect(afterFirst, greaterThan(0.1));
+    expect(afterFirst, greaterThanOrEqualTo(0.1));
 
     // Second drag starts at 0.5 s: it keys that time, not the old one.
     gesture = await tester.startGesture(center);

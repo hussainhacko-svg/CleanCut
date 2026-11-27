@@ -1,65 +1,63 @@
 # CleanCut — Design Spec
 
-Chosen layout: **Bottom Dock**. Compact, touch-first, one-handed on phones; a three-pane workspace on tablets.
-
-**Visual source of truth: the VCLIP Figma kit** (Figma file `hR2oviwmkmDaGGHdFApOI7`, page "Mobile Screens"). The owner decided the app follows it completely, in every phase. Before building a screen, open its VCLIP frame (Timeline, Filters, Alignment, Music, Media, Crop, Speed, Adjust, Animation, Transition, Text templates, Fonts, Text color, Overlay, Stickers, Effects, Ratio, Full screen…) and match it. Not used from the kit: its sample photos, the "VCLIP" name and logo, and screens for features outside `PLAN.md` (sign-in, Go Pro, stock media, AI images, templates). Where the kit and this file disagree, the kit wins; update this file to match.
+Chosen visual system: **Clipcraft** (local reference in `Clipcraft_cleancut/`, git-ignored; Jetpack Compose prototype + 133 category-colored duotone SVG icons + Manrope & JetBrains Mono variable fonts + adaptive launcher icon). Replaces the earlier VCLIP Figma kit across every screen while keeping the **CleanCut** brand name and only the screens in `PLAN.md` (Projects home, Editor, Settings — no Templates/AI/Cloud/Sign-in tabs).
 
 ## 1. Principles
 
-1. **Preview first, tools at the thumb.** Content stays at the top, controls at the bottom within reach.
-2. **Context, not menus.** The dock shows only what applies to the current selection.
-3. **Direct manipulation.** Drag clips, pinch the timeline, and manipulate layers directly on the preview with two fingers.
+1. **Preview first, tools at the thumb.** Full-bleed preview on phones with a rounded bottom timeline/tool sheet; Neon Focus floating inspector on tablets.
+2. **Context, not menus.** The tool tray shows only what applies to the current selection.
+3. **Direct manipulation.** Drag clips, pinch the timeline, and manipulate layers directly on the preview with one or two fingers.
 4. **Everything undoable.** No confirmation dialogs; undo/redo is always visible.
 5. **Exact when needed.** Every slider also accepts a typed value and has a reset.
 
 ## 2. Layouts
 
-### Phone — compact (< 600dp)
+### Phone — compact (< 840dp), Clipcraft **Editor B**
 
 ```
 ┌──────────────────────────────┐
-│ ⌂                        [⇪] │  top bar: home (left), export (right) — VCLIP
-│┌────────────────────────────┐│
-││                            ││
-││          PREVIEW           ││  ~40–45% height, letterboxed to canvas aspect
-││                            ││  gizmos drawn on top when a layer is selected
-│└────────────────────────────┘│
-│ ▶      ↶ 00:06 / 00:12 ↷   ⛶ │  transport row: play left, undo/timecode/redo centred, full screen right
-│ ─────────────┃────────────── │  ruler (playhead fixed at center)
-│ ▓▓▓▓▓▓▓▓▓▓▓▓▓┃▓▓▓▓▓▓▓ [+]    │  main video track (thumbnails)
-│     ░░T░░░   ┃               │  text / overlay lanes (collapsed pills)
-│ ≈≈≈≈≈≈≈≈≈≈≈≈≈┃≈≈≈≈            │  audio lane (waveform)
-├──────────────────────────────┤
-│ ⊕  ♪Music 🎙Voice T Text ✦…  │  tool dock: white ⊕ add, then icon+label tools (64dp)
+│ (‹)                 [Export] │  floating top bar (56dp)
+│                              │
+│          PREVIEW             │  fitted between top bar & sheet (never behind them)
+│     (gizmos drawn on top)    │
+│╭────────────────────────────╮│  rounded bottom sheet (top radius 22, 340dp)
+││            ────            ││  40×4 drag handle pill
+││ 00:08/00:24  ↶ (▶) ↷    ⛶ ││  PlayRow: monospace timecode, undo·play·redo, fullscreen
+││ ─────────────●─────────────││  ruler (JetBrains Mono) + indigo playhead with dot cap
+││ ▓▓▓▓▓▓▓▓▓▓▓▓▓┃▓▓▓▓▓▓▓      ││  main video strip (radius 12) + ⧓ transition markers
+││     ░░O░░░   ┃             ││  overlay / audio pill lanes (translucent category fill)
+││ ⊕  ♪Music 🎙Voice T Text … ││  ToolTray: duotone category icons + 10sp labels
+│╰────────────────────────────╯│
 └──────────────────────────────┘
 ```
 
-When a tool opens, a **tool panel** (max 40% height) slides up over the dock and pushes the timeline up (VCLIP "Filters"/"Alignment"). Panel: `surfaceContainer` at 85% opacity with a 20px backdrop blur, top radius 20. Header: **bold 14 title** at left, `Reset` (12, muted) and `✕` at right. Below: a row of text category tabs (14; selected = bold with the accent gradient, others muted), then the controls (preset tiles, sliders).
+When a tool opens, a **tool panel** replaces the tool tray inside the bottom sheet (keeping the timeline at least 80dp tall and preserving its scroll offset; the sheet expands up to 430dp / 62% height). The sheet is 340dp (at most 44% of the height) otherwise. **Adaptation:** Clipcraft draws the preview full-bleed behind the sheet, but its preview is a placeholder; with real video that hid the lower part of the frame and the crop/transform handles, so the preview is fitted into the space between the top bar and the sheet. Header: bold 14sp Manrope title at left, muted `Reset` and `✕` at right, hairline `outlineVariant` top divider.
 
-### Tablet — expanded (≥ 840dp), landscape
+### Tablet — expanded (≥ 840dp), Clipcraft **Neon Focus**
 
 ```
-┌────┬───────────────────────────────┬──────────────┐
-│ ✂  │                               │ PROPERTIES   │
-│ ◐  │           PREVIEW             │ Position ─○─ │
-│ T  │                               │ Scale    ──○ │
-│ ♪  │   00:12.4   ↶ ↷  ▶  ⛶         │ Rotate   ○── │
-│ ▣  ├───────────────────────────────┴──────────────┤
-│ ⚙  │ ▓▓▓▓▓▓▓▓▓▓┃▓▓▓▓▓▓▓▓▓▓▓▓       video          │
-│    │   ░░T░░   ┃                   text           │
-│    │ ≈≈≈≈≈≈≈≈≈≈┃≈≈≈≈≈              audio          │
-└────┴──────────────────────────────────────────────┘
- rail   preview + transport          properties panel (320dp)
- 72dp                                timeline spans the full width
+┌──────────────────────────────────────────────┐
+│ ‹                                   [Export] │  top bar
+├──────────────────────────────┬───────────────┤
+│                              │  INSPECTOR /  │  floating right card (300dp,
+│           PREVIEW            │  TOOL PANEL   │  radius 14, outlineVariant border)
+│         (radius 12)          │               │
+├──────────────────────────────┴───────────────┤
+│ 00:08 / 00:24       ↶  (▶)  ↷             ⛶  │  PlayRow
+├──────────────────────────────────────────────┤
+│ ▓▓▓▓▓▓▓▓▓▓●▓▓▓▓▓▓▓▓▓▓▓▓      video           │  full-width Timeline T1
+│   ░░O░░   ┃                  overlay         │
+│ ≈≈≈≈≈≈≈≈≈≈┃≈≈≈≈≈             audio           │
+├──────────────────────────────────────────────┤
+│ ⊕  ♪Music  🎙Voice  T Text  ✦Effect  …       │  bottom ToolTray
+└──────────────────────────────────────────────┘
 ```
 
-**Medium (600–839dp)** uses the phone layout with a wider preview. The tool panel becomes a side sheet in landscape.
+When no tool panel is open, the floating Inspector card shows the selected clip's name and duration (or a prompt when nothing is selected); opening any tool panel renders it inside the floating card.
 
-**Tablet (≥ 840dp)** has no VCLIP frame; it keeps this rail + properties panel layout with the kit's tokens (owner decision). In Phase 3 the panel shows the selected clip's name and length; tool controls move into it as their phases land.
+## 3. Tool tray content
 
-## 3. Tool dock content (VCLIP "Timeline" / "Video" / "Edit")
-
-Phone dock: a horizontally scrolling row; items 52dp apart, 24px icon + 8px label at 50% opacity; the first item is a white disc (⊕ add, or ‹ back) without a label. Tablet: the same items in the left rail.
+Horizontally scrolling row (`ToolDock`, height 64dp); items ≥ 60dp wide with 22px category-colored duotone `AppIcon` + 10sp `Manrope` label in `onSurfaceVariant`; leading item is a 38dp circle chip (`primary` for ⊕ Add media, `surfaceContainerHigh` for ‹ Back) with tooltip/semantics.
 
 | State | Dock items |
 |---|---|
@@ -68,7 +66,7 @@ Phone dock: a horizontally scrolling row; items 52dp apart, 24px icon + 8px labe
 | Text selected (Phase 8, kit "Edit") | ‹ Back · Split · Edit · Delete · Color · Font · Align |
 | Audio selected | ‹ Back · Split · Volume · Speed · Delete |
 
-Tools whose phase hasn't shipped show "Coming in a later update." Icons that exist as vectors in the kit come from it; the clip tools (split, filters, crop, adjust, speed, animation, volume, delete, mute) were redrawn from the kit's flattened "Icons" sheet and are marked inside their SVGs. **Duplicate** is not in the kit: the owner placed it right after Split, with an icon drawn in the kit's line style (marked in `tool_duplicate.svg`).
+Tools whose phase hasn't shipped show "Coming in a later update." All icons come from the Clipcraft icon pack (`assets/icons/`). Category icons keep their built-in duotone color; the pack's uncategorized grey glyphs (chevrons, close, plus, more, settings, info, sun, moon, sliders) take the ambient icon color so they follow the theme and dim when disabled (`AppIcons.neutral`). On filled buttons every icon is tinted `onPrimary`. **Duplicate** sits right after Split (owner decision).
 
 - **Split** cuts the selected clip at the playhead; with the playhead outside the clip (or within 0.1 s of an edge) a snackbar says to move it. **Delete** removes the clip at once (undoable, no dialog). Overlay and audio clips get these tools with their phases.
 
@@ -145,7 +143,7 @@ Tools whose phase hasn't shipped show "Coming in a later update." Icons that exi
 - Playhead: a 2px white line fixed in the middle, spanning the lanes only. Dragging the timeline scrubs; within 8px of a clip edge it snaps there with a haptic tick; playback resumes after the drag if it was playing. Two-finger pinch zooms around the playhead.
 - Rows, top to bottom: effect · text · overlay lanes (30px pills, radius 18.5, 10px label with a small glyph), the main video strip (60px thumbnails, radius 10, 4px visual gap between clips, ⧓ transition marker on each boundary), audio lanes (orange pills with a white waveform). The "mute original audio" speaker sits left of 0 s on the first audio row.
 - Lane colors (`TimelineColors`): effect `#808080`, text `#43418E`, overlay `#D158D9`, audio `#E86F48`.
-- Selection: tap a clip to select, tap it again or empty space (or ‹ Back) to deselect. A selected main clip gets a light cream `#EDDB93` wash (50%, thumbnails stay visible as in the kit's "Video" frame), a 2px white border and 4×14 white trim handles; the other lanes drop to 60% opacity. A selected pill gets a 50% fill, a 2px outline and handles in its lane color. Selection is UI state (not undoable) and clears when its clip disappears.
+- Selection: tap a clip to select, tap it again or empty space (or ‹ Back) to deselect. A selected main clip gets a light video-cyan `#36C5F0` wash (28%, thumbnails stay visible), a 2px video-cyan border and 4×14 trim handles in the same color; the other lanes drop to 60% opacity. Pills have a 30% fill in their lane color (58% when selected), an outline and, when selected, handles in their lane color. Selection is UI state (not undoable) and clears when its clip disappears.
 - The ⧓ marker is decorative until transitions ship: a 48dp target would cover short clips (a 2 s clip is 45px wide at the default zoom).
 - **Trim:** the selected clip's white handles have 48dp-wide touch targets centred on its edges. Dragging draws the new length live (trimming the start moves the left edge; the gap closes on release, as the main track is magnetic), snaps to the playhead with a haptic tick, stops at the media's ends and at 0.1 s, and is applied on release as one undo step. The preview then seeks to the trimmed edge to show its frame.
 - **Reorder:** long-press a main clip to lift it (raised, shadowed, haptic); drag it sideways; a 2dp white line shows where it will land (a haptic tick when that changes); release to drop. A long press without moving changes nothing.
@@ -166,71 +164,59 @@ Tools whose phase hasn't shipped show "Coming in a later update." Icons that exi
 
 Snapping: clip edges snap to playhead, clip boundaries, and markers. Transforms snap to center, edges, and 0/90/180/270°. Each snap triggers a light haptic.
 
-## 5. Visual language (VCLIP tokens)
+## 5. Visual language (Clipcraft tokens)
 
 Colors live only in `AppTheme` (`lib/app/theme/app_theme.dart`); shapes and fonts in `AppTokens` (`lib/core/theme/app_tokens.dart`).
 
 | Token | Value | ColorScheme role |
 |---|---|---|
-| Background | `#030303` | `surface` |
-| Tool panel / sheet / dialog | `#1F1F1F` (85% + blur on panels) | `surfaceContainer` |
-| Card | `#212121` | `surfaceContainerHigh` |
-| Round icon chip (`+`, `•••`) | `#3A3A3A` | `surfaceContainerHighest` |
-| Hairline border | `#2D2D2D` | `outlineVariant` |
-| Muted text / inactive tab / tile border | `#606060` | `outline` |
-| Secondary text (dates) | `#9E9E9E` | `onSurfaceVariant` |
-| Primary text / icons | `#FFFFFF` | `onSurface` |
-| Accent gradient | `#FFB951 → #CE50E0` (135°) | `secondary` → `primary` |
+| Background | `#16171B` | `surface` |
+| Editor canvas backing | `#0F1014` | `surfaceContainerLowest` |
+| Sheet / card / tool panel | `#1D1E24` | `surfaceContainer` |
+| Elevated surface / chip | `#262730` | `surfaceContainerHigh` |
+| Hairline border / divider | `#2E2F39` | `outlineVariant` |
+| Muted / disabled | `#6B6F85` | `outline` |
+| Secondary text | `#8B8FA3` | `onSurfaceVariant` |
+| Primary text | `#E6E6EA` | `onSurface` |
+| Primary / Secondary / Tertiary | `#7C8CFF` / `#A35CFF` / `#FF4FD8` | `primary` / `secondary` / `tertiary` |
+| Accent gradient | `#7C8CFF → #A35CFF` (135°) | `AccentGradient` |
 
-- **Accent:** the orange→pink gradient marks the selected tab, the selected tile border and premium highlights; solid `primary` (#CE50E0) where a gradient can't be used (radios, focus).
-- **Timeline lanes (Phase 3, VCLIP "Timeline"):** colored pills 30dp tall with icon + label — effect = grey, text = indigo, overlay = magenta, audio = orange with a white waveform; video = thumbnail strip 60dp tall. Exact values to be read from the frame when Phase 3 starts and added as a `ThemeExtension`.
-- **Type:** Plus Jakarta Sans (400/500/600/700, bundled, OFL) for everything; Bebas Neue for the wordmark only. Timecodes use tabular figures.
-- **Shapes:** cards, tiles and preset thumbnails radius 10; sheets and panels top radius 20; round chips 32dp; page gutter 18dp.
-- **Icons:** thin line icons, white on black; Material outlined/rounded icons where the kit's icon isn't available.
-- Touch targets stay ≥ 48dp: small visual elements (32dp chips) get invisible padding.
-- Dark is the default; the light theme reuses the same accents on white surfaces.
-- Motion: 200ms emphasized easing for panel open/close; no animation on scrub.
+- **Category / timeline colors (`TimelineColors`):** video `#36C5F0`, audio `#1DD1A1`, text `#FF9F43`, effect `#A35CFF`, overlay `#FF5D73`, music `#5B8CFF`.
+- **Type:** **Manrope** (variable, SIL OFL) for all UI text; **JetBrains Mono** (variable, SIL OFL) for timecodes and ruler labels (tabular fixed-width digits).
+- **Shapes:** cards and preview frames radius 12; floating tablet inspector radius 14; bottom sheets and phone timeline sheet top radius 22; page gutter 16dp.
+- **Icons:** Clipcraft category-colored duotone SVGs in `assets/icons/`. `AppIcon` keeps category colors by default; the uncategorized grey glyphs (`AppIcons.neutral`) take the ambient icon color; pass `color:` to tint on filled buttons or disabled states.
+- Touch targets stay ≥ 48dp. The app is **dark only** (owner decision): no light theme and no theme setting.
 
-## 5a. Editor (VCLIP "Timeline", "Full screen")
+## 5a. Editor & Full Screen
 
-- **Background** `#080808` (`surfaceContainerLowest`).
-- **Top:** home icon (top-left) and export icon (top-right) sit beside the preview; no title, no PRO badge.
-- **Preview:** the kit's 282×360 box on a 393×852 screen (56dp side insets, ~42% of the height); the canvas is letterboxed inside it. Pixels come from the native engine texture.
-- **Transport row:** 40dp dark circle with play/pause at the left, full-screen circle at the right (13dp from the edges, 48dp targets); in the middle small grey undo/redo arrows (white when usable) around a 98dp-wide `00:06 / 00:12` readout (12px, tabular figures).
-- **Full screen:** video edge to edge on black, a ✕ at the top right, and a floating rounded bar (`surfaceContainer` 85%) with play/pause, position, a gradient scrub bar (2dp track, 5dp thumb), duration and an exit-full-screen icon. Dragging pauses, seeks frame-accurately and resumes if it was playing.
-- **Icons:** the kit's SVGs live in `assets/icons` and are drawn with `AppIcon` (flutter_svg). Glyphs the kit lacks (pause, close, exit full screen) are drawn in the same style and marked in the SVG.
+- **Phone (`Editor B`):** Full-bleed preview behind the floating top bar (`‹` back in a translucent circle, primary `Export` button on right) and a rounded bottom sheet (top radius 22, 340dp default / up to 430dp with a tool panel open).
+- **PlayRow:** Monospace timecode on the left, Undo · primary circular Play/Pause · Redo centered, Full screen on the right.
+- **Timeline T1:** Fixed centered playhead in `primary` with a 10dp circular cap; rounded main clips (radius 12) highlighted in cyan `#36C5F0` when selected; full-pill overlay/audio clips in 30% translucent category fill (58% + 2px border when selected).
+- **Full screen:** Video edge-to-edge on black, translucent close circle top-right, floating dark bar (`surfaceContainer` 90%, radius 14, `outlineVariant` border) with play/pause, JetBrains Mono times, gradient scrub bar, and exit.
 
 ## 6. Key components (build as reusable widgets)
 
-- `EditorScaffold` (responsive switch between compact and expanded)
-- `ToolDock`, `ToolRail`, `ToolPanel`, `PropertiesPanel`
-- `PropertySlider` (label, value, typed input, reset, keyframe toggle, haptic snap)
-- `OptionChips`, `PresetGrid` (filters, motions, text styles with live thumbnails)
+- `ToolDock` (Clipcraft `ToolTray`), `ToolPanel`, `PropertiesPanel` (tablet floating Inspector)
+- `GradientSliderRow`, `PanelTabs`, `ValueBubble`, `ColorSwatchRow`, `KeyframeToggleButton`
 - `TimelineView` (ruler, lanes, clips, playhead, snapping)
-- `PreviewSurface` (Texture + gizmo overlay layer)
-- `TransformGizmo`, `CropOverlay`, `MaskOverlay`
+- `PreviewView` (Texture + gizmo overlay layer)
+- `TransformGizmo`, `CropOverlay`
 
-## 7. Home screen (projects) — VCLIP "Projects"
+## 7. Home screen (projects) — Clipcraft **Home A**
 
 ```
 ┌──────────────────────────────┐
-│ CLEANCUT                  ⚙  │  wordmark (Bebas Neue), settings (tune icon)
-│ ┌──────────────────────────┐ │
-│ │           (+)            │ │  "New project" tile: outlined (outline), radius 10,
-│ │       New project        │ │  114dp tall, grey round + chip
-│ └──────────────────────────┘ │
-│ My projects                  │  18 medium
-│ ┌──────────────────────────┐ │
-│ │ ▯▯  Flow lifestyle  (•••)│ │  card #212121, radius 10, 114dp: 72×88 thumbnail,
-│ │ ▯▯  26, Nov, 2026        │ │  name 18, date 14 (secondary), duration 10,
-│ │ ▯▯  01:06                │ │  round ••• chip top-right opens the menu
-│ └──────────────────────────┘ │
+│ 🎞 CleanCut                ⚙ │  TopAppBar: film icon + title (phone), settings
+│ ┌──────────┐  ┌──────────┐   │
+│ │  16:10 ⋯ │  │  16:10 ⋯ │   │  2-col grid (phone) / adaptive grid (tablet)
+│ │    01:05 │  │    00:12 │   │  rounded 12dp thumbnail + duration badge + •••
+│ └──────────┘  └──────────┘   │
+│ Holiday       Summer trip    │  title (bodyLarge SemiBold)
+│ 26, Nov, 2026 25, Nov, 2026  │  date (bodySmall onSurfaceVariant)
+│                         [+]  │  FAB (phone) / Extended FAB "New project" (tablet)
 └──────────────────────────────┘
 ```
 
-- One column on phones; on tablets the cards flow into a grid (max 560dp per card).
-- **New project:** system Photo Picker (videos + photos, multi-select) → "Canvas size" panel (tool-panel style: title + ✕, then the kit "Ratio" row: bare rounded aspect outlines in `onSurfaceVariant` with captions, 64dp apart — Original first, drawn as the kit's "Fit" corners glyph — then 9:16, 16:9, 1:1, 4:5, 3:4, 4:3; a selected ratio gets an accent-gradient outline and a bold white caption. The kit's Instagram/TikTok logos inside 1:1 and 9:16 are left out: third-party trademarks) → project is created and opened. Cancelling either step creates nothing.
-- **Card menu:** Rename (dialog), Duplicate ("<name> copy"), Delete. Delete happens immediately and shows a snackbar with **Undo** — no confirmation dialog.
-- Empty state: the New project tile, then icon, "No projects yet" and a hint.
-- The card thumbnail is the first frame of the first clip (native extraction, disk-cached); the canvas-shape placeholder shows while it loads or when there is no frame.
-- Not adopted from the kit: Camera / Stock videos / AI images shortcuts and "GO PRO" (not in `PLAN.md`).
+- **New project:** Tap the FAB (the only New project action; the empty state just says "Tap + …") → system Photo Picker → "Canvas size" bottom sheet (drag handle + title + ratio outlines) → project created and opened.
+- **Card menu (`•••`):** Rename, Duplicate, Delete (immediate with Undo snackbar).
+- **Settings:** a single About card (Open source licenses) on every width; no theme choice since the app is dark only.

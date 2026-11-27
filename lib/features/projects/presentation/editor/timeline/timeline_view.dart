@@ -5,6 +5,7 @@ import 'dart:ui' as ui show Clip;
 
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/theme/accent_gradient.dart';
+import 'package:cleancut/core/theme/app_tokens.dart';
 import 'package:cleancut/core/theme/timeline_colors.dart';
 import 'package:cleancut/core/widgets/app_icon.dart';
 import 'package:cleancut/engine/media_engine.dart';
@@ -524,9 +525,9 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
                     ),
                   ),
                 ),
-                // The playhead: fixed in the middle, over the lanes.
-                // Spans the lanes only, as in the kit, and follows the
-                // vertical lane scroll (only this line rebuilds).
+                // The Clipcraft playhead: fixed in the middle with a circular
+                // cap in `primary`, spanning the lanes and following vertical
+                // lane scroll.
                 ListenableBuilder(
                   listenable: _laneScroll,
                   builder: (context, line) {
@@ -536,7 +537,7 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
                     final top = math.max(0, playheadTop - dy).toDouble();
                     final bottom = math.min(lanesBottom - dy, viewportHeight);
                     return Positioned(
-                      left: pad - 1,
+                      left: pad - 5,
                       top: top,
                       height: math.max(0, bottom - top).toDouble(),
                       child: line!,
@@ -544,9 +545,29 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
                   },
                   child: IgnorePointer(
                     key: TimelineView.playheadKey,
-                    child: Container(
-                      width: 2,
-                      color: Theme.of(context).colorScheme.onSurface,
+                    child: SizedBox(
+                      width: 10,
+                      child: Stack(
+                        alignment: Alignment.topCenter,
+                        children: [
+                          Positioned(
+                            top: 0,
+                            bottom: 0,
+                            child: Container(
+                              width: 2,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -652,11 +673,8 @@ class _TimelineContent extends ConsumerWidget {
             pad: pad,
             viewport: viewport,
             scroll: scroll,
-            style: Theme.of(context).textTheme.bodySmall!.copyWith(
-              fontSize: 12,
-              color: scheme.onSurface.withValues(alpha: 0.5),
-            ),
-            dotColor: scheme.onSurface.withValues(alpha: 0.5),
+            style: AppTokens.timecodeStyle(context).copyWith(fontSize: 10),
+            dotColor: scheme.onSurfaceVariant.withValues(alpha: 0.45),
           ),
         ),
       ),
@@ -780,8 +798,18 @@ class _TimelineContent extends ConsumerWidget {
           Positioned(
             left: _x(start) - 11,
             top: layout.mainTop + TimelineMetrics.mainHeight / 2 - 11,
-            child: const IgnorePointer(
-              child: AppIcon(AppIcons.transition, size: 22),
+            child: IgnorePointer(
+              child: Container(
+                width: 22,
+                height: 22,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHigh,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: scheme.outlineVariant),
+                ),
+                child: const AppIcon(AppIcons.transition, size: 13),
+              ),
             ),
           ),
         );
@@ -822,7 +850,7 @@ class _TimelineContent extends ConsumerWidget {
         child: IconButton(
           tooltip: l10n.timelineMuteOriginal,
           onPressed: soon,
-          icon: AppIcon(AppIcons.mute, size: 19, color: scheme.onSurface),
+          icon: const AppIcon(AppIcons.mute, size: 19),
         ),
       ),
     );
@@ -972,7 +1000,7 @@ class MainClipView extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = TimelineColors.of(context);
     final scheme = Theme.of(context).colorScheme;
-    const radius = BorderRadius.all(Radius.circular(10));
+    const radius = BorderRadius.all(Radius.circular(AppTokens.cardRadius));
     final keyframeTimes = clip.transform.keyframeTimes;
     final move = onLongPressMove;
     final strip = Stack(
@@ -1001,7 +1029,7 @@ class MainClipView extends StatelessWidget {
                   alpha: TimelineColors.selectedClipTint,
                 ),
                 borderRadius: radius,
-                border: Border.all(color: scheme.onSurface, width: 2),
+                border: Border.all(color: colors.video, width: 2),
               ),
             ),
           ),
@@ -1010,7 +1038,7 @@ class MainClipView extends StatelessWidget {
               left: left ? -9 : null,
               right: left ? null : -9,
               top: TimelineMetrics.mainHeight / 2 - 7,
-              child: _Handle(color: scheme.onSurface),
+              child: _Handle(color: colors.video),
             ),
         ],
         if (keyframeTimes.isNotEmpty)
@@ -1368,8 +1396,8 @@ class _Tile extends ConsumerWidget {
   }
 }
 
-/// A rounded lane clip (VCLIP pill): icon, label and optional trailing
-/// content such as a waveform.
+/// A rounded lane clip (Clipcraft Timeline T1 pill): icon, label and
+/// optional trailing content such as a waveform.
 class LanePill extends StatelessWidget {
   /// Creates a pill.
   const new({
@@ -1407,9 +1435,15 @@ class LanePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    const radius = BorderRadius.all(Radius.circular(18.5));
-    final textStyle = Theme.of(context).textTheme.bodySmall
-        ?.copyWith(fontSize: 10, color: scheme.onSurface);
+    const radius = BorderRadius.all(
+      Radius.circular(TimelineMetrics.laneHeight / 2),
+    );
+    final textStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
+      fontSize: 10,
+      fontWeight: FontWeight.w700,
+      fontVariations: const [FontVariation.weight(700)],
+      color: scheme.onSurface,
+    );
     return Semantics(
       button: true,
       selected: selected,
@@ -1424,15 +1458,16 @@ class LanePill extends StatelessWidget {
               Positioned.fill(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: selected
-                        ? color.withValues(
-                            alpha: TimelineColors.selectedPillFill,
-                          )
-                        : color,
+                    color: color.withValues(
+                      alpha: selected
+                          ? TimelineColors.selectedPillFill
+                          : TimelineColors.unselectedPillFill,
+                    ),
                     borderRadius: radius,
-                    border: selected
-                        ? Border.all(color: color, width: 2)
-                        : null,
+                    border: Border.all(
+                      color: selected ? color : color.withValues(alpha: 0.45),
+                      width: selected ? 2 : 1,
+                    ),
                   ),
                   child: ClipRRect(
                     borderRadius: radius,

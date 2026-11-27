@@ -1,5 +1,1 @@
-<svg width="10" height="12.6" viewBox="0 0 10 12.6" fill="none" xmlns="http://www.w3.org/2000/svg">
-<!-- Not in the VCLIP kit: drawn to match its play glyph (same box, white, rounded). -->
-<rect x="0.5" y="0" width="3.2" height="12.6" rx="1.1" fill="white"/>
-<rect x="6.3" y="0" width="3.2" height="12.6" rx="1.1" fill="white"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#ff5d73" fill-opacity=".2" stroke="#ff5d73" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>

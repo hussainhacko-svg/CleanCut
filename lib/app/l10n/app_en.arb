@@ -13,15 +13,13 @@
   "commonClose": "Close",
 
   "settingsTitle": "Settings",
-  "settingsThemeSection": "Theme",
-  "themeDark": "Dark",
-  "themeLight": "Light",
-  "themeSystem": "Same as device",
+  "settingsAboutSection": "About",
+  "settingsLicenses": "Open source licenses",
 
   "homeNewProject": "New project",
   "homeMyProjects": "My projects",
   "homeEmptyTitle": "No projects yet",
-  "homeEmptyBody": "Tap New project to pick videos and photos.",
+  "homeEmptyBody": "Tap + to pick videos and photos.",
   "homeLoadFailed": "Couldn't load your projects.",
   "homeProjectOptions": "Options for {name}",
   "@homeProjectOptions": {"placeholders": {"name": {"type": "String"}}},

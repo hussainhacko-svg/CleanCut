@@ -49,5 +49,6 @@ app.*.map.json
 
 # FVM Version Cache
 .fvm/
-# Local export of the VCLIP Figma kit frames (design reference, not shipped)
+# Local design reference folders (not shipped)
 /VCLIP-video editor (Community)/
+/Clipcraft_cleancut/

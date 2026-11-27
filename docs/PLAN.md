@@ -7,7 +7,7 @@ Touch-first video editor for Android phones and tablets, built with Flutter (UI)
 | Area | Decision |
 |---|---|
 | Platform | Android only, minSdk 29 (Android 10) |
-| UI | Flutter 3.47.9 (FVM), Material 3, dark-first + light option |
+| UI | Flutter 3.47.9 (FVM), Material 3, dark only (owner decision) |
 | Layout | Bottom Dock (phone) / Tool rail + Properties panel (tablet) — see `DESIGN.md` |
 | Engine | Kotlin, AndroidX Media3 `CompositionPlayer` (preview) + `Transformer` (export), OpenGL ES effects |
 | Bridge | Pigeon (typed), preview rendered into a Flutter `Texture` via `SurfaceProducer` |
@@ -113,7 +113,7 @@ lib/
     text/         text clips, styles, motion
     audio/        audio tracks, volume, fades, extract
     export/       export settings, progress, share
-    settings/     theme, defaults
+    settings/     about / licenses (later: defaults)
 pigeons/engine.dart
 android/app/src/main/kotlin/com/hussainhacko/cleancut/engine/...
 test/             mirrors lib/

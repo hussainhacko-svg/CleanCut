@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui show Clip;
 
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
+import 'package:cleancut/core/theme/app_tokens.dart';
 import 'package:cleancut/core/widgets/app_icon.dart';
 import 'package:cleancut/features/projects/domain/commands/clip_commands.dart';
 import 'package:cleancut/features/projects/domain/commands/project_commands.dart';
@@ -33,8 +35,8 @@ import 'package:flutter/material.dart' hide TransformProperty;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// The editor (VCLIP "Timeline"): preview, transport, timeline and the
-/// contextual tool dock.
+/// The editor (Clipcraft Editor B on phones, Neon Focus on tablets): preview,
+/// transport, timeline and the contextual tool dock.
 class ProjectScreen extends ConsumerWidget {
   /// Creates the screen for [projectId].
   const new({required this.projectId, super.key});
@@ -84,30 +86,32 @@ class ProjectScreen extends ConsumerWidget {
       child: _PlaybackBinding(
         projectId: projectId,
         child: Scaffold(
-          backgroundColor: scheme.surfaceContainerLowest,
-          body: SafeArea(
-            child: switch (session) {
-              AsyncData(:final value) => _Editor(
-                projectId: projectId,
-                project: value.history.present,
-                onHome: leave,
-                onUndo: history?.canUndo ?? false
-                    ? ref.read(provider.notifier).undo
-                    : null,
-                onRedo: history?.canRedo ?? false
-                    ? ref.read(provider.notifier).redo
-                    : null,
-              ),
-              AsyncError(:final error) => Center(
+          backgroundColor: scheme.surface,
+          body: switch (session) {
+            AsyncData(:final value) => _Editor(
+              projectId: projectId,
+              project: value.history.present,
+              onHome: leave,
+              onUndo: history?.canUndo ?? false
+                  ? ref.read(provider.notifier).undo
+                  : null,
+              onRedo: history?.canRedo ?? false
+                  ? ref.read(provider.notifier).redo
+                  : null,
+            ),
+            AsyncError(:final error) => SafeArea(
+              child: Center(
                 child: Text(
                   error is ProjectNotFoundException
                       ? l10n.editorNotFound
                       : l10n.homeLoadFailed,
                 ),
               ),
-              _ => const Center(child: CircularProgressIndicator()),
-            },
-          ),
+            ),
+            _ => const SafeArea(
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          },
         ),
       ),
     );
@@ -362,6 +366,7 @@ class _Editor extends ConsumerWidget {
             .showSnackBar(SnackBar(content: Text(l10n.editorPlaybackFailed)));
       }
     });
+    final scheme = Theme.of(context).colorScheme;
     final selection = ref.watch(timelineSelectionControllerProvider(projectId));
     final tools = dockToolsFor(selection);
     final panel = _toolPanel(ref, selection);
@@ -374,100 +379,203 @@ class _Editor extends ConsumerWidget {
       onFullscreen: () => unawaited(_openFullscreen(context, ref)),
     );
     final timeline = TimelineView(projectId: projectId, project: project);
-    final preview = _PreviewArea(
-      projectId: projectId,
-      canvas: project.canvas,
-      overlay: overlay,
-      onHome: onHome,
-    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        // Tablet (Clipcraft Neon Focus): top bar, large preview + floating
+        // right inspector/panel, PlayRow, full-width timeline, bottom ToolTray.
         if (constraints.maxWidth >= expandedWidth) {
-          return Column(
-            children: [
-              Expanded(
-                flex: 3,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    ToolRail(tools: tools, onTool: onTool),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          Expanded(child: preview),
-                          const SizedBox(height: 4),
-                          transport,
-                        ],
-                      ),
-                    ),
-                    if (panel != null)
-                      Padding(
-                        padding: const EdgeInsetsDirectional.fromSTEB(
-                          0,
-                          12,
-                          12,
-                          12,
+          return SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _EditorTopBar(onHome: onHome, floating: false),
+                Expanded(
+                  flex: 3,
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(16, 4, 16, 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(
+                              AppTokens.cardRadius,
+                            ),
+                            child: ColoredBox(
+                              color: scheme.surfaceContainerLowest,
+                              child: PreviewView(
+                                projectId: projectId,
+                                canvas: project.canvas,
+                                overlay: overlay,
+                              ),
+                            ),
+                          ),
                         ),
-                        child: SizedBox(
+                        const SizedBox(width: 16),
+                        SizedBox(
                           width: PropertiesPanel.width,
                           child: Align(
                             alignment: AlignmentDirectional.topCenter,
-                            child: SingleChildScrollView(child: panel),
+                            child: panel != null
+                                ? Material(
+                                    color: scheme.surfaceContainer,
+                                    elevation: 4,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        AppTokens.inspectorRadius,
+                                      ),
+                                      side: BorderSide(
+                                        color: scheme.outlineVariant,
+                                      ),
+                                    ),
+                                    clipBehavior: ui.Clip.antiAlias,
+                                    child: SingleChildScrollView(child: panel),
+                                  )
+                                : PropertiesPanel(
+                                    project: project,
+                                    selection: selection,
+                                  ),
                           ),
                         ),
-                      )
-                    else
-                      PropertiesPanel(project: project, selection: selection),
-                  ],
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(flex: 2, child: timeline),
-            ],
+                transport,
+                Expanded(flex: 2, child: timeline),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainer,
+                    border: Border(
+                      top: BorderSide(color: scheme.outlineVariant),
+                    ),
+                  ),
+                  child: ToolDock(tools: tools, onTool: onTool),
+                ),
+              ],
+            ),
           );
         }
-        final screenHeight = MediaQuery.sizeOf(context).height;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(
-              // The kit's preview box is 282×360 on a 393×852 screen.
-              height: screenHeight * (360 / 852) + 14,
-              child: preview,
-            ),
-            const SizedBox(height: 4),
-            transport,
-            const SizedBox(height: 6),
-            // Keep TimelineView in the same tree slot whether a tool panel or
-            // the dock is below it so opening/closing a panel preserves its
-            // scroll state. An open panel takes what it needs while leaving
-            // at least [_minTimelineHeight], scrolling inside on short screens.
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, area) => Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(child: timeline),
-                    if (panel != null)
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: math.max(
-                            0,
-                            area.maxHeight - _minTimelineHeight,
-                          ),
-                        ),
-                        child: SingleChildScrollView(child: panel),
-                      )
-                    else ...[
-                      ToolDock(tools: tools, onTool: onTool),
-                      const SizedBox(height: 4),
-                    ],
-                  ],
+
+        // Phone (Clipcraft Editor B): floating top bar and a rounded bottom
+        // sheet holding PlayRow, timeline & tray; the preview fits between.
+        final viewportHeight = constraints.maxHeight;
+        final sheetHeight = panel == null
+            ? math.min<double>(340, viewportHeight * 0.44)
+            : math.min<double>(430, viewportHeight * 0.62);
+        const sheetRadius = BorderRadius.vertical(
+          top: Radius.circular(AppTokens.sheetRadius),
+        );
+        return ColoredBox(
+          color: scheme.surfaceContainerLowest,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // The preview fits the space between the top bar and the sheet,
+              // so no part of the video or its crop/transform handles hides
+              // behind them.
+              Positioned(
+                top: MediaQuery.paddingOf(context).top + _EditorTopBar.height,
+                left: 0,
+                right: 0,
+                bottom: sheetHeight,
+                child: PreviewView(
+                  projectId: projectId,
+                  canvas: project.canvas,
+                  overlay: overlay,
                 ),
               ),
-            ),
-          ],
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  bottom: false,
+                  child: _EditorTopBar(onHome: onHome, floating: true),
+                ),
+              ),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: SizedBox(
+                  height: sheetHeight,
+                  width: double.infinity,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainer,
+                      borderRadius: sheetRadius,
+                      border: Border(
+                        top: BorderSide(color: scheme.outlineVariant),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: scheme.shadow.withValues(alpha: 0.35),
+                          blurRadius: 20,
+                          offset: const Offset(0, -4),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: sheetRadius,
+                      child: SafeArea(
+                        top: false,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 4,
+                                margin: const EdgeInsets.only(
+                                  top: 8,
+                                  bottom: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: scheme.onSurfaceVariant.withValues(
+                                    alpha: 0.45,
+                                  ),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                            transport,
+                            // Keep TimelineView in the same tree slot whether a
+                            // tool panel or the tray is below it so opening or
+                            // closing a panel preserves its scroll state.
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context, area) => Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Expanded(child: timeline),
+                                    if (panel != null)
+                                      ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                          maxHeight: math.max(
+                                            0,
+                                            area.maxHeight - _minTimelineHeight,
+                                          ),
+                                        ),
+                                        child: SingleChildScrollView(
+                                          child: panel,
+                                        ),
+                                      )
+                                    else
+                                      ToolDock(tools: tools, onTool: onTool),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -1022,62 +1130,62 @@ class _OnClipOnly extends ConsumerWidget {
   }
 }
 
-/// Preview with home and export in the top corners beside it.
-class _PreviewArea extends ConsumerWidget {
-  const new({
-    required this.projectId,
-    required this.canvas,
-    required this.onHome,
-    this.overlay,
-  });
+/// Clipcraft EditorTopBar: back chevron on the left and a primary Export
+/// button on the right. When [floating] over the phone editor's backdrop, the
+/// back icon sits inside a subtle translucent circle for contrast.
+class _EditorTopBar extends StatelessWidget {
+  const new({required this.onHome, required this.floating});
 
-  final String projectId;
-  final ProjectCanvas canvas;
+  /// Height of the bar below the status bar.
+  static const double height = 56;
+
   final VoidCallback onHome;
-  final Widget? overlay;
-
-  /// The kit's 282-wide preview leaves 56dp on each side for the icons.
-  static const double _sideInset = 56;
+  final bool floating;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
-    return Stack(
-      children: [
-        Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(
-            _sideInset,
-            14,
-            _sideInset,
-            0,
-          ),
-          child: PreviewView(
-            projectId: projectId,
-            canvas: canvas,
-            overlay: overlay,
-          ),
-        ),
-        PositionedDirectional(
-          start: 3,
-          top: 0,
-          child: IconButton(
+    final backIcon = AppIcon(AppIcons.home, size: 22, color: scheme.onSurface);
+    return Container(
+      height: height,
+      padding: const EdgeInsetsDirectional.fromSTEB(6, 0, 12, 0),
+      child: Row(
+        children: [
+          IconButton(
             tooltip: l10n.editorHome,
             onPressed: onHome,
-            icon: AppIcon(AppIcons.home, color: scheme.onSurface),
+            icon: floating
+                ? Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainer.withValues(alpha: 0.72),
+                      shape: BoxShape.circle,
+                    ),
+                    child: backIcon,
+                  )
+                : backIcon,
           ),
-        ),
-        PositionedDirectional(
-          end: 8,
-          top: 0,
-          child: IconButton(
-            tooltip: l10n.editorExport,
-            onPressed: () => ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text(l10n.editorExportSoon))),
-            icon: AppIcon(AppIcons.export, color: scheme.onSurface),
+          const Spacer(),
+          Tooltip(
+            message: l10n.editorExport,
+            child: FilledButton(
+              onPressed: () => ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(l10n.editorExportSoon))),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(76, 38),
+                padding: const EdgeInsetsDirectional.symmetric(
+                  horizontal: 18,
+                  vertical: 8,
+                ),
+              ),
+              child: Text(l10n.editorExport),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -5,8 +5,8 @@ import 'package:flutter/services.dart';
 void registerAssetLicenses() {
   LicenseRegistry.addLicense(() async* {
     for (final (package, file) in const [
-      ('Plus Jakarta Sans', 'assets/fonts/OFL-PlusJakartaSans.txt'),
-      ('Bebas Neue', 'assets/fonts/OFL-BebasNeue.txt'),
+      ('Manrope', 'assets/fonts/OFL-Manrope.txt'),
+      ('JetBrains Mono', 'assets/fonts/OFL-JetBrainsMono.txt'),
     ]) {
       yield LicenseEntryWithLineBreaks([
         package,
