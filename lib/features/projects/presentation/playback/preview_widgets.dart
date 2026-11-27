@@ -2,6 +2,7 @@ import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/theme/accent_gradient.dart';
 import 'package:cleancut/core/utils/timecode.dart';
 import 'package:cleancut/core/widgets/app_icon.dart';
+import 'package:cleancut/features/projects/domain/model/canvas_background.dart';
 import 'package:cleancut/features/projects/domain/model/project_canvas.dart';
 import 'package:cleancut/features/projects/presentation/playback/playback_controller.dart';
 import 'package:flutter/material.dart';
@@ -13,7 +14,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// last frame.
 class PreviewView extends ConsumerWidget {
   /// Creates the view for [projectId] with [canvas].
-  const new({required this.projectId, required this.canvas, super.key});
+  const new({
+    required this.projectId,
+    required this.canvas,
+    this.overlay,
+    super.key,
+  });
 
   /// The open project.
   final String projectId;
@@ -21,23 +27,40 @@ class PreviewView extends ConsumerWidget {
   /// The project's canvas (aspect and background).
   final ProjectCanvas canvas;
 
+  /// Optional interactive overlay (e.g. crop handles or transform gizmo)
+  /// aligned to the exact canvas frame.
+  final Widget? overlay;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final (textureId, hasMedia) = ref.watch(
       playbackProvider(projectId)
           .select((s) => (s.textureId, s.durationUs > 0)),
     );
+    final overlay = this.overlay;
+    final hasTexture = textureId != null && hasMedia;
     return Center(
       child: AspectRatio(
         aspectRatio: canvas.aspect.ratio,
         child: ColoredBox(
           // Data, not a design token: the canvas color the user picked.
-          color: Color(canvas.backgroundArgb),
-          child: textureId == null || !hasMedia
+          // Other backgrounds are drawn by the engine; black until then.
+          color: Color(switch (canvas.background) {
+            ColorBackground(:final argb) => argb,
+            _ => 0xFF000000,
+          }),
+          child: !hasTexture && overlay == null
               ? null
-              : Texture(
-                  textureId: textureId,
-                  filterQuality: FilterQuality.medium,
+              : Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (hasTexture)
+                      Texture(
+                        textureId: textureId,
+                        filterQuality: FilterQuality.medium,
+                      ),
+                    ?overlay,
+                  ],
                 ),
         ),
       ),

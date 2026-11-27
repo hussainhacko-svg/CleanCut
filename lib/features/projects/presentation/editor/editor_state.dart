@@ -48,6 +48,15 @@ class TimelineSelectionController extends _$TimelineSelectionController {
 enum ToolPanelKind {
   /// Constant speed + keep pitch (kit "Speed").
   speed,
+
+  /// Crop presets, rotation, mirror and flip (kit "Crop").
+  crop,
+
+  /// Fill mode, position/scale/rotation, opacity and border.
+  transform,
+
+  /// Canvas aspect ratio and background (kit "Ratio").
+  ratio,
 }
 
 /// The tool panel open in a project's editor, if any. Closes whenever the
@@ -69,6 +78,20 @@ class OpenToolPanel extends _$OpenToolPanel {
 
   /// Closes the open panel.
   void close() => state = null;
+}
+
+/// Whether a project's preview is open full screen. The editor's own
+/// preview tweaks (e.g. the uncropped clip under the crop handles) pause
+/// while it is, so full screen always shows the real result.
+@riverpod
+class PreviewFullscreen extends _$PreviewFullscreen {
+  @override
+  bool build(String projectId) => false;
+
+  /// Marks the full screen preview as open or closed.
+  // A method to match OpenToolPanel; a setter would read oddly here.
+  // ignore: use_setters_to_change_properties
+  void set({required bool open}) => state = open;
 }
 
 /// Audio peaks of [uri] for an audio lane (null when it has no audio).

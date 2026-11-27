@@ -71,12 +71,13 @@ void main() {
     test('a clip shows back first, then its tools', () {
       final tools = dockToolsFor(const MainClipSelection('c'));
       expect(tools.first, DockTool.back);
-      expect(tools.take(8), [
+      expect(tools.take(9), [
         DockTool.back,
         DockTool.split,
         DockTool.duplicate,
         DockTool.filters,
         DockTool.crop,
+        DockTool.transform,
         DockTool.adjust,
         DockTool.speed,
         DockTool.animation,
@@ -294,6 +295,98 @@ void main() {
       expect(position.pixels, closeTo(114, 0.5));
     });
 
+    testWidgets(
+      'opening and closing a tool panel preserves timeline scroll offset',
+      (tester) async {
+        final env = await pumpEditor(tester);
+        final timelineScroll = find.descendant(
+          of: find.byType(TimelineView),
+          matching: find.byWidgetPredicate(
+            (w) => w is Scrollable && w.axisDirection == AxisDirection.right,
+          ),
+        );
+        double offset() =>
+            tester.state<ScrollableState>(timelineScroll).position.pixels;
+
+        env.engine.emitPosition(2500000);
+        await tester.pump();
+        final expected = containerOf(tester)
+            .read(timelineZoomProvider('p1'))
+            .toPx(2500000);
+        expect(offset(), closeTo(expected, 0.5));
+        final timelineState = tester.state(find.byType(TimelineView));
+
+        // Open Ratio panel (no selection needed) — timeline must keep its state
+        // and stay scrolled to the playhead.
+        await tester.tap(find.byTooltip('Ratio'));
+        await tester.pumpAndSettle();
+        expect(tester.state(find.byType(TimelineView)), same(timelineState));
+        expect(offset(), closeTo(expected, 0.5));
+
+        // Close Ratio panel — scroll stays intact.
+        await tester.tap(find.byTooltip('Close'));
+        await tester.pumpAndSettle();
+        expect(tester.state(find.byType(TimelineView)), same(timelineState));
+        expect(offset(), closeTo(expected, 0.5));
+      },
+    );
+
+    testWidgets(
+      'opening Crop on an off-playhead clip scrolls the timeline to it',
+      (tester) async {
+        await pumpEditor(tester);
+        final timelineScroll = find.descendant(
+          of: find.byType(TimelineView),
+          matching: find.byWidgetPredicate(
+            (w) => w is Scrollable && w.axisDirection == AxisDirection.right,
+          ),
+        );
+        // Select the second clip (starts at 2 s) while playhead is at 0 s.
+        await tester.tap(find.byType(MainClipView).last);
+        await tester.pump();
+        await tester.tap(find.byTooltip('Crop'));
+        await tester.pumpAndSettle();
+        final expected = containerOf(tester)
+            .read(timelineZoomProvider('p1'))
+            .toPx(2000000);
+        expect(
+          tester.state<ScrollableState>(timelineScroll).position.pixels,
+          closeTo(expected, 0.5),
+        );
+      },
+    );
+
+    testWidgets(
+      'TimelineView aligns with an already non-zero playhead on mount',
+      (tester) async {
+        final env = await pumpEditor(tester);
+        env.engine.emitPosition(2500000);
+        await tester.pump();
+
+        // Switch from phone (< 840dp) to tablet (>= 840dp) so TimelineView
+        // mounts in the expanded layout subtree with playhead already at 2.5 s.
+        tester.view
+          ..physicalSize = const Size(1000, 700)
+          ..devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await tester.pumpAndSettle();
+
+        final timelineScroll = find.descendant(
+          of: find.byType(TimelineView),
+          matching: find.byWidgetPredicate(
+            (w) => w is Scrollable && w.axisDirection == AxisDirection.right,
+          ),
+        );
+        final expected = containerOf(tester)
+            .read(timelineZoomProvider('p1'))
+            .toPx(2500000);
+        expect(
+          tester.state<ScrollableState>(timelineScroll).position.pixels,
+          closeTo(expected, 0.5),
+        );
+      },
+    );
+
     testWidgets('pinching zooms the timeline', (tester) async {
       await pumpEditor(tester);
       final center = tester.getCenter(find.byType(TimelineView));
@@ -483,6 +576,32 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+
+      // The playhead line scrolls with the lanes (it used to stay put).
+      final line = find.byKey(TimelineView.playheadKey);
+      final lanes = find.descendant(
+        of: find.byType(TimelineView),
+        matching: find.byWidgetPredicate(
+          (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+        ),
+      );
+      final vertical = tester.state<ScrollableState>(lanes.first);
+      expect(vertical.position.maxScrollExtent, greaterThan(60));
+      final main = find.byType(MainClipView).first;
+      final timelineTop = tester.getRect(find.byType(TimelineView)).top;
+      final gapBefore = tester.getTopLeft(main).dy - tester.getTopLeft(line).dy;
+
+      vertical.position.jumpTo(10);
+      await tester.pump();
+      expect(
+        tester.getTopLeft(main).dy - tester.getTopLeft(line).dy,
+        closeTo(gapBefore, 0.01),
+      );
+
+      // Once the ruler is scrolled away the line starts at the top.
+      vertical.position.jumpTo(60);
+      await tester.pump();
+      expect(tester.getTopLeft(line).dy, closeTo(timelineTop, 0.01));
     });
 
     testWidgets('tapping empty space below lanes deselects the clip', (

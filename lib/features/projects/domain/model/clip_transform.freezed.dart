@@ -219,8 +219,8 @@ return $default(_that.position,_that.scale,_that.rotation,_that.opacity,_that.fl
 /// @nodoc
 @JsonSerializable()
 
-class _ClipTransform implements ClipTransform {
-  const _ClipTransform({@AnimatableVec2Converter() this.position = const Animatable<Vec2>.constant(Vec2.zero), @AnimatableDoubleConverter() this.scale = const Animatable<double>.constant(1), @AnimatableDoubleConverter() this.rotation = const Animatable<double>.constant(0), @AnimatableDoubleConverter() this.opacity = const Animatable<double>.constant(1), this.flipX = false, this.flipY = false});
+class _ClipTransform extends ClipTransform {
+  const _ClipTransform({@AnimatableVec2Converter() this.position = const Animatable<Vec2>.constant(Vec2.zero), @AnimatableDoubleConverter() this.scale = const Animatable<double>.constant(1), @AnimatableDoubleConverter() this.rotation = const Animatable<double>.constant(0), @AnimatableDoubleConverter() this.opacity = const Animatable<double>.constant(1), this.flipX = false, this.flipY = false}): super._();
   factory _ClipTransform.fromJson(Map<String, dynamic> json) => _$ClipTransformFromJson(json);
 
 @override@JsonKey()@AnimatableVec2Converter() final  Animatable<Vec2> position;

@@ -12,8 +12,19 @@ abstract final class AtomicFile {
   static int _counter = 0;
 
   /// Replaces [target]'s contents with [contents].
-  static Future<void> writeString(File target, String contents) =>
-      runExclusive(target, () => _write(target, contents));
+  ///
+  /// Creates [target]'s directory when missing, unless [createParent] is
+  /// false: then a missing directory fails the write with a
+  /// [PathNotFoundException]. The check runs inside the queue, so a
+  /// [runExclusive] delete queued earlier is always seen.
+  static Future<void> writeString(
+    File target,
+    String contents, {
+    bool createParent = true,
+  }) => runExclusive(
+    target,
+    () => _write(target, contents, createParent: createParent),
+  );
 
   /// Runs [action] serialized with all other operations targeting [target].
   ///
@@ -53,10 +64,21 @@ abstract final class AtomicFile {
     }
   }
 
-  static Future<void> _write(File target, String contents) async {
+  static Future<void> _write(
+    File target,
+    String contents, {
+    required bool createParent,
+  }) async {
     // Created inside the queue so callers needn't await anything before
     // writeString (that would let writes queue out of call order).
-    await target.parent.create(recursive: true);
+    if (createParent) {
+      await target.parent.create(recursive: true);
+    } else if (!target.parent.existsSync()) {
+      throw PathNotFoundException(
+        target.parent.path,
+        const OSError('Directory does not exist'),
+      );
+    }
     final temp = File('${target.path}.${pid}_${_counter++}.tmp');
     try {
       await temp.writeAsString(contents, flush: true);

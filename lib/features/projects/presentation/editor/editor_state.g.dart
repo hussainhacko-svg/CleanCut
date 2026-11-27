@@ -345,6 +345,118 @@ abstract class _$OpenToolPanel extends $Notifier<ToolPanelKind?> {
   }
 }
 
+/// Whether a project's preview is open full screen. The editor's own
+/// preview tweaks (e.g. the uncropped clip under the crop handles) pause
+/// while it is, so full screen always shows the real result.
+
+@ProviderFor(PreviewFullscreen)
+final previewFullscreenProvider = PreviewFullscreenFamily._();
+
+/// Whether a project's preview is open full screen. The editor's own
+/// preview tweaks (e.g. the uncropped clip under the crop handles) pause
+/// while it is, so full screen always shows the real result.
+final class PreviewFullscreenProvider
+    extends $NotifierProvider<PreviewFullscreen, bool> {
+  /// Whether a project's preview is open full screen. The editor's own
+  /// preview tweaks (e.g. the uncropped clip under the crop handles) pause
+  /// while it is, so full screen always shows the real result.
+  PreviewFullscreenProvider._({
+    required PreviewFullscreenFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'previewFullscreenProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$previewFullscreenHash();
+
+  @override
+  String toString() {
+    return r'previewFullscreenProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  PreviewFullscreen create() => PreviewFullscreen();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is PreviewFullscreenProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$previewFullscreenHash() => r'3655c7a967dfc5112c1a1cca7d3b890f8198e74c';
+
+/// Whether a project's preview is open full screen. The editor's own
+/// preview tweaks (e.g. the uncropped clip under the crop handles) pause
+/// while it is, so full screen always shows the real result.
+
+final class PreviewFullscreenFamily extends $Family
+    with $ClassFamilyOverride<PreviewFullscreen, bool, bool, bool, String> {
+  PreviewFullscreenFamily._()
+    : super(
+        retry: null,
+        name: r'previewFullscreenProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Whether a project's preview is open full screen. The editor's own
+  /// preview tweaks (e.g. the uncropped clip under the crop handles) pause
+  /// while it is, so full screen always shows the real result.
+
+  PreviewFullscreenProvider call(String projectId) =>
+      PreviewFullscreenProvider._(argument: projectId, from: this);
+
+  @override
+  String toString() => r'previewFullscreenProvider';
+}
+
+/// Whether a project's preview is open full screen. The editor's own
+/// preview tweaks (e.g. the uncropped clip under the crop handles) pause
+/// while it is, so full screen always shows the real result.
+
+abstract class _$PreviewFullscreen extends $Notifier<bool> {
+  late final _$args = ref.$arg as String;
+  String get projectId => _$args;
+
+  bool build(String projectId);
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<bool, bool>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<bool, bool>,
+              bool,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, () => build(_$args));
+  }
+}
+
 /// Audio peaks of [uri] for an audio lane (null when it has no audio).
 
 @ProviderFor(clipWaveform)

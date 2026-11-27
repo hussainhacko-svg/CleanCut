@@ -29,10 +29,18 @@ class PreviewPlayer(
     private val producer: TextureRegistry.SurfaceProducer,
     private val listener: PreviewListener,
 ) {
-    private val player = CompositionPlayer.Builder(context).build()
+    private val player = CompositionPlayer.Builder(context)
+        // Keeps the last frame so a look change while paused can be redrawn
+        // (experimentalRedrawLastFrame() requires it).
+        .experimentalSetEnableReplayableCache(true)
+        .build()
     private val handler = Handler(Looper.getMainLooper())
     private var size = Size(CompositionPlan.MIN_SIDE, CompositionPlan.MIN_SIDE)
     private var hasComposition = false
+
+    /** The playing composition's live looks and the structure they belong to. */
+    private var composed: ComposedPlan? = null
+    private var structure: CompositionPlan? = null
     private var released = false
 
     private val ticker = object : Runnable {
@@ -86,14 +94,34 @@ class PreviewPlayer(
             // Clear before stop() so any listener callback triggered by stop()
             // also reports an empty timeline rather than stale duration/position.
             hasComposition = false
+            composed = null
+            structure = null
             player.stop()
             player.clearVideoSurface()
             listener.onState(state())
             return
         }
+        val current = composed
+        if (hasComposition &&
+            current != null &&
+            plan.structureKey == structure &&
+            player.playbackState != Player.STATE_IDLE &&
+            player.playerError == null
+        ) {
+            // Only looks changed (a slider or gesture): swap them in place, no rebuild.
+            current.updateLooks(plan)
+            // Re-run the last frame through the effects immediately: while paused
+            // seeking in place doesn't redraw, and while playing a sparse/static
+            // video might not deliver a new decoded frame for seconds.
+            player.experimentalRedrawLastFrame()
+            return
+        }
         val keepMs = if (hasComposition) player.currentPosition else 0L
         val startMs = keepMs.coerceIn(0L, (plan.durationUs / 1000 - 1).coerceAtLeast(0L))
-        player.setComposition(Media3Composer.build(plan), startMs)
+        val built = Media3Composer.build(plan)
+        player.setComposition(built.composition, startMs)
+        composed = built
+        structure = plan.structureKey
         hasComposition = true
         attachSurface()
         player.prepare()

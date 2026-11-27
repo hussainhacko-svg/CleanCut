@@ -125,8 +125,12 @@ class Playback extends _$Playback {
 
   /// Loads [project] into the preview. Edits that don't change what the
   /// engine plays (e.g. a rename) don't reload it.
-  Future<void> load(Project project) {
-    final spec = compositionSpecOf(project);
+  ///
+  /// When [uncroppedClipId] is set (while the Crop panel is open), that clip
+  /// renders uncropped and fitted so the on-preview crop handles can reach the
+  /// whole frame.
+  Future<void> load(Project project, {String? uncroppedClipId}) {
+    final spec = compositionSpecOf(project, uncroppedClipId: uncroppedClipId);
     // Checked and recorded before awaiting, so two loads started together
     // can't both send the same composition.
     if (spec == _loadedSpec) return _loadFuture ?? Future<void>.value();

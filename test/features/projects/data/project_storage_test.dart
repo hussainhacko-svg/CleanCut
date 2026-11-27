@@ -40,12 +40,13 @@ void main() {
     });
 
     test('runs migrations in order up to the current version', () {
-      // Simulates a future schema 3 whose project name moved twice.
+      // Simulates a future schema 4 whose project name moved twice.
       final migrating = ProjectCodec(
-        currentVersion: 3,
+        currentVersion: 4,
         migrations: {
           1: (json) => {...json, 'title': json['label']},
           2: (json) => {...json, 'name': json['title']},
+          3: (json) => json,
         },
       );
       final v1 = project().toJson()
@@ -53,12 +54,12 @@ void main() {
         ..['label'] = 'Old'
         ..['schemaVersion'] = 1;
       final migrated = migrating.migrate(v1);
-      expect(migrated['schemaVersion'], 3);
+      expect(migrated['schemaVersion'], 4);
       expect(migrated['name'], 'Old');
     });
 
     test('fails loudly when a migration is missing', () {
-      const gap = ProjectCodec(currentVersion: 3);
+      const gap = ProjectCodec(currentVersion: 4);
       expect(() => gap.migrate(project().toJson()), throwsStateError);
     });
 

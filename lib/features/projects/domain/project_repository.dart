@@ -15,7 +15,16 @@ abstract interface class ProjectRepository {
   /// Creates or overwrites [project]. Returns the stored project, whose
   /// `updatedAt` is set to the save time unless [keepUpdatedAt] (used when
   /// undoing a delete, so the project returns to its old place).
-  Future<Project> save(Project project, {bool keepUpdatedAt = false});
+  ///
+  /// With [onlyIfExists] (autosave of an open project), a project that was
+  /// deleted meanwhile is not recreated: the save throws a
+  /// [ProjectNotFoundException] instead. Saves and deletes of one project
+  /// apply in call order.
+  Future<Project> save(
+    Project project, {
+    bool keepUpdatedAt = false,
+    bool onlyIfExists = false,
+  });
 
   /// Deletes the project with [id]; does nothing when it does not exist.
   Future<void> delete(String id);

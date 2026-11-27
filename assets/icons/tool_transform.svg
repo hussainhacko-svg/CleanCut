@@ -1,0 +1,5 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<!-- Not in the VCLIP kit: drawn in its 1.6px line style for the Transform tool. -->
+<rect x="4" y="4" width="16" height="16" rx="3" stroke="white" stroke-width="1.6"/>
+<path d="M9 15L15 9M15 9H11.5M15 9V12.5M9 15H12.5M9 15V11.5" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

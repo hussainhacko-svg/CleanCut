@@ -4,12 +4,17 @@ import 'package:cleancut/engine/engine_api.g.dart';
 
 export 'package:cleancut/engine/engine_api.g.dart'
     show
+        BackgroundSpec,
         ClipSpec,
+        ClipStyleSpec,
         CompositionSpec,
         PlaybackStatus,
         PlayerStateEvent,
+        SpecBackgroundKind,
+        SpecFitMode,
         SpecMediaKind,
         SpeedStepSpec,
+        TransformSampleSpec,
         WaveformData;
 
 /// A playback position, tagged with the texture id of its preview.

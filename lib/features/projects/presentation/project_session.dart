@@ -42,7 +42,7 @@ class ProjectSession extends _$ProjectSession {
     final project = await repo.load(projectId);
     final autosaver = Autosaver(
       save: (p) async {
-        final saved = await repo.save(p);
+        final saved = await repo.save(p, onlyIfExists: true);
         if (!ref.mounted) return;
         ref.read(projectListProvider.notifier).upsert(saved);
         _setSaveFailed(false);

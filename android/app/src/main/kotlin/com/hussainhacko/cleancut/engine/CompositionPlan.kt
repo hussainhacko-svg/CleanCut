@@ -11,9 +11,21 @@ data class CompositionPlan(
     val width: Int,
     val height: Int,
     val frameRate: Int,
+    val background: BackgroundStyle = BackgroundStyle.DEFAULT,
 ) {
     /** Length of the sequence: the sum of the trimmed items after their speed. */
     val durationUs: Long get() = items.sumOf { it.timelineDurationUs }
+
+    /** Timeline start of each item: the sum of the earlier items' timeline lengths. */
+    val timelineStartsUs: List<Long>
+        get() = items.runningFold(0L) { start, item -> start + item.timelineDurationUs }.dropLast(1)
+
+    /**
+     * The plan without its looks (clip styles and background). Two plans with the same key play
+     * the same media the same way, so the preview can swap looks live instead of rebuilding.
+     */
+    val structureKey: CompositionPlan
+        get() = copy(items = items.map { it.copy(style = ClipStyle.DEFAULT) }, background = BackgroundStyle.DEFAULT)
 
     /** True when stills and videos mix, so audio must be padded with silence. */
     val needsSilentAudio: Boolean get() = items.any { it.isImage } && items.any { !it.isImage }
@@ -53,10 +65,17 @@ data class CompositionPlan(
                     speed = if (isImage) 1f else speedOf(clip.speed),
                     keepPitch = clip.keepPitch,
                     speedSteps = if (isImage) emptyList() else stepsOf(clip.speedSteps, end - start),
+                    style = ClipStyle.of(clip.style),
                 )
             }
             val rate = spec.frameRate.toInt().takeIf { it in 1..240 } ?: DEFAULT_FRAME_RATE
-            return CompositionPlan(items, even(spec.canvasWidth), even(spec.canvasHeight), rate)
+            return CompositionPlan(
+                items,
+                even(spec.canvasWidth),
+                even(spec.canvasHeight),
+                rate,
+                BackgroundStyle.of(spec.background),
+            )
         }
 
         /**
@@ -107,6 +126,8 @@ data class PlannedItem(
     val keepPitch: Boolean = true,
     /** A speed curve as constant-speed steps (first at 0); replaces [speed] when not empty. */
     val speedSteps: List<SpeedStep> = emptyList(),
+    /** Fit, crop, transform and border. */
+    val style: ClipStyle = ClipStyle.DEFAULT,
 ) {
     /** Length of the used source range. */
     val clippedDurationUs: Long get() = clipEndUs - clipStartUs

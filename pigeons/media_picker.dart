@@ -49,4 +49,10 @@ abstract class MediaPickerHostApi {
   /// Files whose metadata cannot be read are left out.
   @async
   List<PickedMedia> pickVisualMedia({required bool allowMultiple});
+
+  /// Opens the system photo picker for a single image (e.g. canvas background).
+  ///
+  /// Returns the picked image, or null when cancelled or unreadable.
+  @async
+  PickedMedia? pickImage();
 }

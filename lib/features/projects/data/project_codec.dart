@@ -81,6 +81,23 @@ const Map<int, JsonMigration> projectMigrations = {
   // 1 -> 2: clips gained an optional `speedCurve`; a missing one means a
   // constant speed, so v1 files need no change.
   1: _addSpeedCurves,
+  // 2 -> 3: the canvas color became a `background` union; clips gained
+  // `crop` and `border`, whose defaults (no crop, no border) need no data.
+  2: _canvasBackground,
 };
 
 Map<String, dynamic> _addSpeedCurves(Map<String, dynamic> json) => json;
+
+Map<String, dynamic> _canvasBackground(Map<String, dynamic> json) {
+  final canvas = json['canvas'];
+  if (canvas is! Map<String, dynamic>) return json;
+  final argb = canvas['backgroundArgb'];
+  return {
+    ...json,
+    'canvas': {
+      for (final e in canvas.entries)
+        if (e.key != 'backgroundArgb') e.key: e.value,
+      if (argb is int) 'background': {'type': 'color', 'argb': argb},
+    },
+  };
+}

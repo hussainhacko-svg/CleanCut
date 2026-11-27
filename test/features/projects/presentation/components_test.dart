@@ -100,6 +100,45 @@ void main() {
       );
     });
 
+    testWidgets('non-preset Original highlights when selected', (tester) async {
+      const tallPhone = CanvasAspect(width: 20, height: 9);
+      await tester.pumpWidget(
+        localizedApp(
+          const Scaffold(
+            body: AspectSheet(original: tallPhone, selected: tallPhone),
+          ),
+        ),
+      );
+      final originalLabel = tester.widget<Text>(find.text('Original'));
+      expect(originalLabel.style?.fontWeight, FontWeight.w700);
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Original')),
+        isSemantics(isSelected: true),
+      );
+      expect(find.byType(ShaderMask), findsOneWidget);
+    });
+
+    testWidgets('preset Original does not double-highlight', (tester) async {
+      await tester.pumpWidget(
+        localizedApp(
+          const Scaffold(
+            body: AspectSheet(
+              original: CanvasAspect.landscape16x9,
+              selected: CanvasAspect.landscape16x9,
+            ),
+          ),
+        ),
+      );
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Original')),
+        isSemantics(isSelected: false),
+      );
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('16:9')),
+        isSemantics(isSelected: true),
+      );
+    });
+
     testWidgets('options are at least 48dp tall', (tester) async {
       await tester.pumpWidget(
         localizedApp(const Scaffold(body: AspectSheet())),

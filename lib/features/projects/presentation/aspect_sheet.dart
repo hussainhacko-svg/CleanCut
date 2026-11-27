@@ -83,8 +83,10 @@ class AspectSheet extends StatelessWidget {
                       label: label,
                       // "Original" is the kit's "Fit": a corners glyph.
                       isOriginal: original != null && i == 0,
-                      selected:
-                          aspect == selected && (original == null || i > 0),
+                      selected: (original != null && i == 0)
+                          ? selected == original &&
+                                !CanvasAspect.presets.contains(selected)
+                          : aspect == selected,
                       onTap: () => Navigator.of(context).pop(aspect),
                     ),
                 ],
@@ -142,11 +144,23 @@ class _AspectOption extends StatelessWidget {
                 height: _shape + 12,
                 child: Center(
                   child: isOriginal
-                      ? AppIcon(
-                          AppIcons.fullscreen,
-                          size: 34,
-                          color: scheme.onSurfaceVariant,
-                        )
+                      ? selected
+                            ? ShaderMask(
+                                blendMode: BlendMode.srcIn,
+                                shaderCallback: (bounds) =>
+                                    AccentGradient.of(context).linear
+                                        .createShader(bounds),
+                                child: AppIcon(
+                                  AppIcons.fullscreen,
+                                  size: 34,
+                                  color: scheme.onSurface,
+                                ),
+                              )
+                            : AppIcon(
+                                AppIcons.fullscreen,
+                                size: 34,
+                                color: scheme.onSurfaceVariant,
+                              )
                       : CustomPaint(
                           size: Size(width, height),
                           painter: _ShapePainter(

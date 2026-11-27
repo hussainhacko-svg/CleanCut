@@ -62,11 +62,24 @@ final class FileProjectRepository implements ProjectRepository {
   }
 
   @override
-  Future<Project> save(Project project, {bool keepUpdatedAt = false}) async {
+  Future<Project> save(
+    Project project, {
+    bool keepUpdatedAt = false,
+    bool onlyIfExists = false,
+  }) async {
     final stored = keepUpdatedAt
         ? project
         : project.copyWith(updatedAt: _clock().toUtc());
-    await AtomicFile.writeString(_fileOf(project.id), _codec.encode(stored));
+    try {
+      await AtomicFile.writeString(
+        _fileOf(project.id),
+        _codec.encode(stored),
+        createParent: !onlyIfExists,
+      );
+    } on PathNotFoundException {
+      if (!onlyIfExists) rethrow;
+      throw ProjectNotFoundException(project.id);
+    }
     return stored;
   }
 

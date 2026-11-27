@@ -53,7 +53,7 @@ final class ProjectSessionProvider
   }
 }
 
-String _$projectSessionHash() => r'ba5b53952220afbe6d4c3596e9768b3a3e9c78de';
+String _$projectSessionHash() => r'0c1de3eeb694d265df8475169baa7b1d2ca6bf68';
 
 /// An open project: applies [EditCommand]s, undo/redo and autosave.
 
