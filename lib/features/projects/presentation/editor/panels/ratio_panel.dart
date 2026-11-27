@@ -611,11 +611,18 @@ class _RatioChoice extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                PanelLabel(
-                  text: label,
-                  selected: selected,
-                  fontSize: 12,
-                  muted: scheme.onSurfaceVariant,
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                    color: selected
+                        ? scheme.onSurface
+                        : scheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),

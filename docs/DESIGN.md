@@ -113,7 +113,7 @@ Tools whose phase hasn't shipped show "Coming in a later update." Icons that exi
 │              (30°)           │  value bubble over the rotation ruler
 │ |''|''|''|''|''|''|''|''|    │  −180° … 0° (middle) … 180°, tall tick every 45°
 │ [⌜⌟] [□] [▯] [▭] [▯] [▭] …  │  presets: Free, 1:1, 9:16, 16:9, 3:4, 4:3, 2:1, 4:5
-│ Free 1:1 9:16 16:9 3:4 4:3 … │  selected = white glyph + bold accent-gradient label
+│ Free 1:1 9:16 16:9 3:4 4:3 … │  selected = white glyph + bold white label
 └──────────────────────────────┘
 ```
 

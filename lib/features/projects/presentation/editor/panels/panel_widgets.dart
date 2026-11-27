@@ -357,7 +357,7 @@ class _GradientSliderRowState extends State<GradientSliderRow> {
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontSize: 12,
-                color: scheme.onSurfaceVariant,
+                color: scheme.onSurface,
               ),
             ),
           ),
