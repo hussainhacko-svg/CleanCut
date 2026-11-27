@@ -46,6 +46,56 @@ data class CropBox(val left: Double = 0.0, val top: Double = 0.0, val right: Dou
     val height: Double get() = bottom - top
 }
 
+/** Per-clip color and tone adjustments (Phase 6); 0 means no change. */
+data class ColorAdjustments(
+    val exposure: Double = 0.0,
+    val brightness: Double = 0.0,
+    val contrast: Double = 0.0,
+    val saturation: Double = 0.0,
+    val warmth: Double = 0.0,
+    val tint: Double = 0.0,
+    val highlights: Double = 0.0,
+    val shadows: Double = 0.0,
+    val sharpen: Double = 0.0,
+    val vignette: Double = 0.0,
+) {
+    /** Whether every adjustment is neutral (0). */
+    val isNone: Boolean
+        get() = exposure == 0.0 &&
+            brightness == 0.0 &&
+            contrast == 0.0 &&
+            saturation == 0.0 &&
+            warmth == 0.0 &&
+            tint == 0.0 &&
+            highlights == 0.0 &&
+            shadows == 0.0 &&
+            sharpen == 0.0 &&
+            vignette == 0.0
+
+    companion object {
+        val DEFAULT = ColorAdjustments()
+
+        fun of(spec: ColorAdjustmentsSpec?): ColorAdjustments {
+            if (spec == null) return DEFAULT
+            return ColorAdjustments(
+                exposure = clampSigned(spec.exposure),
+                brightness = clampSigned(spec.brightness),
+                contrast = clampSigned(spec.contrast),
+                saturation = clampSigned(spec.saturation),
+                warmth = clampSigned(spec.warmth),
+                tint = clampSigned(spec.tint),
+                highlights = clampSigned(spec.highlights),
+                shadows = clampSigned(spec.shadows),
+                sharpen = clampUnit(spec.sharpen),
+                vignette = clampUnit(spec.vignette),
+            )
+        }
+
+        private fun clampSigned(v: Double) = if (v.isFinite()) v.coerceIn(-1.0, 1.0) else 0.0
+        private fun clampUnit(v: Double) = if (v.isFinite()) v.coerceIn(0.0, 1.0) else 0.0
+    }
+}
+
 /** Everything about how one clip looks on the canvas. Immutable; swapped live while previewing. */
 data class ClipStyle(
     val fitMode: FitMode = FitMode.FIT,
@@ -59,6 +109,12 @@ data class ClipStyle(
     val borderArgb: Int = 0xFFFFFFFF.toInt(),
     /** Corner radius as a fraction of the clip's shorter displayed side. */
     val borderRadius: Double = 0.0,
+    /** Bundled LUT id (`luts/<filterId>.cube`), or null for none. */
+    val filterId: String? = null,
+    /** Blend strength of [filterId] in `0..1`. */
+    val filterIntensity: Double = 0.0,
+    /** Color and tone adjustments. */
+    val adjustments: ColorAdjustments = ColorAdjustments.DEFAULT,
 ) {
     /** The transform at clip-relative [timeUs], interpolated linearly between samples. */
     fun transformAt(timeUs: Long): TransformSample {
@@ -118,6 +174,13 @@ data class ClipStyle(
                 borderWidth = finite(spec.borderWidth, 0.0).coerceIn(0.0, 0.5),
                 borderArgb = spec.borderArgb.toInt(),
                 borderRadius = finite(spec.borderRadius, 0.0).coerceIn(0.0, 0.5),
+                filterId = spec.filterId?.takeIf { it.isNotEmpty() },
+                filterIntensity = if (spec.filterId.isNullOrEmpty()) {
+                    0.0
+                } else {
+                    finite(spec.filterIntensity, 0.0).coerceIn(0.0, 1.0)
+                },
+                adjustments = ColorAdjustments.of(spec.adjustments),
             )
         }
 

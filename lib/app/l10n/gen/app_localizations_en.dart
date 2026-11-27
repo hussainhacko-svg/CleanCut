@@ -475,4 +475,90 @@ class AppLocalizationsEn extends AppLocalizations {
   String keyframeRemove(String property) {
     return 'Remove $property keyframe';
   }
+
+  @override
+  String get filterCategoryFilm => 'Film';
+
+  @override
+  String get filterCategoryVibrant => 'Vibrant';
+
+  @override
+  String get filterCategoryBw => 'B&W';
+
+  @override
+  String get filterNone => 'None';
+
+  @override
+  String get filterGold => 'Gold';
+
+  @override
+  String get filterVelvia => 'Velvia';
+
+  @override
+  String get filterVintage => 'Vintage';
+
+  @override
+  String get filterCinema => 'Cinema';
+
+  @override
+  String get filterVivid => 'Vivid';
+
+  @override
+  String get filterSunset => 'Sunset';
+
+  @override
+  String get filterNordic => 'Nordic';
+
+  @override
+  String get filterPastel => 'Pastel';
+
+  @override
+  String get filterNoir => 'Noir';
+
+  @override
+  String get filterSilver => 'Silver';
+
+  @override
+  String get filterSepia => 'Sepia';
+
+  @override
+  String get filterMatte => 'Matte';
+
+  @override
+  String get filterIntensity => 'Intensity';
+
+  @override
+  String get adjustExposure => 'Exposure';
+
+  @override
+  String get adjustBrightness => 'Brightness';
+
+  @override
+  String get adjustContrast => 'Contrast';
+
+  @override
+  String get adjustSaturation => 'Saturation';
+
+  @override
+  String get adjustWarmth => 'Warmth';
+
+  @override
+  String get adjustTint => 'Tint';
+
+  @override
+  String get adjustHighlights => 'Highlights';
+
+  @override
+  String get adjustShadows => 'Shadows';
+
+  @override
+  String get adjustSharpen => 'Sharpen';
+
+  @override
+  String get adjustVignette => 'Vignette';
+
+  @override
+  String adjustResetField(String field) {
+    return 'Reset $field';
+  }
 }

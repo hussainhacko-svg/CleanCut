@@ -187,9 +187,27 @@ class FakeMediaEngine implements MediaEngine {
   /// Returned by [waveform].
   WaveformData? waveformData;
 
+  /// Returned by [filterPreviews] (when non-null, maps each requested id to
+  /// this path unless overridden in [filterPreviewPaths]).
+  Map<String, String?> filterPreviewPaths = const {};
+
+  /// Recorded calls to [filterPreviews].
+  final filterPreviewCalls = <(String, int, int, List<String>)>[];
+
   @override
   Future<WaveformData?> waveform(String uri, {int peaksPerSecond = 50}) async =>
       waveformData;
+
+  @override
+  Future<Map<String, String?>> filterPreviews(
+    String uri,
+    int timeUs, {
+    required int heightPx,
+    required List<String> filterIds,
+  }) async {
+    filterPreviewCalls.add((uri, timeUs, heightPx, List<String>.of(filterIds)));
+    return {for (final id in filterIds) id: filterPreviewPaths[id]};
+  }
 }
 
 /// Test doubles wired into a [ProviderScope].

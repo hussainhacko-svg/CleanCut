@@ -99,6 +99,8 @@ CompositionSpec compositionSpecOf(
 ClipStyleSpec clipStyleSpecOf(Clip clip, {required int fps}) {
   final transform = clip.transform;
   final crop = clip.crop;
+  final filter = clip.filter;
+  final adj = clip.adjustments;
   return ClipStyleSpec(
     fitMode: switch (clip.fitMode) {
       FitMode.fit => SpecFitMode.fit,
@@ -118,6 +120,20 @@ ClipStyleSpec clipStyleSpecOf(Clip clip, {required int fps}) {
     borderWidth: clip.border.width,
     borderArgb: clip.border.argb,
     borderRadius: clip.border.radius,
+    filterId: filter?.id,
+    filterIntensity: filter?.intensity ?? 0,
+    adjustments: ColorAdjustmentsSpec(
+      exposure: adj.exposure,
+      brightness: adj.brightness,
+      contrast: adj.contrast,
+      saturation: adj.saturation,
+      warmth: adj.warmth,
+      tint: adj.tint,
+      highlights: adj.highlights,
+      shadows: adj.shadows,
+      sharpen: adj.sharpen,
+      vignette: adj.vignette,
+    ),
   );
 }
 

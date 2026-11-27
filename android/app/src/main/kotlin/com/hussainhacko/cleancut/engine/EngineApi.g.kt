@@ -373,7 +373,84 @@ data class TransformSampleSpec (
 }
 
 /**
- * Everything about how a clip looks on the canvas (Phase 5).
+ * Per-clip color and tone adjustments (Phase 6); 0 means no change.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class ColorAdjustmentsSpec (
+  val exposure: Double,
+  val brightness: Double,
+  val contrast: Double,
+  val saturation: Double,
+  val warmth: Double,
+  val tint: Double,
+  val highlights: Double,
+  val shadows: Double,
+  val sharpen: Double,
+  val vignette: Double
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): ColorAdjustmentsSpec {
+      val exposure = pigeonVar_list[0] as Double
+      val brightness = pigeonVar_list[1] as Double
+      val contrast = pigeonVar_list[2] as Double
+      val saturation = pigeonVar_list[3] as Double
+      val warmth = pigeonVar_list[4] as Double
+      val tint = pigeonVar_list[5] as Double
+      val highlights = pigeonVar_list[6] as Double
+      val shadows = pigeonVar_list[7] as Double
+      val sharpen = pigeonVar_list[8] as Double
+      val vignette = pigeonVar_list[9] as Double
+      return ColorAdjustmentsSpec(exposure, brightness, contrast, saturation, warmth, tint, highlights, shadows, sharpen, vignette)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      exposure,
+      brightness,
+      contrast,
+      saturation,
+      warmth,
+      tint,
+      highlights,
+      shadows,
+      sharpen,
+      vignette,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as ColorAdjustmentsSpec
+    return EngineApiPigeonUtils.deepEquals(this.exposure, other.exposure) && EngineApiPigeonUtils.deepEquals(this.brightness, other.brightness) && EngineApiPigeonUtils.deepEquals(this.contrast, other.contrast) && EngineApiPigeonUtils.deepEquals(this.saturation, other.saturation) && EngineApiPigeonUtils.deepEquals(this.warmth, other.warmth) && EngineApiPigeonUtils.deepEquals(this.tint, other.tint) && EngineApiPigeonUtils.deepEquals(this.highlights, other.highlights) && EngineApiPigeonUtils.deepEquals(this.shadows, other.shadows) && EngineApiPigeonUtils.deepEquals(this.sharpen, other.sharpen) && EngineApiPigeonUtils.deepEquals(this.vignette, other.vignette)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.exposure)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.brightness)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.contrast)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.saturation)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.warmth)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.tint)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.highlights)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.shadows)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.sharpen)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.vignette)
+    return result
+  }
+  override fun toString(): String {
+    return "ColorAdjustmentsSpec(exposure=$exposure, brightness=$brightness, contrast=$contrast, saturation=$saturation, warmth=$warmth, tint=$tint, highlights=$highlights, shadows=$shadows, sharpen=$sharpen, vignette=$vignette)"
+  }
+}
+
+/**
+ * Everything about how a clip looks on the canvas (Phases 5–6).
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
@@ -393,7 +470,13 @@ data class ClipStyleSpec (
   val borderWidth: Double,
   val borderArgb: Long,
   /** Corner radius as a fraction of the clip's shorter displayed side. */
-  val borderRadius: Double
+  val borderRadius: Double,
+  /** Bundled LUT id (`luts/<filterId>.cube`), or null for none. */
+  val filterId: String? = null,
+  /** Blend strength of [filterId] in `0..1`. */
+  val filterIntensity: Double,
+  /** Per-clip color and tone adjustments. */
+  val adjustments: ColorAdjustmentsSpec
 )
  {
   companion object {
@@ -409,7 +492,10 @@ data class ClipStyleSpec (
       val borderWidth = pigeonVar_list[8] as Double
       val borderArgb = pigeonVar_list[9] as Long
       val borderRadius = pigeonVar_list[10] as Double
-      return ClipStyleSpec(fitMode, cropLeft, cropTop, cropRight, cropBottom, flipX, flipY, transform, borderWidth, borderArgb, borderRadius)
+      val filterId = pigeonVar_list[11] as String?
+      val filterIntensity = pigeonVar_list[12] as Double
+      val adjustments = pigeonVar_list[13] as ColorAdjustmentsSpec
+      return ClipStyleSpec(fitMode, cropLeft, cropTop, cropRight, cropBottom, flipX, flipY, transform, borderWidth, borderArgb, borderRadius, filterId, filterIntensity, adjustments)
     }
   }
   fun toList(): List<Any?> {
@@ -425,6 +511,9 @@ data class ClipStyleSpec (
       borderWidth,
       borderArgb,
       borderRadius,
+      filterId,
+      filterIntensity,
+      adjustments,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -435,7 +524,7 @@ data class ClipStyleSpec (
       return true
     }
     val other = other as ClipStyleSpec
-    return EngineApiPigeonUtils.deepEquals(this.fitMode, other.fitMode) && EngineApiPigeonUtils.deepEquals(this.cropLeft, other.cropLeft) && EngineApiPigeonUtils.deepEquals(this.cropTop, other.cropTop) && EngineApiPigeonUtils.deepEquals(this.cropRight, other.cropRight) && EngineApiPigeonUtils.deepEquals(this.cropBottom, other.cropBottom) && EngineApiPigeonUtils.deepEquals(this.flipX, other.flipX) && EngineApiPigeonUtils.deepEquals(this.flipY, other.flipY) && EngineApiPigeonUtils.deepEquals(this.transform, other.transform) && EngineApiPigeonUtils.deepEquals(this.borderWidth, other.borderWidth) && EngineApiPigeonUtils.deepEquals(this.borderArgb, other.borderArgb) && EngineApiPigeonUtils.deepEquals(this.borderRadius, other.borderRadius)
+    return EngineApiPigeonUtils.deepEquals(this.fitMode, other.fitMode) && EngineApiPigeonUtils.deepEquals(this.cropLeft, other.cropLeft) && EngineApiPigeonUtils.deepEquals(this.cropTop, other.cropTop) && EngineApiPigeonUtils.deepEquals(this.cropRight, other.cropRight) && EngineApiPigeonUtils.deepEquals(this.cropBottom, other.cropBottom) && EngineApiPigeonUtils.deepEquals(this.flipX, other.flipX) && EngineApiPigeonUtils.deepEquals(this.flipY, other.flipY) && EngineApiPigeonUtils.deepEquals(this.transform, other.transform) && EngineApiPigeonUtils.deepEquals(this.borderWidth, other.borderWidth) && EngineApiPigeonUtils.deepEquals(this.borderArgb, other.borderArgb) && EngineApiPigeonUtils.deepEquals(this.borderRadius, other.borderRadius) && EngineApiPigeonUtils.deepEquals(this.filterId, other.filterId) && EngineApiPigeonUtils.deepEquals(this.filterIntensity, other.filterIntensity) && EngineApiPigeonUtils.deepEquals(this.adjustments, other.adjustments)
   }
 
   override fun hashCode(): Int {
@@ -451,10 +540,13 @@ data class ClipStyleSpec (
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.borderWidth)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.borderArgb)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.borderRadius)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.filterId)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.filterIntensity)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.adjustments)
     return result
   }
   override fun toString(): String {
-    return "ClipStyleSpec(fitMode=$fitMode, cropLeft=$cropLeft, cropTop=$cropTop, cropRight=$cropRight, cropBottom=$cropBottom, flipX=$flipX, flipY=$flipY, transform=$transform, borderWidth=$borderWidth, borderArgb=$borderArgb, borderRadius=$borderRadius)"
+    return "ClipStyleSpec(fitMode=$fitMode, cropLeft=$cropLeft, cropTop=$cropTop, cropRight=$cropRight, cropBottom=$cropBottom, flipX=$flipX, flipY=$flipY, transform=$transform, borderWidth=$borderWidth, borderArgb=$borderArgb, borderRadius=$borderRadius, filterId=$filterId, filterIntensity=$filterIntensity, adjustments=$adjustments)"
   }
 }
 
@@ -811,30 +903,35 @@ private open class EngineApiPigeonCodec : StandardMessageCodec() {
       }
       135.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          ClipStyleSpec.fromList(it)
+          ColorAdjustmentsSpec.fromList(it)
         }
       }
       136.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          BackgroundSpec.fromList(it)
+          ClipStyleSpec.fromList(it)
         }
       }
       137.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          ClipSpec.fromList(it)
+          BackgroundSpec.fromList(it)
         }
       }
       138.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          CompositionSpec.fromList(it)
+          ClipSpec.fromList(it)
         }
       }
       139.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          PlayerStateEvent.fromList(it)
+          CompositionSpec.fromList(it)
         }
       }
       140.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          PlayerStateEvent.fromList(it)
+        }
+      }
+      141.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
           WaveformData.fromList(it)
         }
@@ -868,28 +965,32 @@ private open class EngineApiPigeonCodec : StandardMessageCodec() {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is ClipStyleSpec -> {
+      is ColorAdjustmentsSpec -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is BackgroundSpec -> {
+      is ClipStyleSpec -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is ClipSpec -> {
+      is BackgroundSpec -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is CompositionSpec -> {
+      is ClipSpec -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is PlayerStateEvent -> {
+      is CompositionSpec -> {
         stream.write(139)
         writeValue(stream, value.toList())
       }
-      is WaveformData -> {
+      is PlayerStateEvent -> {
         stream.write(140)
+        writeValue(stream, value.toList())
+      }
+      is WaveformData -> {
+        stream.write(141)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -927,6 +1028,12 @@ interface EngineHostApi {
    * when the file has no audio track.
    */
   suspend fun waveform(uri: String, peaksPerSecond: Long): WaveformData?
+  /**
+   * Renders small JPEG preview thumbnails of a frame of [uri] at [timeUs]
+   * (scaled to [heightPx] tall) with each bundled LUT in [filterIds],
+   * cached on disk. Returns a map of filterId -> cached file path (or null).
+   */
+  suspend fun filterPreviews(uri: String, timeUs: Long, heightPx: Long, filterIds: List<String>): Map<String, String?>
 
   companion object {
     /** The codec used by EngineHostApi. */
@@ -1069,6 +1176,28 @@ interface EngineHostApi {
             CoroutineScope(Dispatchers.Main).launch {
               val wrapped: List<Any?> = try {
                 listOf(api.waveform(uriArg, peaksPerSecondArg))
+              } catch (exception: Throwable) {
+                EngineApiPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.cleancut.EngineHostApi.filterPreviews$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val uriArg = args[0] as String
+            val timeUsArg = args[1] as Long
+            val heightPxArg = args[2] as Long
+            val filterIdsArg = args[3] as List<String>
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.filterPreviews(uriArg, timeUsArg, heightPxArg, filterIdsArg))
               } catch (exception: Throwable) {
                 EngineApiPigeonUtils.wrapError(exception)
               }

@@ -7,6 +7,7 @@ export 'package:cleancut/engine/engine_api.g.dart'
         BackgroundSpec,
         ClipSpec,
         ClipStyleSpec,
+        ColorAdjustmentsSpec,
         CompositionSpec,
         PlaybackStatus,
         PlayerStateEvent,
@@ -79,6 +80,15 @@ abstract interface class MediaEngine {
 
   /// Audio peaks of [uri]; null when it has no audio.
   Future<WaveformData?> waveform(String uri, {int peaksPerSecond = 50});
+
+  /// Renders cached JPEG preview thumbnails of [uri] at [timeUs] ([heightPx]
+  /// tall) for each bundled LUT in [filterIds].
+  Future<Map<String, String?>> filterPreviews(
+    String uri,
+    int timeUs, {
+    required int heightPx,
+    required List<String> filterIds,
+  });
 }
 
 /// [MediaEngine] backed by the Kotlin engine over Pigeon.
@@ -143,6 +153,14 @@ final class PlatformMediaEngine implements MediaEngine, EngineFlutterApi {
   @override
   Future<WaveformData?> waveform(String uri, {int peaksPerSecond = 50}) =>
       _api.waveform(uri, peaksPerSecond);
+
+  @override
+  Future<Map<String, String?>> filterPreviews(
+    String uri,
+    int timeUs, {
+    required int heightPx,
+    required List<String> filterIds,
+  }) => _api.filterPreviews(uri, timeUs, heightPx, filterIds);
 
   /// Stops receiving native events.
   void dispose() {

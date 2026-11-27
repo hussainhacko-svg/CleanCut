@@ -21,7 +21,9 @@ import 'package:cleancut/features/projects/domain/timeline/timeline_selection.da
 import 'package:cleancut/features/projects/presentation/editor/editor_state.dart';
 import 'package:cleancut/features/projects/presentation/editor/overlays/crop_overlay.dart';
 import 'package:cleancut/features/projects/presentation/editor/overlays/transform_gizmo.dart';
+import 'package:cleancut/features/projects/presentation/editor/panels/adjust_panel.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/crop_panel.dart';
+import 'package:cleancut/features/projects/presentation/editor/panels/filters_panel.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/ratio_panel.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/speed_panel.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/transform_panel.dart';
@@ -177,7 +179,9 @@ class _Editor extends ConsumerWidget {
           DockTool.delete ||
           DockTool.speed ||
           DockTool.crop ||
-          DockTool.transform:
+          DockTool.transform ||
+          DockTool.filters ||
+          DockTool.adjust:
         final selection = ref.read(
           timelineSelectionControllerProvider(projectId),
         );
@@ -196,8 +200,6 @@ class _Editor extends ConsumerWidget {
           DockTool.text ||
           DockTool.effect ||
           DockTool.overlay ||
-          DockTool.filters ||
-          DockTool.adjust ||
           DockTool.animation ||
           DockTool.volume:
         _soon(messenger, l10n);
@@ -258,6 +260,14 @@ class _Editor extends ConsumerWidget {
         ref
             .read(openToolPanelProvider(projectId).notifier)
             .open(ToolPanelKind.transform);
+      case DockTool.filters:
+        ref
+            .read(openToolPanelProvider(projectId).notifier)
+            .open(ToolPanelKind.filters);
+      case DockTool.adjust:
+        ref
+            .read(openToolPanelProvider(projectId).notifier)
+            .open(ToolPanelKind.adjust);
       // Only clip tools are routed here.
       case _:
         _soon(messenger, l10n);
@@ -312,6 +322,14 @@ class _Editor extends ConsumerWidget {
         clip: clip,
         clipStartUs: clipStartUs,
         keyframeToleranceUs: keyframeToleranceUs(project),
+      ),
+      ToolPanelKind.filters => _ClipFiltersPanel(
+        projectId: projectId,
+        clip: clip,
+      ),
+      ToolPanelKind.adjust => _ClipAdjustPanel(
+        projectId: projectId,
+        clip: clip,
       ),
       ToolPanelKind.ratio => const SizedBox.shrink(),
     };
@@ -902,6 +920,101 @@ class _ClipTransformPanelState extends ConsumerState<_ClipTransformPanel> {
       onBorderSet: (border) =>
           applyDiscrete(SetClipBorderCommand(clip.id, border, coalesce: false)),
       onClose: ref.read(openToolPanelProvider(widget.projectId).notifier).close,
+    );
+  }
+}
+
+/// [FiltersPanel] bound to [clip]: preset taps and Reset are single undo
+/// steps; intensity slider drags coalesce and seal on release.
+class _ClipFiltersPanel extends ConsumerWidget {
+  const new({required this.projectId, required this.clip});
+
+  final String projectId;
+  final Clip clip;
+
+  static const int _previewHeightPx = 128;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.read(projectSessionProvider(projectId).notifier);
+    final previewTimeUs = clip.media.kind == MediaKind.image
+        ? 0
+        : clip.sourceInUs;
+    final baseThumb = ref
+        .watch(
+          clipThumbnailProvider(
+            clip.media.uri,
+            previewTimeUs,
+            _previewHeightPx,
+          ),
+        )
+        .value;
+    final previews =
+        ref
+            .watch(
+              clipFilterPreviewsProvider(
+                clip.media.uri,
+                previewTimeUs,
+                _previewHeightPx,
+              ),
+            )
+            .value ??
+        const <String, String?>{};
+    return FiltersPanel(
+      filter: clip.filter,
+      baseThumbnailPath: baseThumb,
+      previewPaths: previews,
+      onSelect: (next) => session
+        ..apply(SetClipFilterCommand(clip.id, next))
+        ..seal(),
+      onIntensityDrag: (intensity) {
+        final current = clip.filter;
+        if (current == null) return;
+        session.apply(
+          SetClipFilterCommand(
+            clip.id,
+            current.copyWith(intensity: intensity),
+            coalesce: true,
+          ),
+        );
+      },
+      onIntensityDragEnd: session.seal,
+      onIntensitySet: (intensity) {
+        final current = clip.filter;
+        if (current == null) return;
+        session
+          ..apply(
+            SetClipFilterCommand(
+              clip.id,
+              current.copyWith(intensity: intensity),
+            ),
+          )
+          ..seal();
+      },
+      onClose: ref.read(openToolPanelProvider(projectId).notifier).close,
+    );
+  }
+}
+
+/// [AdjustPanel] bound to [clip]: slider drags coalesce and seal on release;
+/// typed values and resets are discrete undo steps.
+class _ClipAdjustPanel extends ConsumerWidget {
+  const new({required this.projectId, required this.clip});
+
+  final String projectId;
+  final Clip clip;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.read(projectSessionProvider(projectId).notifier);
+    return AdjustPanel(
+      adjustments: clip.adjustments,
+      onDrag: (next) => session.apply(SetClipAdjustmentsCommand(clip.id, next)),
+      onDragEnd: session.seal,
+      onSet: (next) => session
+        ..apply(SetClipAdjustmentsCommand(clip.id, next, coalesce: false))
+        ..seal(),
+      onClose: ref.read(openToolPanelProvider(projectId).notifier).close,
     );
   }
 }

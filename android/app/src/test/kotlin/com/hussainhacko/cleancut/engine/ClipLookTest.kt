@@ -5,6 +5,22 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
+/** Neutral adjustments spec (all 0). */
+fun adjustmentsSpec(
+    exposure: Double = 0.0,
+    brightness: Double = 0.0,
+    contrast: Double = 0.0,
+    saturation: Double = 0.0,
+    warmth: Double = 0.0,
+    tint: Double = 0.0,
+    highlights: Double = 0.0,
+    shadows: Double = 0.0,
+    sharpen: Double = 0.0,
+    vignette: Double = 0.0,
+) = ColorAdjustmentsSpec(
+    exposure, brightness, contrast, saturation, warmth, tint, highlights, shadows, sharpen, vignette,
+)
+
 /** A style spec with no crop, no border and an identity transform, plus overrides. */
 fun styleSpec(
     fitMode: SpecFitMode = SpecFitMode.FIT,
@@ -13,8 +29,12 @@ fun styleSpec(
     borderWidth: Double = 0.0,
     borderRadius: Double = 0.0,
     flipX: Boolean = false,
+    filterId: String? = null,
+    filterIntensity: Double = 0.0,
+    adjustments: ColorAdjustmentsSpec = adjustmentsSpec(),
 ) = ClipStyleSpec(
-    fitMode, crop[0], crop[1], crop[2], crop[3], flipX, false, samples, borderWidth, 0xFFFFFFFF, borderRadius,
+    fitMode, crop[0], crop[1], crop[2], crop[3], flipX, false, samples,
+    borderWidth, 0xFFFFFFFF, borderRadius, filterId, filterIntensity, adjustments,
 )
 
 /** A black color background. */
@@ -46,6 +66,8 @@ class ClipLookTest {
                 SpecFitMode.FILL, Double.NaN, -1.0, 0.0, 2.0, false, false,
                 listOf(TransformSampleSpec(0, Double.NaN, 0.0, 0.0, Double.POSITIVE_INFINITY, 7.0)),
                 Double.NaN, 0xFF000000, 9.0,
+                "film_gold", 4.0,
+                adjustmentsSpec(exposure = Double.NaN, brightness = 9.0, sharpen = -1.0, vignette = 3.0),
             ),
         )
         assertEquals(0.0, style.crop.left, eps)
@@ -60,6 +82,12 @@ class ClipLookTest {
         assertEquals(1.0, t.opacity, eps)
         assertEquals(0.0, style.borderWidth, eps)
         assertEquals(0.5, style.borderRadius, eps)
+        assertEquals("film_gold", style.filterId)
+        assertEquals(1.0, style.filterIntensity, eps)
+        assertEquals(0.0, style.adjustments.exposure, eps)
+        assertEquals(1.0, style.adjustments.brightness, eps)
+        assertEquals(0.0, style.adjustments.sharpen, eps)
+        assertEquals(1.0, style.adjustments.vignette, eps)
     }
 
     @Test

@@ -57,7 +57,7 @@ class HomeScreen extends ConsumerWidget {
             ? null
             : const Padding(
                 padding: EdgeInsetsDirectional.only(start: 16),
-                child: Center(child: AppIcon(AppIcons.film)),
+                child: Center(child: AppIcon(AppIcons.appLogo, size: 28)),
               ),
         leadingWidth: wide ? null : 44,
         titleSpacing: wide ? 20 : 8,
