@@ -6,6 +6,7 @@ library;
 import 'package:cleancut/features/projects/domain/history/edit_command.dart';
 import 'package:cleancut/features/projects/domain/model/canvas_background.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart';
+import 'package:cleancut/features/projects/domain/model/clip_color.dart';
 import 'package:cleancut/features/projects/domain/model/clip_style.dart';
 import 'package:cleancut/features/projects/domain/model/clip_transform.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
@@ -311,4 +312,55 @@ final class SetCanvasBackgroundCommand extends EditCommand {
       canvas: project.canvas.copyWith(background: background),
     );
   }
+}
+
+/// Sets or clears the LUT filter of clip [clipId].
+///
+/// Pass `coalesce: true` while dragging the intensity slider; discrete preset
+/// taps and resets use `coalesce: false`.
+final class SetClipFilterCommand extends EditCommand {
+  /// Creates the command. A null [filter] removes the filter.
+  const new(this.clipId, this.filter, {this.coalesce = false});
+
+  /// Target clip.
+  final String clipId;
+
+  /// The new filter, or null for None.
+  final ClipFilter? filter;
+
+  /// Whether consecutive filter edits of this clip merge into one undo step.
+  final bool coalesce;
+
+  @override
+  Object? get coalesceKey => coalesce ? (SetClipFilterCommand, clipId) : null;
+
+  @override
+  Project apply(Project project) =>
+      _updateClip(project, clipId, (c) => c.copyWith(filter: filter));
+}
+
+/// Sets the color adjustments of clip [clipId].
+///
+/// Slider drags coalesce into one undo step; typed values and resets pass
+/// `coalesce: false`.
+final class SetClipAdjustmentsCommand extends EditCommand {
+  /// Creates the command.
+  const new(this.clipId, this.adjustments, {this.coalesce = true});
+
+  /// Target clip.
+  final String clipId;
+
+  /// The new adjustments; must pass `ClipAdjustments.validate`.
+  final ClipAdjustments adjustments;
+
+  /// Whether consecutive adjustment edits of this clip merge into one step.
+  final bool coalesce;
+
+  @override
+  Object? get coalesceKey =>
+      coalesce ? (SetClipAdjustmentsCommand, clipId) : null;
+
+  @override
+  Project apply(Project project) =>
+      _updateClip(project, clipId, (c) => c.copyWith(adjustments: adjustments));
 }

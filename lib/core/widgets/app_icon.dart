@@ -3,7 +3,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 /// Category-colored duotone icons from the Clipcraft icon pack (`assets/icons`).
 enum AppIcons {
-  /// Home brand / film reel glyph.
+  /// The app's launcher icon (Clipcraft timeline bars), shown as the home
+  /// screen logo.
+  appLogo('app_logo'),
+
+  /// Film reel glyph.
   film('film'),
 
   /// Settings gear.
@@ -139,7 +143,37 @@ enum AppIcons {
   laneEffect('effects'),
 
   /// Lane pill glyph: audio.
-  laneAudio('music');
+  laneAudio('music'),
+
+  /// Adjust: exposure.
+  adjustExposure('exposure'),
+
+  /// Adjust: brightness.
+  adjustBrightness('brightness'),
+
+  /// Adjust: contrast.
+  adjustContrast('contrast'),
+
+  /// Adjust: saturation.
+  adjustSaturation('saturation'),
+
+  /// Adjust: warmth (color temperature).
+  adjustWarmth('warmth'),
+
+  /// Adjust: tint.
+  adjustTint('tint'),
+
+  /// Adjust: highlights.
+  adjustHighlights('highlights'),
+
+  /// Adjust: shadows.
+  adjustShadows('shadows'),
+
+  /// Adjust: sharpen.
+  adjustSharpen('wand'),
+
+  /// Adjust: vignette.
+  adjustVignette('vignette');
 
   new(this._file);
 

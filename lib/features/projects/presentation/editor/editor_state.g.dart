@@ -540,3 +540,102 @@ final class ClipWaveformFamily extends $Family
   @override
   String toString() => r'clipWaveformProvider';
 }
+
+/// Cached LUT-graded preview JPEG paths for every bundled [FilterPreset] on a
+/// frame of [uri] at [timeUs].
+
+@ProviderFor(clipFilterPreviews)
+final clipFilterPreviewsProvider = ClipFilterPreviewsFamily._();
+
+/// Cached LUT-graded preview JPEG paths for every bundled [FilterPreset] on a
+/// frame of [uri] at [timeUs].
+
+final class ClipFilterPreviewsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<Map<String, String?>>,
+          Map<String, String?>,
+          FutureOr<Map<String, String?>>
+        >
+    with
+        $FutureModifier<Map<String, String?>>,
+        $FutureProvider<Map<String, String?>> {
+  /// Cached LUT-graded preview JPEG paths for every bundled [FilterPreset] on a
+  /// frame of [uri] at [timeUs].
+  ClipFilterPreviewsProvider._({
+    required ClipFilterPreviewsFamily super.from,
+    required (String, int, int) super.argument,
+  }) : super(
+         retry: null,
+         name: r'clipFilterPreviewsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$clipFilterPreviewsHash();
+
+  @override
+  String toString() {
+    return r'clipFilterPreviewsProvider'
+        ''
+        '$argument';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<Map<String, String?>> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<Map<String, String?>> create(Ref ref) {
+    final argument = this.argument as (String, int, int);
+    return clipFilterPreviews(ref, argument.$1, argument.$2, argument.$3);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is ClipFilterPreviewsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$clipFilterPreviewsHash() =>
+    r'aa163ad3918304051aa211520991834e8db87fe0';
+
+/// Cached LUT-graded preview JPEG paths for every bundled [FilterPreset] on a
+/// frame of [uri] at [timeUs].
+
+final class ClipFilterPreviewsFamily extends $Family
+    with
+        $FunctionalFamilyOverride<
+          FutureOr<Map<String, String?>>,
+          (String, int, int)
+        > {
+  ClipFilterPreviewsFamily._()
+    : super(
+        retry: null,
+        name: r'clipFilterPreviewsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Cached LUT-graded preview JPEG paths for every bundled [FilterPreset] on a
+  /// frame of [uri] at [timeUs].
+
+  ClipFilterPreviewsProvider call(String uri, int timeUs, int heightPx) =>
+      ClipFilterPreviewsProvider._(
+        argument: (uri, timeUs, heightPx),
+        from: this,
+      );
+
+  @override
+  String toString() => r'clipFilterPreviewsProvider';
+}

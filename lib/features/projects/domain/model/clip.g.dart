@@ -27,6 +27,12 @@ _Clip _$ClipFromJson(Map<String, dynamic> json) => _Clip(
   border: json['border'] == null
       ? const ClipBorder()
       : ClipBorder.fromJson(json['border'] as Map<String, dynamic>),
+  filter: json['filter'] == null
+      ? null
+      : ClipFilter.fromJson(json['filter'] as Map<String, dynamic>),
+  adjustments: json['adjustments'] == null
+      ? ClipAdjustments.none
+      : ClipAdjustments.fromJson(json['adjustments'] as Map<String, dynamic>),
   volume: (json['volume'] as num?)?.toDouble() ?? 1.0,
   muted: json['muted'] as bool? ?? false,
 );
@@ -43,6 +49,8 @@ Map<String, dynamic> _$ClipToJson(_Clip instance) => <String, dynamic>{
   'fitMode': _$FitModeEnumMap[instance.fitMode]!,
   'crop': instance.crop.toJson(),
   'border': instance.border.toJson(),
+  'filter': instance.filter?.toJson(),
+  'adjustments': instance.adjustments.toJson(),
   'volume': instance.volume,
   'muted': instance.muted,
 };

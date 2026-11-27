@@ -148,9 +148,9 @@ docs/PLAN.md, docs/DESIGN.md
   points over source progress (0–1), monotone cubic in log-speed space;
   model and engine both use the same **64 constant-speed steps**. Trim
   stretches a curve; split divides it (each half resampled from the original).
-- **Schema:** `Project.currentSchemaVersion` is **3** (v2 speed curves, v3
-  crop/border/background/keyframes). Any format change bumps it with a
-  migration in `project_codec.dart` and a migration test.
+- **Schema:** `Project.currentSchemaVersion` is **4** (v2 speed curves, v3
+  crop/border/background/keyframes, v4 filter/adjustments). Any format change
+  bumps it with a migration in `project_codec.dart` and a migration test.
 - Minimum clip length is 0.1 s.
 
 ## 5. State management — Riverpod 3
@@ -281,8 +281,9 @@ docs/PLAN.md, docs/DESIGN.md
 | Phase | State | Where |
 |---|---|---|
 | 0–5 | done | `main` (Phase 5 = PR #10, tag `v0.01`, CI green) |
-| Clipcraft UI redesign | in review | `feat/clipcraft-redesign` |
-| 6 — filters & effects | next | — |
+| Clipcraft UI redesign | done | `main` (PR #13) |
+| 6A — filters & adjustments | ready for review (pushed, no PR yet) | `feat/phase-6a-filters-adjust` |
+| 6B/6C — blur, mask & transitions | next | — |
 
 **Phase 5 leftovers:** tactile feel of haptics needs a physical device
 (emulator has no vibration motor). Reset on a keyframed property only

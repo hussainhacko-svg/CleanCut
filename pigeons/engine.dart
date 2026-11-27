@@ -47,7 +47,34 @@ class TransformSampleSpec {
   final double opacity;
 }
 
-/// Everything about how a clip looks on the canvas (Phase 5).
+/// Per-clip color and tone adjustments (Phase 6); 0 means no change.
+class ColorAdjustmentsSpec {
+  ColorAdjustmentsSpec({
+    required this.exposure,
+    required this.brightness,
+    required this.contrast,
+    required this.saturation,
+    required this.warmth,
+    required this.tint,
+    required this.highlights,
+    required this.shadows,
+    required this.sharpen,
+    required this.vignette,
+  });
+
+  final double exposure;
+  final double brightness;
+  final double contrast;
+  final double saturation;
+  final double warmth;
+  final double tint;
+  final double highlights;
+  final double shadows;
+  final double sharpen;
+  final double vignette;
+}
+
+/// Everything about how a clip looks on the canvas (Phases 5–6).
 class ClipStyleSpec {
   ClipStyleSpec({
     required this.fitMode,
@@ -61,6 +88,9 @@ class ClipStyleSpec {
     required this.borderWidth,
     required this.borderArgb,
     required this.borderRadius,
+    required this.filterId,
+    required this.filterIntensity,
+    required this.adjustments,
   });
 
   final SpecFitMode fitMode;
@@ -84,6 +114,15 @@ class ClipStyleSpec {
 
   /// Corner radius as a fraction of the clip's shorter displayed side.
   final double borderRadius;
+
+  /// Bundled LUT id (`luts/<filterId>.cube`), or null for none.
+  final String? filterId;
+
+  /// Blend strength of [filterId] in `0..1`.
+  final double filterIntensity;
+
+  /// Per-clip color and tone adjustments.
+  final ColorAdjustmentsSpec adjustments;
 }
 
 /// What fills the canvas behind the clips.
@@ -249,6 +288,17 @@ abstract class EngineHostApi {
   /// when the file has no audio track.
   @async
   WaveformData? waveform(String uri, int peaksPerSecond);
+
+  /// Renders small JPEG preview thumbnails of a frame of [uri] at [timeUs]
+  /// (scaled to [heightPx] tall) with each bundled LUT in [filterIds],
+  /// cached on disk. Returns a map of filterId -> cached file path (or null).
+  @async
+  Map<String, String?> filterPreviews(
+    String uri,
+    int timeUs,
+    int heightPx,
+    List<String> filterIds,
+  );
 }
 
 @FlutterApi()

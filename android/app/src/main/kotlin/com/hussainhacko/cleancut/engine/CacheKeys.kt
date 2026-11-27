@@ -33,6 +33,13 @@ object CacheKeys {
     fun waveform(uri: String, peaksPerSecond: Int): String =
         "${sha1("wave|$uri|$peaksPerSecond")}.wave"
 
+    /**
+     * Cache file name of a LUT-graded filter preview thumbnail. [lutHash] is a hash of the LUT's
+     * asset text, so editing a bundled `.cube` file invalidates its old thumbnails.
+     */
+    fun filterPreview(uri: String, timeUs: Long, heightPx: Int, filterId: String, lutHash: String): String =
+        "${sha1("fprev|$uri|$heightPx|${bucketUs(timeUs)}|$filterId|$lutHash")}.jpg"
+
     private fun sha1(text: String): String =
         MessageDigest.getInstance("SHA-1")
             .digest(text.toByteArray(Charsets.UTF_8))

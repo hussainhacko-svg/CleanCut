@@ -193,8 +193,8 @@ Each phase ends with a working, tested build and a tag `v0.<phase>.0`.
 - [x] Keyframe button on each animatable property + keyframe markers on clip
 
 ### Phase 6 — Filters & effects
-- [ ] Filter presets from bundled LUTs with intensity + preview thumbnails
-- [ ] Adjustments panel
+- [x] Filter presets from bundled LUTs with intensity + preview thumbnails
+- [x] Adjustments panel
 - [ ] Blur (whole clip)
 - [ ] Mask: linear, mirror, circle, rect, heart, star — on-preview handles, feather, invert
 - [ ] Transitions between main-track clips (VCLIP ⧓ marker on each boundary; owner-added). Give the marker a real tap target without stealing taps from short clips

@@ -244,7 +244,108 @@ class TransformSampleSpec {
   }
 }
 
-/// Everything about how a clip looks on the canvas (Phase 5).
+/// Per-clip color and tone adjustments (Phase 6); 0 means no change.
+class ColorAdjustmentsSpec {
+  ColorAdjustmentsSpec({
+    required this.exposure,
+    required this.brightness,
+    required this.contrast,
+    required this.saturation,
+    required this.warmth,
+    required this.tint,
+    required this.highlights,
+    required this.shadows,
+    required this.sharpen,
+    required this.vignette,
+  });
+
+  double exposure;
+
+  double brightness;
+
+  double contrast;
+
+  double saturation;
+
+  double warmth;
+
+  double tint;
+
+  double highlights;
+
+  double shadows;
+
+  double sharpen;
+
+  double vignette;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      exposure,
+      brightness,
+      contrast,
+      saturation,
+      warmth,
+      tint,
+      highlights,
+      shadows,
+      sharpen,
+      vignette,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static ColorAdjustmentsSpec decode(Object result) {
+    result as List<Object?>;
+    return ColorAdjustmentsSpec(
+      exposure: result[0]! as double,
+      brightness: result[1]! as double,
+      contrast: result[2]! as double,
+      saturation: result[3]! as double,
+      warmth: result[4]! as double,
+      tint: result[5]! as double,
+      highlights: result[6]! as double,
+      shadows: result[7]! as double,
+      sharpen: result[8]! as double,
+      vignette: result[9]! as double,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ColorAdjustmentsSpec || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(exposure, other.exposure) &&
+        _deepEquals(brightness, other.brightness) &&
+        _deepEquals(contrast, other.contrast) &&
+        _deepEquals(saturation, other.saturation) &&
+        _deepEquals(warmth, other.warmth) &&
+        _deepEquals(tint, other.tint) &&
+        _deepEquals(highlights, other.highlights) &&
+        _deepEquals(shadows, other.shadows) &&
+        _deepEquals(sharpen, other.sharpen) &&
+        _deepEquals(vignette, other.vignette);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'ColorAdjustmentsSpec(exposure: $exposure, brightness: $brightness, contrast: $contrast, saturation: $saturation, warmth: $warmth, tint: $tint, highlights: $highlights, shadows: $shadows, sharpen: $sharpen, vignette: $vignette)';
+  }
+}
+
+/// Everything about how a clip looks on the canvas (Phases 5–6).
 class ClipStyleSpec {
   ClipStyleSpec({
     required this.fitMode,
@@ -258,6 +359,9 @@ class ClipStyleSpec {
     required this.borderWidth,
     required this.borderArgb,
     required this.borderRadius,
+    this.filterId,
+    required this.filterIntensity,
+    required this.adjustments,
   });
 
   SpecFitMode fitMode;
@@ -287,6 +391,15 @@ class ClipStyleSpec {
   /// Corner radius as a fraction of the clip's shorter displayed side.
   double borderRadius;
 
+  /// Bundled LUT id (`luts/<filterId>.cube`), or null for none.
+  String? filterId;
+
+  /// Blend strength of [filterId] in `0..1`.
+  double filterIntensity;
+
+  /// Per-clip color and tone adjustments.
+  ColorAdjustmentsSpec adjustments;
+
   List<Object?> _toList() {
     return <Object?>[
       fitMode,
@@ -300,6 +413,9 @@ class ClipStyleSpec {
       borderWidth,
       borderArgb,
       borderRadius,
+      filterId,
+      filterIntensity,
+      adjustments,
     ];
   }
 
@@ -321,6 +437,9 @@ class ClipStyleSpec {
       borderWidth: result[8]! as double,
       borderArgb: result[9]! as int,
       borderRadius: result[10]! as double,
+      filterId: result[11] as String?,
+      filterIntensity: result[12]! as double,
+      adjustments: result[13]! as ColorAdjustmentsSpec,
     );
   }
 
@@ -343,7 +462,10 @@ class ClipStyleSpec {
         _deepEquals(transform, other.transform) &&
         _deepEquals(borderWidth, other.borderWidth) &&
         _deepEquals(borderArgb, other.borderArgb) &&
-        _deepEquals(borderRadius, other.borderRadius);
+        _deepEquals(borderRadius, other.borderRadius) &&
+        _deepEquals(filterId, other.filterId) &&
+        _deepEquals(filterIntensity, other.filterIntensity) &&
+        _deepEquals(adjustments, other.adjustments);
   }
 
   @override
@@ -352,7 +474,7 @@ class ClipStyleSpec {
 
   @override
   String toString() {
-    return 'ClipStyleSpec(fitMode: $fitMode, cropLeft: $cropLeft, cropTop: $cropTop, cropRight: $cropRight, cropBottom: $cropBottom, flipX: $flipX, flipY: $flipY, transform: $transform, borderWidth: $borderWidth, borderArgb: $borderArgb, borderRadius: $borderRadius)';
+    return 'ClipStyleSpec(fitMode: $fitMode, cropLeft: $cropLeft, cropTop: $cropTop, cropRight: $cropRight, cropBottom: $cropBottom, flipX: $flipX, flipY: $flipY, transform: $transform, borderWidth: $borderWidth, borderArgb: $borderArgb, borderRadius: $borderRadius, filterId: $filterId, filterIntensity: $filterIntensity, adjustments: $adjustments)';
   }
 }
 
@@ -752,23 +874,26 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is TransformSampleSpec) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    } else if (value is ClipStyleSpec) {
+    } else if (value is ColorAdjustmentsSpec) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    } else if (value is BackgroundSpec) {
+    } else if (value is ClipStyleSpec) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    } else if (value is ClipSpec) {
+    } else if (value is BackgroundSpec) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    } else if (value is CompositionSpec) {
+    } else if (value is ClipSpec) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    } else if (value is PlayerStateEvent) {
+    } else if (value is CompositionSpec) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    } else if (value is WaveformData) {
+    } else if (value is PlayerStateEvent) {
       buffer.putUint8(140);
+      writeValue(buffer, value.encode());
+    } else if (value is WaveformData) {
+      buffer.putUint8(141);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -795,16 +920,18 @@ class _PigeonCodec extends StandardMessageCodec {
       case 134:
         return TransformSampleSpec.decode(readValue(buffer)!);
       case 135:
-        return ClipStyleSpec.decode(readValue(buffer)!);
+        return ColorAdjustmentsSpec.decode(readValue(buffer)!);
       case 136:
-        return BackgroundSpec.decode(readValue(buffer)!);
+        return ClipStyleSpec.decode(readValue(buffer)!);
       case 137:
-        return ClipSpec.decode(readValue(buffer)!);
+        return BackgroundSpec.decode(readValue(buffer)!);
       case 138:
-        return CompositionSpec.decode(readValue(buffer)!);
+        return ClipSpec.decode(readValue(buffer)!);
       case 139:
-        return PlayerStateEvent.decode(readValue(buffer)!);
+        return CompositionSpec.decode(readValue(buffer)!);
       case 140:
+        return PlayerStateEvent.decode(readValue(buffer)!);
+      case 141:
         return WaveformData.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -991,6 +1118,35 @@ class EngineHostApi {
       isNullValid: true,
     );
     return pigeonVar_replyValue as WaveformData?;
+  }
+
+  /// Renders small JPEG preview thumbnails of a frame of [uri] at [timeUs]
+  /// (scaled to [heightPx] tall) with each bundled LUT in [filterIds],
+  /// cached on disk. Returns a map of filterId -> cached file path (or null).
+  Future<Map<String, String?>> filterPreviews(
+    String uri,
+    int timeUs,
+    int heightPx,
+    List<String> filterIds,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.cleancut.EngineHostApi.filterPreviews$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[uri, timeUs, heightPx, filterIds],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return (pigeonVar_replyValue! as Map<Object?, Object?>)
+        .cast<String, String?>();
   }
 }
 

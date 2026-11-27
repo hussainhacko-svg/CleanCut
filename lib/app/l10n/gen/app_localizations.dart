@@ -909,6 +909,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove {property} keyframe'**
   String keyframeRemove(String property);
+
+  /// No description provided for @filterCategoryFilm.
+  ///
+  /// In en, this message translates to:
+  /// **'Film'**
+  String get filterCategoryFilm;
+
+  /// No description provided for @filterCategoryVibrant.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibrant'**
+  String get filterCategoryVibrant;
+
+  /// No description provided for @filterCategoryBw.
+  ///
+  /// In en, this message translates to:
+  /// **'B&W'**
+  String get filterCategoryBw;
+
+  /// No description provided for @filterNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get filterNone;
+
+  /// No description provided for @filterGold.
+  ///
+  /// In en, this message translates to:
+  /// **'Gold'**
+  String get filterGold;
+
+  /// No description provided for @filterVelvia.
+  ///
+  /// In en, this message translates to:
+  /// **'Velvia'**
+  String get filterVelvia;
+
+  /// No description provided for @filterVintage.
+  ///
+  /// In en, this message translates to:
+  /// **'Vintage'**
+  String get filterVintage;
+
+  /// No description provided for @filterCinema.
+  ///
+  /// In en, this message translates to:
+  /// **'Cinema'**
+  String get filterCinema;
+
+  /// No description provided for @filterVivid.
+  ///
+  /// In en, this message translates to:
+  /// **'Vivid'**
+  String get filterVivid;
+
+  /// No description provided for @filterSunset.
+  ///
+  /// In en, this message translates to:
+  /// **'Sunset'**
+  String get filterSunset;
+
+  /// No description provided for @filterNordic.
+  ///
+  /// In en, this message translates to:
+  /// **'Nordic'**
+  String get filterNordic;
+
+  /// No description provided for @filterPastel.
+  ///
+  /// In en, this message translates to:
+  /// **'Pastel'**
+  String get filterPastel;
+
+  /// No description provided for @filterNoir.
+  ///
+  /// In en, this message translates to:
+  /// **'Noir'**
+  String get filterNoir;
+
+  /// No description provided for @filterSilver.
+  ///
+  /// In en, this message translates to:
+  /// **'Silver'**
+  String get filterSilver;
+
+  /// No description provided for @filterSepia.
+  ///
+  /// In en, this message translates to:
+  /// **'Sepia'**
+  String get filterSepia;
+
+  /// No description provided for @filterMatte.
+  ///
+  /// In en, this message translates to:
+  /// **'Matte'**
+  String get filterMatte;
+
+  /// No description provided for @filterIntensity.
+  ///
+  /// In en, this message translates to:
+  /// **'Intensity'**
+  String get filterIntensity;
+
+  /// No description provided for @adjustExposure.
+  ///
+  /// In en, this message translates to:
+  /// **'Exposure'**
+  String get adjustExposure;
+
+  /// No description provided for @adjustBrightness.
+  ///
+  /// In en, this message translates to:
+  /// **'Brightness'**
+  String get adjustBrightness;
+
+  /// No description provided for @adjustContrast.
+  ///
+  /// In en, this message translates to:
+  /// **'Contrast'**
+  String get adjustContrast;
+
+  /// No description provided for @adjustSaturation.
+  ///
+  /// In en, this message translates to:
+  /// **'Saturation'**
+  String get adjustSaturation;
+
+  /// No description provided for @adjustWarmth.
+  ///
+  /// In en, this message translates to:
+  /// **'Warmth'**
+  String get adjustWarmth;
+
+  /// No description provided for @adjustTint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tint'**
+  String get adjustTint;
+
+  /// No description provided for @adjustHighlights.
+  ///
+  /// In en, this message translates to:
+  /// **'Highlights'**
+  String get adjustHighlights;
+
+  /// No description provided for @adjustShadows.
+  ///
+  /// In en, this message translates to:
+  /// **'Shadows'**
+  String get adjustShadows;
+
+  /// No description provided for @adjustSharpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharpen'**
+  String get adjustSharpen;
+
+  /// No description provided for @adjustVignette.
+  ///
+  /// In en, this message translates to:
+  /// **'Vignette'**
+  String get adjustVignette;
+
+  /// Tooltip for resetting a single adjustment slider to zero.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset {field}'**
+  String adjustResetField(String field);
 }
 
 class _AppLocalizationsDelegate

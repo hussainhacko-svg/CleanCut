@@ -1,4 +1,5 @@
 import 'package:cleancut/engine/media_engine.dart';
+import 'package:cleancut/features/projects/domain/model/clip_color.dart';
 import 'package:cleancut/features/projects/domain/timeline/timeline_scale.dart';
 import 'package:cleancut/features/projects/domain/timeline/timeline_selection.dart';
 import 'package:cleancut/features/projects/presentation/playback/playback_controller.dart';
@@ -55,8 +56,14 @@ enum ToolPanelKind {
   /// Fill mode, position/scale/rotation, opacity and border.
   transform,
 
-  /// Canvas aspect ratio and background (kit "Ratio").
+  /// Canvas aspect ratio and background.
   ratio,
+
+  /// Bundled LUT filter presets and intensity.
+  filters,
+
+  /// Color and tone adjustments.
+  adjust,
 }
 
 /// The tool panel open in a project's editor, if any. Closes whenever the
@@ -98,3 +105,20 @@ class PreviewFullscreen extends _$PreviewFullscreen {
 @riverpod
 Future<WaveformData?> clipWaveform(Ref ref, String uri) =>
     ref.watch(mediaEngineProvider).waveform(uri);
+
+/// Cached LUT-graded preview JPEG paths for every bundled [FilterPreset] on a
+/// frame of [uri] at [timeUs].
+@riverpod
+Future<Map<String, String?>> clipFilterPreviews(
+  Ref ref,
+  String uri,
+  int timeUs,
+  int heightPx,
+) => ref
+    .watch(mediaEngineProvider)
+    .filterPreviews(
+      uri,
+      timeUs,
+      heightPx: heightPx,
+      filterIds: [for (final p in FilterPreset.all) p.id],
+    );

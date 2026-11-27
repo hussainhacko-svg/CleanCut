@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Log
 import io.flutter.view.TextureRegistry
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -20,6 +21,7 @@ class EngineHost(
 ) : EngineHostApi {
     private val scope: CoroutineScope = MainScope()
     private val thumbnails = ThumbnailExtractor(context)
+    private val filterPreviewsGenerator = FilterPreviewGenerator(context, thumbnails)
     private val waveforms = WaveformExtractor(context)
     private var preview: PreviewPlayer? = null
 
@@ -40,6 +42,7 @@ class EngineHost(
     }
 
     override fun setComposition(spec: CompositionSpec) {
+        prefetchLuts(spec)
         requirePreview().setComposition(spec) { uri ->
             runCatching { context.contentResolver.getType(Uri.parse(uri)) }.getOrNull()
         }
@@ -60,6 +63,20 @@ class EngineHost(
 
     override suspend fun waveform(uri: String, peaksPerSecond: Long): WaveformData? =
         waveforms.extract(uri, peaksPerSecond.toInt())
+
+    override suspend fun filterPreviews(
+        uri: String,
+        timeUs: Long,
+        heightPx: Long,
+        filterIds: List<String>,
+    ): Map<String, String?> = filterPreviewsGenerator.generate(uri, timeUs, heightPx.toInt(), filterIds)
+
+    /** Parses the composition's LUTs on IO so the GL thread only has to upload them. */
+    private fun prefetchLuts(spec: CompositionSpec) {
+        val ids = spec.clips.mapNotNull { it.style.filterId?.takeIf { id -> id.isNotEmpty() } }.distinct()
+        if (ids.isEmpty()) return
+        scope.launch(Dispatchers.IO) { ids.forEach { LutLibrary.get(context, it) } }
+    }
 
     fun dispose() {
         releasePreview()

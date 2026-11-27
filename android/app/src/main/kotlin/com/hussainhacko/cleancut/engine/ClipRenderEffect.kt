@@ -16,6 +16,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.effect.BaseGlShaderProgram
 import androidx.media3.effect.GlEffect
 import androidx.media3.effect.GlShaderProgram
+import java.nio.ByteBuffer
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -74,6 +75,9 @@ private class ClipRenderProgram(
     private var imageTarget = Target()
     private var imageTargetKey: Pair<String, Double>? = null
 
+    /** Cached 2D LUT atlas textures: filterId -> (glTexId, lutSize), or null if failed. */
+    private val lutCache = mutableMapOf<String, Pair<Int, Int>?>()
+
     override fun configure(inputWidth: Int, inputHeight: Int): Size {
         this.inputWidth = max(1, inputWidth)
         this.inputHeight = max(1, inputHeight)
@@ -106,10 +110,38 @@ private class ClipRenderProgram(
 
     private fun drawClip(inputTexId: Int, style: ClipStyle, bg: BackgroundStyle, bgTexture: Int, timeUs: Long) {
         val g = ClipFrameGeometry.of(style, inputWidth, inputHeight, canvasWidth, canvasHeight, timeUs)
+        val lut = style.filterId?.takeIf { style.filterIntensity > 0.0 }?.let(::lutTexture)
+        val adj = style.adjustments
         main.use()
         main.setSamplerTexIdUniform("uTex", inputTexId, 0)
-        // Bind the input again when there is no background texture: the sampler needs a texture.
+        // Bind the input again when there is no background/LUT texture: samplers need a texture.
         main.setSamplerTexIdUniform("uBgTex", if (bgTexture == NO_TEXTURE) inputTexId else bgTexture, 1)
+        main.setSamplerTexIdUniform("uLutTex", lut?.first ?: inputTexId, 2)
+        main.setFloatUniform("uLutSize", (lut?.second ?: 0).toFloat())
+        main.setFloatUniform("uLutIntensity", if (lut != null) style.filterIntensity.toFloat() else 0f)
+        main.setFloatsUniform("uTexel", floatArrayOf(1f / inputWidth, 1f / inputHeight))
+        main.setFloatsUniform(
+            "uAdjA",
+            floatArrayOf(
+                adj.exposure.toFloat(),
+                adj.brightness.toFloat(),
+                adj.contrast.toFloat(),
+                adj.saturation.toFloat(),
+            ),
+        )
+        main.setFloatsUniform(
+            "uAdjB",
+            floatArrayOf(
+                adj.warmth.toFloat(),
+                adj.tint.toFloat(),
+                adj.highlights.toFloat(),
+                adj.shadows.toFloat(),
+            ),
+        )
+        main.setFloatsUniform(
+            "uAdjC",
+            floatArrayOf(adj.sharpen.toFloat(), adj.vignette.toFloat()),
+        )
         main.setFloatsUniform("uCanvas", floatArrayOf(canvasWidth.toFloat(), canvasHeight.toFloat()))
         main.setIntUniform(
             "uBgKind",
@@ -300,6 +332,58 @@ private class ClipRenderProgram(
         }
     }
 
+    /**
+     * The LUT [filterId] as a 2D atlas texture (id, LUT size), uploaded on first use. The `.cube`
+     * file itself is parsed by [LutLibrary], normally ahead of time off the GL thread. A failure is
+     * cached too, so a broken LUT is skipped instead of failing every frame.
+     */
+    private fun lutTexture(filterId: String): Pair<Int, Int>? {
+        if (lutCache.containsKey(filterId)) return lutCache[filterId]
+        val lut = LutLibrary.get(context, filterId)?.lut
+        val entry = lut?.let(::uploadLut)
+        lutCache[filterId] = entry
+        return entry
+    }
+
+    private fun uploadLut(lut: CubeLut): Pair<Int, Int>? {
+        val bytes = lut.toRgbaAtlasBytes()
+        val buffer = ByteBuffer.allocateDirect(bytes.size).apply {
+            put(bytes)
+            position(0)
+        }
+        val ids = IntArray(1)
+        GLES20.glGenTextures(1, ids, 0)
+        val texId = ids[0]
+        if (texId == 0) return null
+        return try {
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texId)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+            // RGBA rows are 4-byte aligned, so the default GL_UNPACK_ALIGNMENT (4) is fine.
+            GLES20.glTexImage2D(
+                GLES20.GL_TEXTURE_2D,
+                0,
+                GLES20.GL_RGBA,
+                lut.size * lut.size,
+                lut.size,
+                0,
+                GLES20.GL_RGBA,
+                GLES20.GL_UNSIGNED_BYTE,
+                buffer,
+            )
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
+            GlUtil.checkGlError()
+            Pair(texId, lut.size)
+        } catch (e: GlUtil.GlException) {
+            Log.w(TAG, "LUT texture upload failed (${lut.size}^3)", e)
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
+            runCatching { GlUtil.deleteTexture(texId) }
+            null
+        }
+    }
+
     override fun release() {
         super.release()
         try {
@@ -309,6 +393,8 @@ private class ClipRenderProgram(
             scratch.forEach { it.release() }
             imageTarget.release()
             if (imageTexture != NO_TEXTURE) GlUtil.deleteTexture(imageTexture)
+            lutCache.values.filterNotNull().forEach { (texId, _) -> GlUtil.deleteTexture(texId) }
+            lutCache.clear()
         } catch (e: GlUtil.GlException) {
             throw VideoFrameProcessingException(e)
         }
@@ -368,11 +454,18 @@ void main() {
 }
 """
 
-        /** Background + clip. Pixel space has its origin at the top-left, y down. */
+        /** Background + clip with color adjustments, 3D LUT, sharpen and vignette. Pixel space has top-left origin, y down. */
         const val FRAGMENT_MAIN = """#version 100
 precision highp float;
 uniform sampler2D uTex;
 uniform sampler2D uBgTex;
+uniform sampler2D uLutTex;
+uniform float uLutSize;
+uniform float uLutIntensity;
+uniform vec2 uTexel;
+uniform vec4 uAdjA;
+uniform vec4 uAdjB;
+uniform vec2 uAdjC;
 uniform vec2 uCanvas;
 uniform int uBgKind;
 uniform vec4 uColorA;
@@ -392,6 +485,67 @@ varying vec2 vOut;
 float roundRect(vec2 p, vec2 b, float r) {
   vec2 q = abs(p) - b + r;
   return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+}
+
+vec3 sampleLut(vec3 rgb, float size) {
+  vec3 c = clamp(rgb, 0.0, 1.0);
+  float maxIdx = size - 1.0;
+  float bScaled = c.b * maxIdx;
+  float b0 = floor(bScaled);
+  float b1 = min(b0 + 1.0, maxIdx);
+  float bf = bScaled - b0;
+  float uR = (c.r * maxIdx + 0.5) / size;
+  float v = (c.g * maxIdx + 0.5) / size;
+  vec3 c0 = texture2D(uLutTex, vec2((b0 + uR) / size, v)).rgb;
+  vec3 c1 = texture2D(uLutTex, vec2((b1 + uR) / size, v)).rgb;
+  return mix(c0, c1, bf);
+}
+
+/** Un-premultiplied color at [uv] clamped to [lo, hi]; [fallback] where fully transparent. */
+vec3 sharpenTap(vec2 uv, vec2 lo, vec2 hi, vec3 fallback) {
+  vec4 t = texture2D(uTex, clamp(uv, lo, hi));
+  return t.a > 1e-4 ? t.rgb / t.a : fallback;
+}
+
+vec3 applyAdjustments(vec3 rgb) {
+  float exposure = uAdjA.x;
+  float brightness = uAdjA.y;
+  float contrast = uAdjA.z;
+  float saturation = uAdjA.w;
+  float warmth = uAdjB.x;
+  float tint = uAdjB.y;
+  float highlights = uAdjB.z;
+  float shadows = uAdjB.w;
+
+  if (exposure != 0.0) {
+    rgb *= exp2(exposure * 1.5);
+  }
+  if (brightness != 0.0) {
+    rgb += vec3(brightness * 0.35);
+  }
+  if (contrast != 0.0) {
+    rgb = (rgb - 0.5) * (1.0 + contrast * 0.85) + 0.5;
+  }
+  rgb = clamp(rgb, 0.0, 1.0);
+  if (highlights != 0.0 || shadows != 0.0) {
+    float luma = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
+    float shMask = (1.0 - luma) * (1.0 - luma);
+    float hiMask = luma * luma;
+    rgb += vec3(shadows * 0.45 * shMask + highlights * 0.45 * hiMask);
+    rgb = clamp(rgb, 0.0, 1.0);
+  }
+  if (warmth != 0.0 || tint != 0.0) {
+    rgb.r += warmth * 0.14 + tint * 0.06;
+    rgb.g -= tint * 0.12;
+    rgb.b -= warmth * 0.14 - tint * 0.06;
+    rgb = clamp(rgb, 0.0, 1.0);
+  }
+  if (saturation != 0.0) {
+    float luma = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
+    rgb = mix(vec3(luma), rgb, 1.0 + saturation);
+    rgb = clamp(rgb, 0.0, 1.0);
+  }
+  return rgb;
 }
 
 void main() {
@@ -417,10 +571,42 @@ void main() {
   }
   vec2 u = local / max(uHalf, vec2(1e-4)) * 0.5 * uFlip + 0.5;
   vec2 src = uCrop.xy + clamp(u, 0.0, 1.0) * uCrop.zw;
+  vec2 uv = vec2(src.x, 1.0 - src.y);
   // uTex is premultiplied (Android Bitmaps for PNGs; video frames have a = 1).
-  vec4 c = texture2D(uTex, vec2(src.x, 1.0 - src.y));
+  vec4 c = texture2D(uTex, uv);
   vec3 outRgb = c.rgb;
   float outA = c.a;
+  float sharpen = uAdjC.x;
+  float vignette = uAdjC.y;
+  bool hasColorGrade = uLutIntensity > 0.0 || sharpen > 0.0 || vignette > 0.0 ||
+      uAdjA != vec4(0.0) || uAdjB != vec4(0.0);
+  if (hasColorGrade && outA > 1e-4) {
+    vec3 rgb = outRgb / outA;
+    if (sharpen > 0.0) {
+      // Neighbours stay inside the crop (half a texel in, so linear filtering
+      // can't reach past it) and are un-premultiplied by their own alpha.
+      vec2 lo = vec2(uCrop.x, 1.0 - uCrop.y - uCrop.w) + 0.5 * uTexel;
+      vec2 hi = max(vec2(uCrop.x + uCrop.z, 1.0 - uCrop.y) - 0.5 * uTexel, lo);
+      vec3 n = sharpenTap(uv + vec2(0.0, uTexel.y), lo, hi, rgb);
+      vec3 s = sharpenTap(uv - vec2(0.0, uTexel.y), lo, hi, rgb);
+      vec3 e = sharpenTap(uv + vec2(uTexel.x, 0.0), lo, hi, rgb);
+      vec3 w = sharpenTap(uv - vec2(uTexel.x, 0.0), lo, hi, rgb);
+      vec3 blurAvg = (n + s + e + w) * 0.25;
+      rgb = clamp(rgb + (rgb - blurAvg) * (sharpen * 1.4), 0.0, 1.0);
+    }
+    rgb = applyAdjustments(rgb);
+    if (uLutIntensity > 0.0 && uLutSize > 1.0) {
+      vec3 lutRgb = sampleLut(rgb, uLutSize);
+      rgb = mix(rgb, lutRgb, uLutIntensity);
+    }
+    if (vignette > 0.0) {
+      vec2 du = u - 0.5;
+      float dist = length(du) * 1.41421356;
+      float vig = 1.0 - vignette * 0.85 * smoothstep(0.35, 1.15, dist);
+      rgb *= clamp(vig, 0.0, 1.0);
+    }
+    outRgb = clamp(rgb, 0.0, 1.0) * outA;
+  }
   if (uBorder > 0.0) {
     float stroke = clamp(sd + uBorder + 0.5, 0.0, 1.0) * uBorderColor.a;
     outRgb = uBorderColor.rgb * stroke + outRgb * (1.0 - stroke);
