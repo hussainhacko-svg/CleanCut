@@ -6,7 +6,7 @@ import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/timeline/timeline_selection.dart';
 import 'package:flutter/material.dart';
 
-/// Every tool the dock can show (VCLIP "Timeline" and "Video" frames).
+/// Every tool the editor tray can show.
 enum DockTool {
   /// Add media to the end of the main track.
   add(AppIcons.dockAdd),
@@ -35,7 +35,7 @@ enum DockTool {
   /// Split at the playhead.
   split(AppIcons.toolSplit),
 
-  /// Duplicate (not in the kit; owner placed it right after Split).
+  /// Duplicate (right after Split).
   duplicate(AppIcons.toolDuplicate),
 
   /// Filters.
@@ -44,7 +44,7 @@ enum DockTool {
   /// Crop.
   crop(AppIcons.toolCrop),
 
-  /// Transform (not in the kit; owner placed it right after Crop).
+  /// Transform (right after Crop).
   transform(AppIcons.toolTransform),
 
   /// Adjustments.
@@ -64,10 +64,10 @@ enum DockTool {
 
   new(this.icon);
 
-  /// The kit glyph.
+  /// The Clipcraft duotone glyph.
   final AppIcons icon;
 
-  /// The first item of each dock is a white circle without a label.
+  /// Leading action button of each tray state (Add media / Back).
   bool get isLeading => this == add || this == back;
 
   /// Visible label (also the accessible name).
@@ -93,8 +93,8 @@ enum DockTool {
   };
 }
 
-/// The dock's tools for [selection]: "add" tools with nothing selected,
-/// clip tools otherwise (DESIGN.md §3, kit order).
+/// The tray's tools for [selection]: "add" tools with nothing selected,
+/// clip tools otherwise (DESIGN.md §3).
 List<DockTool> dockToolsFor(TimelineSelection selection) => switch (selection) {
   NoSelection() => const [
     DockTool.add,
@@ -127,10 +127,11 @@ List<DockTool> dockToolsFor(TimelineSelection selection) => switch (selection) {
   ],
 };
 
-/// Phone dock: a horizontally scrolling row of icon + 8px label items,
-/// 52dp apart, the first one a white circle (kit "Timeline" frame).
+/// Clipcraft ToolTray: a horizontally scrolling row of category-colored
+/// duotone icon + 10sp label items (used at the bottom of both the phone
+/// editor sheet and the tablet Neon Focus layout).
 class ToolDock extends StatelessWidget {
-  /// Creates the dock.
+  /// Creates the tray.
   const new({required this.tools, required this.onTool, super.key});
 
   /// Tools in order.
@@ -139,7 +140,7 @@ class ToolDock extends StatelessWidget {
   /// Called with the tapped tool.
   final ValueChanged<DockTool> onTool;
 
-  /// Height of the dock row.
+  /// Height of the tray row.
   static const double height = 64;
 
   @override
@@ -148,97 +149,83 @@ class ToolDock extends StatelessWidget {
       height: height,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsetsDirectional.symmetric(horizontal: 10),
+        padding: const EdgeInsetsDirectional.symmetric(
+          horizontal: 8,
+          vertical: 4,
+        ),
         children: [
           for (final tool in tools)
-            _DockItem(tool: tool, onTap: () => onTool(tool)),
+            _TrayItem(tool: tool, onTap: () => onTool(tool)),
         ],
       ),
     );
   }
 }
 
-/// Tablet rail: the same tools in a vertical column (DESIGN.md §2).
-class ToolRail extends StatelessWidget {
-  /// Creates the rail.
-  const new({required this.tools, required this.onTool, super.key});
-
-  /// Tools in order.
-  final List<DockTool> tools;
-
-  /// Called with the tapped tool.
-  final ValueChanged<DockTool> onTool;
-
-  /// Width of the rail.
-  static const double width = 72;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      child: ListView(
-        padding: const EdgeInsetsDirectional.symmetric(vertical: 12),
-        children: [
-          for (final tool in tools)
-            Center(
-              child: _DockItem(
-                tool: tool,
-                onTap: () => onTool(tool),
-                height: 60,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DockItem extends StatelessWidget {
-  const new({required this.tool, required this.onTap, this.height = 64});
+class _TrayItem extends StatelessWidget {
+  const new({required this.tool, required this.onTap});
 
   final DockTool tool;
   final VoidCallback onTap;
-  final double height;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final label = tool.label(l10n);
+    final isAdd = tool == DockTool.add;
+
     return Tooltip(
       message: label,
       child: Semantics(
         button: true,
         label: label,
         excludeSemantics: true,
-        child: InkResponse(
+        child: InkWell(
           onTap: onTap,
-          radius: 28,
+          borderRadius: BorderRadius.circular(AppTokens.cardRadius),
           child: SizedBox(
-            width: 52,
-            height: height,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AppIcon(
-                  tool.icon,
-                  color: tool.isLeading ? null : scheme.onSurface,
-                ),
-                if (!tool.isLeading) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.clip,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w400,
-                      color: scheme.onSurface.withValues(alpha: 0.5),
+            width: 56,
+            height: 56,
+            child: tool.isLeading
+                ? Center(
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: isAdd
+                            ? scheme.primary
+                            : scheme.surfaceContainerHigh,
+                        shape: BoxShape.circle,
+                        border: isAdd
+                            ? null
+                            : Border.all(color: scheme.outlineVariant),
+                      ),
+                      child: AppIcon(
+                        tool.icon,
+                        size: 20,
+                        color: isAdd ? scheme.onPrimary : scheme.onSurface,
+                      ),
                     ),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AppIcon(tool.icon, size: 22),
+                      const SizedBox(height: 4),
+                      Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.clip,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontSize: 10,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ],
-            ),
           ),
         ),
       ),
@@ -246,10 +233,10 @@ class _DockItem extends StatelessWidget {
   }
 }
 
-/// Tablet properties panel (VCLIP panel style). Phase 3 shows what is
-/// selected; tool controls arrive with their phases.
+/// Tablet Neon Focus floating Inspector card: shows what is currently
+/// selected when no tool panel is open.
 class PropertiesPanel extends StatelessWidget {
-  /// Creates the panel for [selection] in [project].
+  /// Creates the inspector for [selection] in [project].
   const new({required this.project, required this.selection, super.key});
 
   /// The project.
@@ -258,56 +245,70 @@ class PropertiesPanel extends StatelessWidget {
   /// Current selection.
   final TimelineSelection selection;
 
-  /// Width of the panel.
-  static const double width = 320;
+  /// Width of the floating inspector card.
+  static const double width = 300;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final (title, detail) = _describe(l10n);
+    final (title, detail, isDuration) = _describe(l10n);
     return Container(
       width: width,
-      margin: const EdgeInsetsDirectional.fromSTEB(0, 12, 12, 12),
-      padding: const EdgeInsetsDirectional.all(24),
+      padding: const EdgeInsetsDirectional.all(16),
       decoration: BoxDecoration(
         color: scheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppTokens.sheetRadius),
+        borderRadius: BorderRadius.circular(AppTokens.inspectorRadius),
+        border: Border.all(color: scheme.outlineVariant),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow.withValues(alpha: 0.24),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w700,
+              fontVariations: const [FontVariation.weight(700)],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             detail,
-            style: theme.textTheme.bodySmall?.copyWith(color: scheme.outline),
+            style: isDuration
+                ? AppTokens.timecodeStyle(context)
+                : theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
           ),
         ],
       ),
     );
   }
 
-  (String, String) _describe(AppLocalizations l10n) {
+  (String, String, bool) _describe(AppLocalizations l10n) {
     switch (selection) {
       case NoSelection():
-        return (l10n.panelTitle, l10n.panelNothingSelected);
+        return (l10n.panelTitle, l10n.panelNothingSelected, false);
       case MainClipSelection(:final clipId):
         for (final clip in project.mainTrack.clips) {
           if (clip.id == clipId) {
             return (
               clip.media.displayName ?? l10n.panelClip,
               formatDurationUs(clip.durationUs),
+              true,
             );
           }
         }
-        return (l10n.panelTitle, l10n.panelNothingSelected);
+        return (l10n.panelTitle, l10n.panelNothingSelected, false);
       case OverlaySelection(:final trackId, :final clipId):
         for (final track in project.overlayTracks) {
           if (track.id != trackId) continue;
@@ -316,11 +317,12 @@ class PropertiesPanel extends StatelessWidget {
               return (
                 item.clip.media.displayName ?? l10n.laneOverlay,
                 formatDurationUs(item.clip.durationUs),
+                true,
               );
             }
           }
         }
-        return (l10n.panelTitle, l10n.panelNothingSelected);
+        return (l10n.panelTitle, l10n.panelNothingSelected, false);
       case AudioSelection(:final trackId, :final clipId):
         for (final track in project.audioTracks) {
           if (track.id != trackId) continue;
@@ -329,11 +331,12 @@ class PropertiesPanel extends StatelessWidget {
               return (
                 item.clip.media.displayName ?? l10n.laneAudio,
                 formatDurationUs(item.clip.durationUs),
+                true,
               );
             }
           }
         }
-        return (l10n.panelTitle, l10n.panelNothingSelected);
+        return (l10n.panelTitle, l10n.panelNothingSelected, false);
     }
   }
 }

@@ -1,8 +1,8 @@
 import 'package:cleancut/app/theme/app_theme.dart';
 import 'package:cleancut/core/theme/app_tokens.dart';
+import 'package:cleancut/core/widgets/app_icon.dart';
 import 'package:cleancut/features/projects/domain/model/project_canvas.dart';
 import 'package:cleancut/features/projects/presentation/aspect_sheet.dart';
-import 'package:cleancut/features/projects/presentation/home_screen.dart';
 import 'package:cleancut/features/projects/presentation/playback/playback_controller.dart';
 import 'package:cleancut/features/projects/presentation/project_card.dart';
 import 'package:flutter/material.dart';
@@ -24,10 +24,13 @@ void main() {
           overrides: [mediaEngineProvider.overrideWithValue(engine)],
           child: localizedApp(
             Scaffold(
-              body: ProjectCard(
-                project: project(mainSeconds: [65]),
-                onOpen: () => events.add('open'),
-                onAction: events.add,
+              body: SizedBox(
+                width: 220,
+                child: ProjectCard(
+                  project: project(mainSeconds: [65]),
+                  onOpen: () => events.add('open'),
+                  onAction: events.add,
+                ),
               ),
             ),
           ),
@@ -49,18 +52,21 @@ void main() {
     testWidgets('keeps the placeholder without a frame', (tester) async {
       await pumpCard(tester);
       expect(find.byType(Image), findsNothing);
-      expect(find.byIcon(Icons.movie_outlined), findsOneWidget);
+      expect(
+        find.byWidgetPredicate((w) => w is AppIcon && w.icon == AppIcons.film),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('shows name, VCLIP-style date and duration', (tester) async {
+    testWidgets('shows name, date, duration badge and 16:10 thumbnail', (
+      tester,
+    ) async {
       await pumpCard(tester);
       expect(find.text('Test project'), findsOneWidget);
       expect(find.text('26, Nov, 2026'), findsOneWidget);
       expect(find.text('01:05'), findsOneWidget);
-      expect(
-        tester.getSize(find.byType(ProjectCard)).height,
-        ProjectCard.height,
-      );
+      final aspect = tester.widget<AspectRatio>(find.byType(AspectRatio));
+      expect(aspect.aspectRatio, ProjectCard.thumbnailAspect);
     });
 
     testWidgets('tapping the card opens the project', (tester) async {
@@ -83,20 +89,6 @@ void main() {
       await tester.tap(find.text('Duplicate'));
       await tester.pumpAndSettle();
       expect(events, [ProjectAction.duplicate]);
-    });
-  });
-
-  group('NewProjectTile', () {
-    testWidgets('shows the label and reports taps', (tester) async {
-      var taps = 0;
-      await tester.pumpWidget(
-        localizedApp(Scaffold(body: NewProjectTile(onTap: () => taps++))),
-      );
-      expect(find.text('New project'), findsOneWidget);
-      expect(tester.getSize(find.byType(InkWell)).height, 114);
-
-      await tester.tap(find.byType(NewProjectTile));
-      expect(taps, 1);
     });
   });
 
@@ -125,17 +117,37 @@ void main() {
   });
 
   group('AppTheme', () {
-    test('dark theme uses the VCLIP palette and font', () {
-      final theme = AppTheme.dark();
-      expect(theme.colorScheme.surface, const Color(0xFF030303));
-      expect(theme.colorScheme.primary, const Color(0xFFCE50E0));
-      expect(theme.textTheme.bodyMedium?.fontFamily, AppTokens.fontFamily);
-    });
+    void expectManropeVariations(TextTheme textTheme) {
+      final styles = [
+        textTheme.displayLarge,
+        textTheme.displayMedium,
+        textTheme.displaySmall,
+        textTheme.headlineLarge,
+        textTheme.headlineMedium,
+        textTheme.headlineSmall,
+        textTheme.titleLarge,
+        textTheme.titleMedium,
+        textTheme.titleSmall,
+        textTheme.bodyLarge,
+        textTheme.bodyMedium,
+        textTheme.bodySmall,
+        textTheme.labelLarge,
+        textTheme.labelMedium,
+        textTheme.labelSmall,
+      ];
+      for (final style in styles) {
+        expect(style?.fontFamily, AppTokens.fontFamily);
+        final w = style?.fontWeight?.value.toDouble();
+        expect(style?.fontVariations, [FontVariation.weight(w!)]);
+      }
+    }
 
-    test('light theme keeps the accent', () {
-      final theme = AppTheme.light();
-      expect(theme.brightness, Brightness.light);
-      expect(theme.colorScheme.primary, const Color(0xFFCE50E0));
+    test('dark theme uses the Clipcraft palette and variable Manrope font', () {
+      final theme = AppTheme.dark();
+      expect(theme.colorScheme.surface, const Color(0xFF16171B));
+      expect(theme.colorScheme.primary, const Color(0xFF7C8CFF));
+      expectManropeVariations(theme.textTheme);
+      expectManropeVariations(theme.primaryTextTheme);
     });
   });
 }

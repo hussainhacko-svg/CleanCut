@@ -1,15 +1,12 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
-import 'package:cleancut/core/theme/app_tokens.dart';
 import 'package:cleancut/core/widgets/app_icon.dart';
 import 'package:flutter/material.dart';
 
-/// The VCLIP tool panel (kit "Speed", "Filters", "Alignment"): a blurred
-/// `surfaceContainer` sheet with a bold title, a muted Reset and a ✕.
+/// The Clipcraft tool panel: a `surfaceContainer` sheet section with a hairline
+/// top divider, a bold Manrope title, a muted Reset button and a close button.
 ///
-/// On phones it replaces the dock; on tablets it fills the properties
-/// panel (DESIGN.md §2).
+/// On phones it replaces the tool tray inside the bottom sheet; on tablets it
+/// fills the floating right-side Inspector card (DESIGN.md §2).
 class ToolPanel extends StatelessWidget {
   /// Creates a panel.
   const new({
@@ -37,61 +34,59 @@ class ToolPanel extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    const radius = BorderRadius.vertical(
-      top: Radius.circular(AppTokens.sheetRadius),
-    );
-    return ClipRRect(
-      borderRadius: radius,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: ColoredBox(
-          color: scheme.surfaceContainer.withValues(alpha: 0.85),
-          child: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(0, 12, 0, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(34, 0, 20, 0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainer,
+        border: Border(top: BorderSide(color: scheme.outlineVariant)),
+      ),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(0, 6, 0, 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 12, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        fontVariations: const [FontVariation.weight(700)],
                       ),
-                      TextButton(
-                        onPressed: onReset,
-                        style: TextButton.styleFrom(
-                          foregroundColor: scheme.onSurfaceVariant,
-                          disabledForegroundColor: scheme.outline,
-                          textStyle: theme.textTheme.bodySmall?.copyWith(
-                            fontSize: 12,
-                          ),
-                          minimumSize: const Size(48, 48),
-                        ),
-                        child: Text(l10n.commonReset),
-                      ),
-                      IconButton(
-                        tooltip: l10n.commonClose,
-                        onPressed: onClose,
-                        icon: AppIcon(
-                          AppIcons.close,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-                child,
-              ],
+                  TextButton(
+                    onPressed: onReset,
+                    style: TextButton.styleFrom(
+                      foregroundColor: scheme.onSurfaceVariant,
+                      disabledForegroundColor: scheme.outline.withValues(
+                        alpha: 0.5,
+                      ),
+                      textStyle: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 12,
+                      ),
+                      minimumSize: const Size(48, 48),
+                    ),
+                    child: Text(l10n.commonReset),
+                  ),
+                  IconButton(
+                    tooltip: l10n.commonClose,
+                    onPressed: onClose,
+                    icon: AppIcon(
+                      AppIcons.close,
+                      size: 20,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+            child,
+          ],
         ),
       ),
     );

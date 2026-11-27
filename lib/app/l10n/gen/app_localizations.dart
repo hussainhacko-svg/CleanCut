@@ -154,29 +154,17 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settingsTitle;
 
-  /// No description provided for @settingsThemeSection.
+  /// No description provided for @settingsAboutSection.
   ///
   /// In en, this message translates to:
-  /// **'Theme'**
-  String get settingsThemeSection;
+  /// **'About'**
+  String get settingsAboutSection;
 
-  /// No description provided for @themeDark.
+  /// No description provided for @settingsLicenses.
   ///
   /// In en, this message translates to:
-  /// **'Dark'**
-  String get themeDark;
-
-  /// No description provided for @themeLight.
-  ///
-  /// In en, this message translates to:
-  /// **'Light'**
-  String get themeLight;
-
-  /// No description provided for @themeSystem.
-  ///
-  /// In en, this message translates to:
-  /// **'Same as device'**
-  String get themeSystem;
+  /// **'Open source licenses'**
+  String get settingsLicenses;
 
   /// No description provided for @homeNewProject.
   ///
@@ -199,7 +187,7 @@ abstract class AppLocalizations {
   /// No description provided for @homeEmptyBody.
   ///
   /// In en, this message translates to:
-  /// **'Tap New project to pick videos and photos.'**
+  /// **'Tap + to pick videos and photos.'**
   String get homeEmptyBody;
 
   /// No description provided for @homeLoadFailed.

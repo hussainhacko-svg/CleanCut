@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/theme/app_tokens.dart';
+import 'package:cleancut/core/widgets/app_icon.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/model/project_canvas.dart';
@@ -18,8 +19,8 @@ import 'package:go_router/go_router.dart';
 /// feature does not depend on `app/`.
 typedef ProjectRoute = String Function(String projectId);
 
-/// Home screen (VCLIP "Projects"): wordmark, "New project" tile and the
-/// project list.
+/// Home screen (Clipcraft Home A): top bar with app icon & settings,
+/// responsive 2-column / adaptive project grid, and a FAB to create projects.
 class HomeScreen extends ConsumerWidget {
   /// Creates the home screen. [projectRoute] builds the editor path and
   /// [settingsRoute] is the settings path.
@@ -35,96 +36,66 @@ class HomeScreen extends ConsumerWidget {
   /// Path of the settings screen.
   final String settingsRoute;
 
+  /// Width from which medium/tablet grid and extended FAB are used.
+  static const double mediumWidth = 600;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final projects = ref.watch(projectListProvider);
+    final scheme = Theme.of(context).colorScheme;
+    final wide = MediaQuery.sizeOf(context).width >= mediumWidth;
 
-    final theme = Theme.of(context);
     void open(Project p) => unawaited(context.push(projectRoute(p.id)));
     void act(Project p, ProjectAction a) =>
         unawaited(_onAction(context, ref, p, a));
+    void create() => unawaited(_createProject(context, ref));
 
     return Scaffold(
       appBar: AppBar(
-        titleSpacing: 24,
-        title: Semantics(
-          header: true,
-          child: Text(
-            l10n.appTitle,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontFamily: AppTokens.wordmarkFontFamily,
-              fontSize: 22,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
+        leading: wide
+            ? null
+            : const Padding(
+                padding: EdgeInsetsDirectional.only(start: 16),
+                child: Center(child: AppIcon(AppIcons.film)),
+              ),
+        leadingWidth: wide ? null : 44,
+        titleSpacing: wide ? 20 : 8,
+        title: Semantics(header: true, child: Text(l10n.appTitle)),
         actions: [
           IconButton(
             tooltip: l10n.settingsTitle,
-            icon: const Icon(Icons.tune),
+            icon: const AppIcon(AppIcons.settings),
             onPressed: () => context.push(settingsRoute),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
         ],
       ),
-      body: CustomScrollView(
-        slivers: [
-          SliverPadding(
-            padding: const EdgeInsetsDirectional.fromSTEB(
-              AppTokens.gutter,
-              24,
-              AppTokens.gutter,
-              0,
+      floatingActionButton: wide
+          ? FloatingActionButton.extended(
+              onPressed: create,
+              icon: AppIcon(AppIcons.plus, color: scheme.onPrimary),
+              label: Text(l10n.homeNewProject),
+            )
+          : FloatingActionButton(
+              tooltip: l10n.homeNewProject,
+              onPressed: create,
+              child: AppIcon(AppIcons.plus, color: scheme.onPrimary),
             ),
-            sliver: SliverToBoxAdapter(
-              child: NewProjectTile(
-                onTap: () => unawaited(_createProject(context, ref)),
-              ),
-            ),
-          ),
-          ...switch (projects) {
-            AsyncData(value: final list) when list.isEmpty => [
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: _EmptyState(),
-              ),
-            ],
-            AsyncData(value: final list) => [
-              SliverPadding(
-                padding: const EdgeInsetsDirectional.fromSTEB(24, 28, 24, 20),
-                sliver: SliverToBoxAdapter(
-                  child: Semantics(
-                    header: true,
-                    child: Text(
-                      l10n.homeMyProjects,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              _ProjectList(projects: list, onOpen: open, onAction: act),
-            ],
-            AsyncError() => [
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: _ErrorState(
-                  onRetry: () => ref.invalidate(projectListProvider),
-                ),
-              ),
-            ],
-            _ => [
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            ],
-          },
-        ],
-      ),
+      body: switch (projects) {
+        // The FAB is the only New project action, empty state included.
+        AsyncData(value: final list) when list.isEmpty => const _EmptyState(),
+        AsyncData(value: final list) => _ProjectGrid(
+          projects: list,
+          wide: wide,
+          onOpen: open,
+          onAction: act,
+        ),
+        AsyncError() => _ErrorState(
+          onRetry: () => ref.invalidate(projectListProvider),
+        ),
+        _ => const Center(child: CircularProgressIndicator()),
+      },
     );
   }
 
@@ -226,92 +197,51 @@ CanvasAspect? originalAspectOf(List<MediaRef> media) {
   return null;
 }
 
-/// Outlined "New project" tile at the top of the home screen.
-class NewProjectTile extends StatelessWidget {
-  /// Creates the tile; [onTap] starts project creation.
-  const new({required this.onTap, super.key});
-
-  /// Starts creating a project.
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    const radius = BorderRadius.all(Radius.circular(AppTokens.cardRadius));
-    return Material(
-      type: MaterialType.transparency,
-      shape: RoundedRectangleBorder(
-        borderRadius: radius,
-        side: BorderSide(color: scheme.outline),
-      ),
-      child: InkWell(
-        customBorder: const RoundedRectangleBorder(borderRadius: radius),
-        onTap: onTap,
-        child: SizedBox(
-          height: 114,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: AppTokens.chipSize,
-                height: AppTokens.chipSize,
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHighest,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.add, size: 22, color: scheme.onSurface),
-              ),
-              const SizedBox(height: 10),
-              Text(l10n.homeNewProject, style: theme.textTheme.bodyMedium),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ProjectList extends StatelessWidget {
+class _ProjectGrid extends StatelessWidget {
   const new({
     required this.projects,
+    required this.wide,
     required this.onOpen,
     required this.onAction,
   });
 
   final List<Project> projects;
+  final bool wide;
   final ValueChanged<Project> onOpen;
   final void Function(Project, ProjectAction) onAction;
 
   @override
   Widget build(BuildContext context) {
-    return SliverPadding(
+    return GridView.builder(
       padding: const EdgeInsetsDirectional.fromSTEB(
         AppTokens.gutter,
-        0,
+        12,
         AppTokens.gutter,
-        24,
+        96,
       ),
-      // One column on phones; tablets fit two or three cards per row.
-      sliver: SliverGrid.builder(
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 560,
-          mainAxisExtent: ProjectCard.height,
-          mainAxisSpacing: 8,
-          crossAxisSpacing: 8,
-        ),
-        itemCount: projects.length,
-        itemBuilder: (context, i) {
-          final p = projects[i];
-          return ProjectCard(
-            key: ValueKey(p.id),
-            project: p,
-            onOpen: () => onOpen(p),
-            onAction: (a) => onAction(p, a),
-          );
-        },
-      ),
+      gridDelegate: wide
+          ? const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 260,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.08,
+            )
+          : const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.02,
+            ),
+      itemCount: projects.length,
+      itemBuilder: (context, i) {
+        final p = projects[i];
+        return ProjectCard(
+          key: ValueKey(p.id),
+          project: p,
+          onOpen: () => onOpen(p),
+          onAction: (a) => onAction(p, a),
+        );
+      },
     );
   }
 }
@@ -323,17 +253,14 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsetsDirectional.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.video_library_outlined,
-              size: 64,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            const AppIcon(AppIcons.folderOpen, size: 52),
             const SizedBox(height: 16),
             Text(l10n.homeEmptyTitle, style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
@@ -341,7 +268,7 @@ class _EmptyState extends StatelessWidget {
               l10n.homeEmptyBody,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+                color: scheme.onSurfaceVariant,
               ),
             ),
           ],

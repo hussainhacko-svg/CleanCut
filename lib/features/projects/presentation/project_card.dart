@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/theme/app_tokens.dart';
+import 'package:cleancut/core/theme/timeline_colors.dart';
 import 'package:cleancut/core/utils/timecode.dart';
+import 'package:cleancut/core/widgets/app_icon.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/presentation/playback/playback_controller.dart';
 import 'package:flutter/material.dart';
@@ -20,8 +22,9 @@ enum ProjectAction {
   delete,
 }
 
-/// A project row in the home list (VCLIP "Projects" card): thumbnail, name,
-/// date and duration, with a round "•••" menu button.
+/// A project tile in the home grid (Clipcraft Home A): 16:10 rounded
+/// thumbnail with a duration badge and overflow menu, title and edited date
+/// underneath.
 class ProjectCard extends StatelessWidget {
   /// Creates the card.
   const new({
@@ -31,8 +34,8 @@ class ProjectCard extends StatelessWidget {
     super.key,
   });
 
-  /// Height of the card.
-  static const double height = 114;
+  /// Aspect ratio of the card's thumbnail slot (Clipcraft 16:10).
+  static const double thumbnailAspect = 16 / 10;
 
   /// The project shown.
   final Project project;
@@ -48,82 +51,104 @@ class ProjectCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    const radius = BorderRadius.all(Radius.circular(AppTokens.cardRadius));
 
-    return SizedBox(
-      height: height,
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onOpen,
-          child: Stack(
-            children: [
-              Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(12, 13, 56, 13),
-                child: Row(
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        borderRadius: radius,
+        onTap: onOpen,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AspectRatio(
+              aspectRatio: thumbnailAspect,
+              child: ClipRRect(
+                borderRadius: radius,
+                child: Stack(
+                  fit: StackFit.expand,
                   children: [
                     _Thumbnail(project: project),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            project.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontSize: 18,
-                            ),
+                    // Subtle border around the thumbnail frame.
+                    IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: radius,
+                          border: Border.all(
+                            color: scheme.outlineVariant.withValues(alpha: 0.7),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            l10n.projectCardDate(project.updatedAt.toLocal()),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            formatClockUs(project.durationUs),
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              fontSize: 10,
-                              color: scheme.onSurfaceVariant,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures(),
-                              ],
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
+                    ),
+                    // Duration badge at bottom-end.
+                    PositionedDirectional(
+                      bottom: 8,
+                      end: 8,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: scheme.scrim.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsetsDirectional.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          child: Text(
+                            formatClockUs(project.durationUs),
+                            style: AppTokens.timecodeStyle(
+                              context,
+                              color: scheme.onPrimary,
+                            ).copyWith(fontSize: 10),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Overflow menu button at top-end (48dp touch target).
+                    PositionedDirectional(
+                      top: 0,
+                      end: 0,
+                      child: _MenuButton(project: project, onAction: onAction),
                     ),
                   ],
                 ),
               ),
-              PositionedDirectional(
-                top: 2,
-                end: 2,
-                child: _MenuButton(project: project, onAction: onAction),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              project.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                fontVariations: const [FontVariation.weight(600)],
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              l10n.projectCardDate(project.updatedAt.toLocal()),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// First frame of the first clip (72×88, cover), or a canvas-shaped
-/// placeholder while it loads or when there is none.
+/// First frame of the first clip (16:10, cover), or a category-tinted gradient
+/// placeholder while it loads or when there is no frame.
 class _Thumbnail extends ConsumerWidget {
   const new({required this.project});
 
   final Project project;
 
-  static const double _width = 72;
-  static const double _height = 88;
+  static const int _decodeHeightPx = 220;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -135,25 +160,17 @@ class _Thumbnail extends ConsumerWidget {
                 clipThumbnailProvider(
                   clips.first.media.uri,
                   clips.first.sourceInUs,
-                  (_height * 2).round(),
+                  _decodeHeightPx,
                 ),
               )
               .value;
     final placeholder = _Placeholder(project: project);
-    return SizedBox(
-      width: _width,
-      height: _height,
-      child: path == null
-          ? placeholder
-          : ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: Image.file(
-                File(path),
-                fit: BoxFit.cover,
-                cacheHeight: (_height * 2).round(),
-                errorBuilder: (_, _, _) => placeholder,
-              ),
-            ),
+    if (path == null) return placeholder;
+    return Image.file(
+      File(path),
+      fit: BoxFit.cover,
+      cacheHeight: _decodeHeightPx,
+      errorBuilder: (_, _, _) => placeholder,
     );
   }
 }
@@ -166,28 +183,29 @@ class _Placeholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final ratio = project.canvas.aspect.ratio.clamp(0.25, 4.0);
-    const w0 = _Thumbnail._width;
-    const h0 = _Thumbnail._height;
-    // Fit the canvas shape inside the 72×88 slot.
-    final fitsWidth = ratio >= w0 / h0;
-    final w = fitsWidth ? w0 : h0 * ratio;
-    final h = fitsWidth ? w0 / ratio : h0;
-    return Center(
-      child: Container(
-        width: w,
-        height: h,
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(4),
+    final accents = TimelineColors.of(context).cardAccents;
+    final seed = project.id.hashCode.abs() % accents.length;
+    final accent = accents[seed];
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [accent.withValues(alpha: 0.55), scheme.surfaceContainer],
         ),
-        child: Icon(Icons.movie_outlined, color: scheme.onSurfaceVariant),
+      ),
+      child: Center(
+        child: AppIcon(
+          AppIcons.film,
+          size: 28,
+          color: scheme.onSurface.withValues(alpha: 0.7),
+        ),
       ),
     );
   }
 }
 
-/// Round 32dp "•••" chip with a 48dp touch target.
+/// Round translucent "•••" chip with a 48dp touch target.
 class _MenuButton extends StatelessWidget {
   const new({required this.project, required this.onAction});
 
@@ -208,11 +226,12 @@ class _MenuButton extends StatelessWidget {
       icon: Container(
         width: AppTokens.chipSize,
         height: AppTokens.chipSize,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest,
+          color: scheme.scrim.withValues(alpha: 0.55),
           shape: BoxShape.circle,
         ),
-        child: Icon(Icons.more_horiz, size: 20, color: scheme.onSurface),
+        child: AppIcon(AppIcons.moreH, size: 18, color: scheme.onPrimary),
       ),
       itemBuilder: (context) => [
         PopupMenuItem(

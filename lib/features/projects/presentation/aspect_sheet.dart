@@ -37,34 +37,46 @@ class AspectSheet extends StatelessWidget {
         (a, l10n.aspectRatioLabel(a.width, a.height)),
     ];
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(0, 18, 0, 24),
+        padding: const EdgeInsetsDirectional.fromSTEB(0, 10, 0, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Panel header (VCLIP tool panel): title left, close right.
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 10),
+                decoration: BoxDecoration(
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            // Sheet header: title left, close right.
             Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(32, 0, 26, 0),
+              padding: const EdgeInsetsDirectional.fromSTEB(24, 0, 16, 0),
               child: Row(
                 children: [
                   Expanded(
                     child: Text(
                       l10n.aspectSheetTitle,
-                      style: theme.textTheme.titleSmall?.copyWith(
+                      style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
+                        fontVariations: const [FontVariation.weight(700)],
                       ),
                     ),
                   ),
-                  // VCLIP panel close mark.
                   IconButton(
                     tooltip: MaterialLocalizations.of(context)
                         .closeButtonTooltip,
                     onPressed: () => Navigator.of(context).pop(),
                     icon: AppIcon(
                       AppIcons.close,
-                      color: theme.colorScheme.onSurface,
+                      color: scheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -179,6 +191,7 @@ class _AspectOption extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                  fontVariations: [FontVariation.weight(selected ? 700 : 400)],
                   color: selected ? scheme.onSurface : scheme.onSurfaceVariant,
                 ),
               ),

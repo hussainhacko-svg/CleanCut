@@ -245,7 +245,7 @@ void main() {
     await tapTool(tester, 'Speed');
     expect(find.byType(SpeedPanel), findsOneWidget);
     expect(find.byType(PropertiesPanel), findsNothing);
-    expect(find.byType(ToolRail), findsOneWidget);
+    expect(find.byType(ToolDock), findsOneWidget);
   });
 
   group('timeline gestures', () {

@@ -17,7 +17,9 @@ void main() {
   testWidgets('shows the empty state without projects', (tester) async {
     await TestEnv().pumpApp(tester);
     expect(find.text('No projects yet'), findsOneWidget);
-    expect(find.text('New project'), findsOneWidget);
+    // Only the FAB offers New project; no duplicate button in the middle.
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+    expect(find.byType(FilledButton), findsNothing);
   });
 
   testWidgets('lists projects newest first with clip summary', (tester) async {
@@ -46,7 +48,7 @@ void main() {
     env.picker.next = [video(seconds: 3), image()];
     await env.pumpApp(tester);
 
-    await tester.tap(find.text('New project'));
+    await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
     expect(find.text('Canvas size'), findsOneWidget);
     expect(find.text('Original'), findsOneWidget);
@@ -67,7 +69,7 @@ void main() {
     final env = TestEnv();
     await env.pumpApp(tester);
 
-    await tester.tap(find.text('New project'));
+    await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
 
     expect(env.picker.calls, 1);
@@ -80,7 +82,7 @@ void main() {
     env.picker.next = [video()];
     await env.pumpApp(tester);
 
-    await tester.tap(find.text('New project'));
+    await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
     await tester.tapAt(const Offset(10, 10));
     await tester.pumpAndSettle();

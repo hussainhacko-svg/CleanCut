@@ -174,6 +174,7 @@ class _PresetTile extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                  fontVariations: [FontVariation.weight(selected ? 700 : 400)],
                   color: selected ? scheme.onSurface : scheme.onSurfaceVariant,
                 ),
               ),

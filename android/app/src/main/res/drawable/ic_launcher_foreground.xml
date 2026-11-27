@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <group android:scaleX="0.82" android:scaleY="0.82" android:pivotX="54" android:pivotY="54">
+        <path android:fillColor="#36c5f0" android:pathData="M22.992,35.859 h36.281 a4.008,4.008 0 0 1 4.008,4.008 v0 a4.008,4.008 0 0 1 -4.008,4.008 h-36.281 a4.008,4.008 0 0 1 -4.008,-4.008 v-0 a4.008,4.008 0 0 1 4.008,-4.008 z"/>
+        <path android:fillColor="#1dd1a1" android:pathData="M69.82,35.859 h15.188 a4.008,4.008 0 0 1 4.008,4.008 v0 a4.008,4.008 0 0 1 -4.008,4.008 h-15.188 a4.008,4.008 0 0 1 -4.008,-4.008 v-0 a4.008,4.008 0 0 1 4.008,-4.008 z"/>
+        <path android:fillColor="#ff9f43" android:pathData="M22.992,50.625 h18.352 a4.008,4.008 0 0 1 4.008,4.008 v0 a4.008,4.008 0 0 1 -4.008,4.008 h-18.352 a4.008,4.008 0 0 1 -4.008,-4.008 v-0 a4.008,4.008 0 0 1 4.008,-4.008 z"/>
+        <path android:fillColor="#a35cff" android:pathData="M51.891,50.625 h33.117 a4.008,4.008 0 0 1 4.008,4.008 v0 a4.008,4.008 0 0 1 -4.008,4.008 h-33.117 a4.008,4.008 0 0 1 -4.008,-4.008 v-0 a4.008,4.008 0 0 1 4.008,-4.008 z"/>
+        <path android:fillColor="#ff5d73" android:pathData="M22.992,65.391 h46.828 a4.008,4.008 0 0 1 4.008,4.008 v0 a4.008,4.008 0 0 1 -4.008,4.008 h-46.828 a4.008,4.008 0 0 1 -4.008,-4.008 v-0 a4.008,4.008 0 0 1 4.008,-4.008 z"/>
+        <path android:fillColor="#5b8cff" android:pathData="M80.367,65.391 h4.641 a4.008,4.008 0 0 1 4.008,4.008 v0 a4.008,4.008 0 0 1 -4.008,4.008 h-4.641 a4.008,4.008 0 0 1 -4.008,-4.008 v-0 a4.008,4.008 0 0 1 4.008,-4.008 z"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M58.219,20.039 h0 a1.266,1.266 0 0 1 1.266,1.266 v67.078 a1.266,1.266 0 0 1 -1.266,1.266 h-0 a1.266,1.266 0 0 1 -1.266,-1.266 v-67.078 a1.266,1.266 0 0 1 1.266,-1.266 z"/>
+        <path android:fillColor="#FFFFFF" android:strokeColor="#FFFFFF" android:strokeWidth="3" android:strokeLineJoin="round" android:pathData="M52.734,17.93 L63.703,17.93 L58.219,25.312 Z"/>
+    </group>
+</vector>
