@@ -297,7 +297,7 @@ docs/PLAN.md, docs/DESIGN.md
 
 **Cleanup handoff:** removed code, strings and icons that nothing used (see the
 `chore/cleanup-unused` PR) and refreshed README / PLAN / DESIGN text. Domain helpers that
-only tests use were kept. Uncommitted pending owner review.
+only tests use were kept.
 
 **Phase 5 leftovers:** tactile feel of haptics needs a physical device
 (emulator has no vibration motor). Reset on a keyframed property only
