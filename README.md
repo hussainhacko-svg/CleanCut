@@ -2,27 +2,29 @@
 
 A touch-first video editor for **Android** phones and tablets, built with Flutter and a native AndroidX Media3 engine. Preview and export share one Media3 composition, so what you see is what you export.
 
-> **Status:** Phases 0–4 done — project management, the native preview engine, the timeline editor and basic editing including speed curves. **Next: Phase 5 — transform & style.** Roadmap: [`docs/PLAN.md`](docs/PLAN.md).
+> **Status:** Phases 0–6 done — project management, the native preview engine, the timeline editor, basic editing with speed curves, transform & style, and filters, effects and transitions. **Next: Phase 7 — photos & layers.** Roadmap: [`docs/PLAN.md`](docs/PLAN.md).
 
 ## What works today
 
 **Projects**
 - Create a project from videos and photos (system Photo Picker), pick a canvas size, rename, duplicate, delete with undo.
-- Autosave to versioned project files (schema v2, with migrations).
+- Autosave to versioned project files (schema v6, with migrations).
 
 **Editor**
 - Live preview from the native Media3 engine, play/pause, frame-accurate scrubbing and full-screen playback.
 - Timeline with ruler, fixed centre playhead, pinch zoom, magnetic snapping with haptics, thumbnail strips, waveforms and lanes for effects, text, overlays and audio.
-- Phone layout with a bottom tool dock, tablet layout (≥ 840dp) with a tool rail and properties panel.
+- Phone layout with a rounded bottom sheet (timeline + tool tray); tablet layout (≥ 840dp) with a floating inspector beside the preview.
 - Undo/redo for every edit.
 
-**Basic editing**
+**Editing**
 - Trim (drag the clip's edge handles), split at the playhead, duplicate, delete, reorder (long-press and drag).
 - **Flow (speed):** constant speed 0.1×–10× with keep pitch, and speed curves — Montage, Hero, Bullet, Flash in, Flash out, or a custom curve with draggable points.
+- **Transform & style:** crop with aspect presets, rotate, position, size, mirror, flip, fill modes, canvas background (color, gradient, blur, image), border and opacity, with keyframes.
+- **Filters & effects:** LUT filter presets with intensity, adjustments, blur, shape masks (linear, mirror, circle, rect, heart, star) with feather and invert, and 14 transitions between clips with an audio crossfade.
 
 ## Coming next
 
-Crop · Rotate · Position · Size · Mirror · Flip · Fill modes · Background · Border · Opacity · Filters & adjustments · Blur · Masks · Transitions · Photo motion (Ken Burns) · Text styles & motion · Audio tracks & voiceover · Export to 720p/1080p/4K
+Photo motion (Ken Burns) & overlay layers · Text styles & motion · Audio tracks & voiceover · Export to 720p/1080p/4K
 
 ## Architecture in brief
 
@@ -52,7 +54,7 @@ fvm dart run build_runner build -d       # Riverpod / freezed / JSON codegen
 fvm flutter run                          # on an Android device or emulator
 ```
 
-Before committing (CI runs the same checks):
+Before committing (CI runs only on version tags, so these local checks are the gate):
 
 ```sh
 fvm dart format .
