@@ -206,6 +206,35 @@ class BackgroundSpec {
   final String? imageUri;
 }
 
+/// Visual transition played across the overlap between two adjacent clips
+/// (Phase 6C).
+enum SpecTransitionType {
+  dissolve,
+  fadeBlack,
+  fadeWhite,
+  circle,
+  slideLeft,
+  slideRight,
+  slideUp,
+  slideDown,
+  wipeLeft,
+  wipeRight,
+  wipeUp,
+  wipeDown,
+  zoomIn,
+  zoomOut,
+}
+
+/// Transition played between a clip and the clip immediately following it.
+class TransitionSpec {
+  TransitionSpec({required this.type, required this.durationUs});
+
+  final SpecTransitionType type;
+
+  /// Effective overlap length in microseconds.
+  final int durationUs;
+}
+
 /// One clip of the main sequence. Times are microseconds.
 class ClipSpec {
   ClipSpec({
@@ -218,6 +247,7 @@ class ClipSpec {
     required this.keepPitch,
     required this.speedSteps,
     required this.style,
+    this.transitionOut,
   });
 
   /// Content URI of the source.
@@ -247,6 +277,9 @@ class ClipSpec {
 
   /// Fit, crop, transform and border.
   final ClipStyleSpec style;
+
+  /// Optional transition into the next clip (null for a hard cut or last clip).
+  final TransitionSpec? transitionOut;
 }
 
 /// What the preview plays: the main track, fitted into the canvas.

@@ -7,6 +7,7 @@ import 'package:cleancut/features/projects/domain/model/clip.dart';
 import 'package:cleancut/features/projects/domain/model/clip_effects.dart';
 import 'package:cleancut/features/projects/domain/model/clip_style.dart';
 import 'package:cleancut/features/projects/domain/model/clip_transform.dart';
+import 'package:cleancut/features/projects/domain/model/clip_transition.dart';
 import 'package:cleancut/features/projects/domain/model/keyframe.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
@@ -54,9 +55,20 @@ CompositionSpec compositionSpecOf(
     );
   }
 
+  TransitionSpec? transitionOutOf(int index) {
+    final t = project.mainTrack.transitionAfter(index);
+    if (t == null) return null;
+    final overlapUs = project.mainTrack.overlapAfter(index);
+    if (overlapUs <= 0) return null;
+    return TransitionSpec(
+      type: specTransitionTypeOf(t.type),
+      durationUs: overlapUs,
+    );
+  }
+
   return CompositionSpec(
     clips: [
-      for (final clip in project.mainTrack.clips)
+      for (final (i, clip) in project.mainTrack.clips.indexed)
         if (clip.media.kind == MediaKind.image)
           // A still has no source timeline: it simply shows for its length
           // on the timeline, which already includes its speed.
@@ -70,6 +82,7 @@ CompositionSpec compositionSpecOf(
             keepPitch: true,
             speedSteps: const [],
             style: styleOf(clip),
+            transitionOut: transitionOutOf(i),
           )
         else
           ClipSpec(
@@ -87,6 +100,7 @@ CompositionSpec compositionSpecOf(
                 SpeedStepSpec(startUs: step.startUs, speed: step.speed),
             ],
             style: styleOf(clip),
+            transitionOut: transitionOutOf(i),
           ),
     ],
     canvasWidth: size.width,
@@ -95,6 +109,24 @@ CompositionSpec compositionSpecOf(
     background: backgroundSpecOf(project.canvas.background),
   );
 }
+
+/// Maps a domain [TransitionType] to its Pigeon [SpecTransitionType].
+SpecTransitionType specTransitionTypeOf(TransitionType type) => switch (type) {
+  TransitionType.dissolve => SpecTransitionType.dissolve,
+  TransitionType.fadeBlack => SpecTransitionType.fadeBlack,
+  TransitionType.fadeWhite => SpecTransitionType.fadeWhite,
+  TransitionType.circle => SpecTransitionType.circle,
+  TransitionType.slideLeft => SpecTransitionType.slideLeft,
+  TransitionType.slideRight => SpecTransitionType.slideRight,
+  TransitionType.slideUp => SpecTransitionType.slideUp,
+  TransitionType.slideDown => SpecTransitionType.slideDown,
+  TransitionType.wipeLeft => SpecTransitionType.wipeLeft,
+  TransitionType.wipeRight => SpecTransitionType.wipeRight,
+  TransitionType.wipeUp => SpecTransitionType.wipeUp,
+  TransitionType.wipeDown => SpecTransitionType.wipeDown,
+  TransitionType.zoomIn => SpecTransitionType.zoomIn,
+  TransitionType.zoomOut => SpecTransitionType.zoomOut,
+};
 
 /// The engine's view of [clip]'s look. Keyframed transforms are sampled
 /// once per frame at [fps] plus at every keyframe and the clip's end, so

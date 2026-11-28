@@ -47,6 +47,16 @@ abstract final class TimelineMetrics {
   /// Gap drawn between neighbouring main-track clips (visual only; times
   /// stay exact).
   static const double clipGap = 4;
+
+  /// Horizontal tap reach (dp) of a transition marker into a neighbouring
+  /// clip of width [clipWidthPx]: full 24 dp (for a 48 dp target) when the
+  /// clip has room, shrinking on short clips so at least 70% of the short
+  /// clip remains tappable.
+  static double transitionTapReach(double clipWidthPx) {
+    if (clipWidthPx >= 48) return 24;
+    if (clipWidthPx <= 8) return 0;
+    return (clipWidthPx * 0.3).clamp(0.0, 24.0);
+  }
 }
 
 /// A trim in progress: the dragged clip's source range so far. Drawn
@@ -361,15 +371,17 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   void _onReorderUpdate(double dx) {
     final reorder = _reorder;
     if (reorder == null) return;
-    final clips = widget.project.mainTrack.clips;
+    final main = widget.project.mainTrack;
+    final clips = main.clips;
     final index = clips.indexWhere((c) => c.id == reorder.clipId);
     if (index < 0) return;
-    final center =
-        widget.project.mainTrack.startOf(index) +
-        clips[index].durationUs ~/ 2 +
-        _scale.toUs(dx);
+    final (slotStart, slotEnd) = main.visualSlotOf(index);
+    final center = (slotStart + slotEnd) ~/ 2 + _scale.toUs(dx);
     final target = reorderTargetIndex(
-      [for (final c in clips) c.durationUs],
+      [
+        for (var i = 0; i < clips.length; i++)
+          main.visualSlotOf(i).$2 - main.visualSlotOf(i).$1,
+      ],
       index,
       center,
     );
@@ -702,15 +714,23 @@ class _TimelineContent extends ConsumerWidget {
       }
     }
 
-    // Main strip: back-to-back clips with transition markers between them.
-    // A trimmed clip is drawn with its new range until the finger lifts;
-    // a long-pressed clip follows the finger above the others.
-    var start = 0;
-    final clips = project.mainTrack.clips;
+    // Main strip: clips laid out along their visual slots (overlapping across
+    // transitions, split evenly at each boundary center) with interactive ⧓
+    // transition markers between them. A trimmed clip draws its new range
+    // until release; a long-pressed clip follows the finger above the others.
+    final main = project.mainTrack;
+    final clips = main.clips;
     final clipLefts = <double>[];
+    final clipWidths = <double>[];
     Widget? lifted;
     final handles = <Widget>[];
+    final markers = <Widget>[];
+    final overlapBands = <Widget>[];
     for (final (i, clip) in clips.indexed) {
+      final clipStart = main.startOf(i);
+      final (slotStart, slotEnd) = main.visualSlotOf(i);
+      final slotDurationUs = slotEnd - slotStart;
+      final leadInUs = slotStart - clipStart;
       final trimming = trim?.clipId == clip.id ? trim : null;
       final shown = trimming == null
           ? clip
@@ -718,25 +738,26 @@ class _TimelineContent extends ConsumerWidget {
               sourceInUs: trimming.sourceInUs,
               sourceOutUs: trimming.sourceOutUs,
             );
-      // Trimming the start moves the left edge; the right edge stays until
-      // release, when the main track closes the gap.
-      final shownStart = trimming != null && trimming.start
-          ? start + clip.durationUs - shown.durationUs
-          : start;
-      final end = trimming != null && !trimming.start
-          ? start + shown.durationUs
-          : start + clip.durationUs;
+      final deltaDurationUs = shown.durationUs - clip.durationUs;
+      final shownSlotStart = trimming != null && trimming.start
+          ? slotStart - deltaDurationUs
+          : slotStart;
+      final shownSlotDuration = math.max<int>(
+        1,
+        slotDurationUs + deltaDurationUs,
+      );
       final sel = MainClipSelection(clip.id);
       final isLifted = reorder?.clipId == clip.id;
       final left =
-          _x(shownStart) +
+          _x(shownSlotStart) +
           TimelineMetrics.clipGap / 2 +
           (isLifted ? reorder!.dx : 0);
       final width = math.max<double>(
         2,
-        scale.toPx(shown.durationUs) - TimelineMetrics.clipGap,
+        scale.toPx(shownSlotDuration) - TimelineMetrics.clipGap,
       );
-      clipLefts.add(_x(start));
+      clipLefts.add(_x(slotStart));
+      clipWidths.add(width);
       final view = Positioned(
         // Keyed so a lifted clip keeps its element (and the long-press
         // recognizer tracking the finger) when it moves to the top.
@@ -753,6 +774,8 @@ class _TimelineContent extends ConsumerWidget {
           scroll: scroll,
           selected: selection == sel,
           lifted: isLifted,
+          visualLeadInUs: leadInUs,
+          visualDurationUs: shownSlotDuration,
           onTap: () => selector.toggle(sel),
           onLongPressStart: () => gestures.onReorderStart(clip),
           onLongPressMove: gestures.onReorderUpdate,
@@ -765,7 +788,6 @@ class _TimelineContent extends ConsumerWidget {
         children.add(view);
       }
       if (selection == sel && reorder == null) {
-        final clipStart = start;
         for (final isStart in [true, false]) {
           final edgeX = isStart ? left : left + width;
           handles.add(
@@ -791,32 +813,145 @@ class _TimelineContent extends ConsumerWidget {
           );
         }
       }
-      if (i > 0 && reorder == null) {
-        // Decorative until transitions are built: a 48dp target here
-        // would cover short clips and swallow their taps.
-        children.add(
-          Positioned(
-            left: _x(start) - 11,
-            top: layout.mainTop + TimelineMetrics.mainHeight / 2 - 11,
-            child: IgnorePointer(
-              child: Container(
-                width: 22,
-                height: 22,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHigh,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: scheme.outlineVariant),
+    }
+
+    if (reorder == null) {
+      final gradient = AccentGradient.of(context).linear;
+      for (var i = 1; i < clips.length; i++) {
+        final leftClip = clips[i - 1];
+        final rightClip = clips[i];
+        final afterId = leftClip.id;
+        final boundaryCenterUs = main.boundaryCenterOf(i - 1);
+        final boundaryX = _x(boundaryCenterUs);
+        final transition = main.transitionAfter(i - 1);
+        final overlapUs = main.overlapAfter(i - 1);
+        final tSel = TransitionSelection(afterId);
+        final isSelected = selection == tSel;
+        final hasTransition = transition != null && overlapUs > 0;
+
+        if (hasTransition) {
+          final bandWidth = math.max<double>(6, scale.toPx(overlapUs));
+          overlapBands.add(
+            Positioned(
+              left: boundaryX - bandWidth / 2,
+              top: layout.mainTop + TimelineMetrics.mainHeight - 4,
+              width: bandWidth,
+              height: 4,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: gradient,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-                child: const AppIcon(AppIcons.transition, size: 13),
               ),
             ),
+          );
+        }
+
+        // Keep trim handles unobstructed on the edges of a selected clip.
+        final adjacentClipSelected =
+            selection == MainClipSelection(leftClip.id) ||
+            selection == MainClipSelection(rightClip.id);
+        final leftReach = adjacentClipSelected
+            ? 0.0
+            : TimelineMetrics.transitionTapReach(clipWidths[i - 1]);
+        final rightReach = adjacentClipSelected
+            ? 0.0
+            : TimelineMetrics.transitionTapReach(clipWidths[i]);
+        final badge = Container(
+          width: 22,
+          height: 22,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            gradient: isSelected ? gradient : null,
+            color: isSelected
+                ? null
+                : hasTransition
+                ? scheme.primaryContainer
+                : scheme.surfaceContainerHigh,
+            shape: BoxShape.circle,
+            border: isSelected
+                ? Border.all(color: scheme.onSurface, width: 1.5)
+                : Border.all(
+                    color: hasTransition
+                        ? scheme.primary
+                        : scheme.outlineVariant,
+                  ),
+          ),
+          child: AppIcon(
+            AppIcons.transition,
+            size: 13,
+            color: isSelected
+                ? scheme.onPrimary
+                : hasTransition
+                ? scheme.primary
+                : null,
           ),
         );
+
+        final tapWidth = leftReach + rightReach;
+        if (tapWidth <= 0) {
+          markers.add(
+            Positioned(
+              left: boundaryX - 11,
+              top: layout.mainTop + TimelineMetrics.mainHeight / 2 - 11,
+              child: IgnorePointer(child: badge),
+            ),
+          );
+        } else {
+          final overlapStartUs = main.startOf(i);
+          final overlapEndUs = main.endOf(i - 1);
+          markers.add(
+            Positioned(
+              key: ValueKey(('transitionMarker', afterId)),
+              left: boundaryX - leftReach,
+              top: layout.mainTop + TimelineMetrics.mainHeight / 2 - 24,
+              width: tapWidth,
+              height: 48,
+              child: Semantics(
+                button: true,
+                selected: isSelected,
+                label: l10n.timelineTransitionBetween(i, i + 1),
+                excludeSemantics: true,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    unawaited(HapticFeedback.selectionClick());
+                    final opening = selection != tSel;
+                    selector.toggle(tSel);
+                    if (opening) {
+                      final pos = ref.read(playbackPositionProvider(projectId));
+                      final inWindow = overlapUs > 0
+                          ? (pos >= overlapStartUs && pos <= overlapEndUs)
+                          : pos == boundaryCenterUs;
+                      if (!inWindow) {
+                        unawaited(
+                          ref
+                              .read(playbackProvider(projectId).notifier)
+                              .seekTo(boundaryCenterUs),
+                        );
+                      }
+                    }
+                  },
+                  child: Stack(
+                    clipBehavior: ui.Clip.none,
+                    children: [
+                      Positioned(left: leftReach - 11, top: 13, child: badge),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
       }
-      start = end;
     }
-    children.addAll(handles);
+
+    children
+      ..addAll(overlapBands)
+      ..addAll(markers)
+      ..addAll(handles);
     if (reorder != null && lifted != null) {
       // Where the lifted clip will land: before the clip now at that slot
       // (ignoring the lifted one), or after the last.
@@ -957,6 +1092,8 @@ class MainClipView extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.lifted = false,
+    this.visualLeadInUs = 0,
+    this.visualDurationUs,
     this.onLongPressStart,
     this.onLongPressMove,
     this.onLongPressEnd,
@@ -986,6 +1123,13 @@ class MainClipView extends StatelessWidget {
 
   /// Whether the clip is lifted for reordering (drawn raised).
   final bool lifted;
+
+  /// Timeline µs trimmed visually off the start of this strip slot for an
+  /// incoming transition overlap.
+  final int visualLeadInUs;
+
+  /// Visual duration of this strip slot in µs (defaults to `clip.durationUs`).
+  final int? visualDurationUs;
 
   /// Long press: lift the clip to reorder it.
   final VoidCallback? onLongPressStart;
@@ -1017,6 +1161,8 @@ class MainClipView extends StatelessWidget {
                 contentLeft: contentLeft,
                 viewport: viewport,
                 scroll: scroll,
+                leadInUs: visualLeadInUs,
+                visibleDurationUs: visualDurationUs ?? clip.durationUs,
               ),
             ),
           ),
@@ -1047,6 +1193,7 @@ class MainClipView extends StatelessWidget {
               timesUs: keyframeTimes,
               clipDurationUs: clip.durationUs,
               scale: scale,
+              leadInUs: visualLeadInUs,
             ),
           ),
       ],
@@ -1117,6 +1264,7 @@ class ClipKeyframeMarkers extends StatelessWidget {
     required this.timesUs,
     required this.clipDurationUs,
     required this.scale,
+    this.leadInUs = 0,
     super.key,
   });
 
@@ -1129,6 +1277,9 @@ class ClipKeyframeMarkers extends StatelessWidget {
   /// Current timeline zoom scale.
   final TimelineScale scale;
 
+  /// Leading clip µs tucked behind an incoming transition overlap.
+  final int leadInUs;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -1139,6 +1290,7 @@ class ClipKeyframeMarkers extends StatelessWidget {
           timesUs: timesUs,
           clipDurationUs: clipDurationUs,
           scale: scale,
+          leadInUs: leadInUs,
           borderColor: scheme.onSurface,
           shadowColor: scheme.scrim,
           gradient: gradient,
@@ -1153,6 +1305,7 @@ class _ClipKeyframeMarkersPainter extends CustomPainter {
     required this.timesUs,
     required this.clipDurationUs,
     required this.scale,
+    required this.leadInUs,
     required this.borderColor,
     required this.shadowColor,
     required this.gradient,
@@ -1161,6 +1314,7 @@ class _ClipKeyframeMarkersPainter extends CustomPainter {
   final List<int> timesUs;
   final int clipDurationUs;
   final TimelineScale scale;
+  final int leadInUs;
   final Color borderColor;
   final Color shadowColor;
   final AccentGradient gradient;
@@ -1185,7 +1339,7 @@ class _ClipKeyframeMarkersPainter extends CustomPainter {
 
     for (final t in timesUs) {
       if (t < 0 || t > clipDurationUs) continue;
-      final rawX = scale.toPx(t) - TimelineMetrics.clipGap / 2;
+      final rawX = scale.toPx(t - leadInUs) - TimelineMetrics.clipGap / 2;
       final cx = rawX.clamp(minX, maxX);
       final rect = Rect.fromCircle(center: Offset(cx, cy), radius: _radius);
       final diamond = Path()
@@ -1209,6 +1363,7 @@ class _ClipKeyframeMarkersPainter extends CustomPainter {
       old.timesUs != timesUs ||
       old.clipDurationUs != clipDurationUs ||
       old.scale != scale ||
+      old.leadInUs != leadInUs ||
       old.borderColor != borderColor ||
       old.shadowColor != shadowColor ||
       old.gradient != gradient;
@@ -1224,6 +1379,8 @@ class ThumbnailStrip extends ConsumerStatefulWidget {
     required this.contentLeft,
     required this.viewport,
     required this.scroll,
+    this.leadInUs = 0,
+    this.visibleDurationUs,
     super.key,
   });
 
@@ -1241,6 +1398,12 @@ class ThumbnailStrip extends ConsumerStatefulWidget {
 
   /// The timeline's scroll position.
   final ScrollController scroll;
+
+  /// Leading clip µs tucked behind an incoming transition overlap.
+  final int leadInUs;
+
+  /// Visible slot duration in µs (defaults to `clip.durationUs`).
+  final int? visibleDurationUs;
 
   @override
   ConsumerState<ThumbnailStrip> createState() => _ThumbnailStripState();
@@ -1280,7 +1443,9 @@ class _ThumbnailStripState extends ConsumerState<ThumbnailStrip> {
     final changed =
         next != _range ||
         oldWidget.clip != widget.clip ||
-        oldWidget.scale != widget.scale;
+        oldWidget.scale != widget.scale ||
+        oldWidget.leadInUs != widget.leadInUs ||
+        oldWidget.visibleDurationUs != widget.visibleDurationUs;
     _range = next;
     if (changed) _requestVisible();
   }
@@ -1293,7 +1458,9 @@ class _ThumbnailStripState extends ConsumerState<ThumbnailStrip> {
 
   (int, int) _compute() {
     final offset = widget.scroll.hasClients ? widget.scroll.offset : 0.0;
-    final width = widget.scale.toPx(widget.clip.durationUs);
+    final width = widget.scale.toPx(
+      widget.visibleDurationUs ?? widget.clip.durationUs,
+    );
     final tile = _tileWidth;
     final count = (width / tile).ceil();
     // One extra viewport on each side so tiles are ready before they show.
@@ -1361,10 +1528,10 @@ class _ThumbnailStripState extends ConsumerState<ThumbnailStrip> {
     );
   }
 
-  /// Source time shown at [px] into the clip, on the sampling grid.
+  /// Source time shown at [px] into the clip slot, on the sampling grid.
   int _sourceTimeAt(double px) {
     final clip = widget.clip;
-    final timelineUs = widget.scale.toUs(px);
+    final timelineUs = widget.leadInUs + widget.scale.toUs(px);
     final source = clip.sourceInUs + clip.sourceOffsetAt(timelineUs);
     final clamped = source.clamp(clip.sourceInUs, clip.sourceOutUs - 1);
     return (clamped ~/ _timeGridUs) * _timeGridUs;

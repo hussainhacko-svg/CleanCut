@@ -28,4 +28,14 @@ class PreviewPositionTest {
         assertEquals(1_234_000L, PreviewPlayer.reportedPositionUs(1_234, C.TIME_UNSET, ended = false))
         assertEquals(1_234_000L, PreviewPlayer.reportedPositionUs(1_234, C.TIME_UNSET, ended = true))
     }
+
+    @Test
+    fun `a multi-input preview counts as finished within one frame of the end`() {
+        assertEquals(false, PreviewPlayer.reachedEnd(5_000, 10_000))
+        assertEquals(false, PreviewPlayer.reachedEnd(9_959, 10_000))
+        assertEquals(true, PreviewPlayer.reachedEnd(9_960, 10_000))
+        assertEquals(true, PreviewPlayer.reachedEnd(10_400, 10_000))
+        assertEquals(false, PreviewPlayer.reachedEnd(10_400, C.TIME_UNSET))
+        assertEquals(false, PreviewPlayer.reachedEnd(0, 0))
+    }
 }

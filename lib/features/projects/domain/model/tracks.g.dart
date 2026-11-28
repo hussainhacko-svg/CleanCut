@@ -12,10 +12,20 @@ _MainTrack _$MainTrackFromJson(Map<String, dynamic> json) => _MainTrack(
           ?.map((e) => Clip.fromJson(e as Map<String, dynamic>))
           .toList() ??
       const <Clip>[],
+  transitions:
+      (json['transitions'] as Map<String, dynamic>?)?.map(
+        (k, e) =>
+            MapEntry(k, ClipTransition.fromJson(e as Map<String, dynamic>)),
+      ) ??
+      const <String, ClipTransition>{},
 );
 
-Map<String, dynamic> _$MainTrackToJson(_MainTrack instance) =>
-    <String, dynamic>{'clips': instance.clips.map((e) => e.toJson()).toList()};
+Map<String, dynamic> _$MainTrackToJson(
+  _MainTrack instance,
+) => <String, dynamic>{
+  'clips': instance.clips.map((e) => e.toJson()).toList(),
+  'transitions': instance.transitions.map((k, e) => MapEntry(k, e.toJson())),
+};
 
 _PlacedClip _$PlacedClipFromJson(Map<String, dynamic> json) => _PlacedClip(
   startUs: (json['startUs'] as num).toInt(),

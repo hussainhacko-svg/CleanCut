@@ -8,6 +8,7 @@ import 'package:cleancut/core/widgets/app_icon.dart';
 import 'package:cleancut/features/projects/domain/commands/clip_commands.dart';
 import 'package:cleancut/features/projects/domain/commands/project_commands.dart';
 import 'package:cleancut/features/projects/domain/commands/style_commands.dart';
+import 'package:cleancut/features/projects/domain/commands/transition_commands.dart';
 import 'package:cleancut/features/projects/domain/history/edit_command.dart';
 import 'package:cleancut/features/projects/domain/model/animatable.dart';
 import 'package:cleancut/features/projects/domain/model/canvas_background.dart';
@@ -15,6 +16,7 @@ import 'package:cleancut/features/projects/domain/model/clip.dart';
 import 'package:cleancut/features/projects/domain/model/clip_effects.dart';
 import 'package:cleancut/features/projects/domain/model/clip_style.dart';
 import 'package:cleancut/features/projects/domain/model/clip_transform.dart';
+import 'package:cleancut/features/projects/domain/model/clip_transition.dart';
 import 'package:cleancut/features/projects/domain/model/keyframe.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
@@ -33,6 +35,7 @@ import 'package:cleancut/features/projects/presentation/editor/panels/mask_panel
 import 'package:cleancut/features/projects/presentation/editor/panels/ratio_panel.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/speed_panel.dart';
 import 'package:cleancut/features/projects/presentation/editor/panels/transform_panel.dart';
+import 'package:cleancut/features/projects/presentation/editor/panels/transition_panel.dart';
 import 'package:cleancut/features/projects/presentation/editor/timeline/timeline_view.dart';
 import 'package:cleancut/features/projects/presentation/editor/tool_dock.dart';
 import 'package:cleancut/features/projects/presentation/playback/playback_controller.dart';
@@ -85,8 +88,15 @@ class ProjectScreen extends ConsumerWidget {
         if (didPop) return;
         // Back closes an open tool panel before leaving the editor.
         final panel = openToolPanelProvider(projectId);
-        if (ref.read(panel) != null) {
-          ref.read(panel.notifier).close();
+        final open = ref.read(panel);
+        if (open != null) {
+          if (open == ToolPanelKind.transition) {
+            ref
+                .read(timelineSelectionControllerProvider(projectId).notifier)
+                .clear();
+          } else {
+            ref.read(panel.notifier).close();
+          }
           return;
         }
         await leave();
@@ -252,9 +262,12 @@ class _Editor extends ConsumerWidget {
       case DockTool.split:
         final timeUs = ref.read(playbackPositionProvider(projectId));
         if (!canSplitAt(project, clipId, timeUs)) {
+          final message = splitTooCloseToEdge(project, clipId, timeUs)
+              ? l10n.editorSplitOutside
+              : l10n.editorSplitTransition;
           messenger
             ..hideCurrentSnackBar()
-            ..showSnackBar(SnackBar(content: Text(l10n.editorSplitOutside)));
+            ..showSnackBar(SnackBar(content: Text(message)));
           return;
         }
         session.apply(SplitClipCommand(clipId, timeUs: timeUs, newId: newId));
@@ -324,6 +337,14 @@ class _Editor extends ConsumerWidget {
     if (kind == ToolPanelKind.ratio) {
       return _ProjectRatioPanel(projectId: projectId, project: project);
     }
+    if (kind == ToolPanelKind.transition) {
+      if (selection is! TransitionSelection) return null;
+      return _BoundaryTransitionPanel(
+        projectId: projectId,
+        project: project,
+        afterClipId: selection.afterClipId,
+      );
+    }
     if (selection is! MainClipSelection) return null;
     final index = project.mainTrack.clips.indexWhere(
       (c) => c.id == selection.clipId,
@@ -370,7 +391,8 @@ class _Editor extends ConsumerWidget {
         clipStartUs: clipStartUs,
         keyframeToleranceUs: keyframeToleranceUs(project),
       ),
-      ToolPanelKind.ratio => const SizedBox.shrink(),
+      ToolPanelKind.ratio ||
+      ToolPanelKind.transition => const SizedBox.shrink(),
     };
   }
 
@@ -1452,6 +1474,92 @@ class _ProjectRatioPanel extends ConsumerWidget {
         ..seal(),
       onPickImage: () => unawaited(pickImage()),
       onClose: ref.read(openToolPanelProvider(projectId).notifier).close,
+    );
+  }
+}
+
+/// [TransitionPanel] bound to the main-track boundary after [afterClipId].
+class _BoundaryTransitionPanel extends ConsumerWidget {
+  const new({
+    required this.projectId,
+    required this.project,
+    required this.afterClipId,
+  });
+
+  final String projectId;
+  final Project project;
+  final String afterClipId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final main = project.mainTrack;
+    final clips = main.clips;
+    final index = clips.indexWhere((c) => c.id == afterClipId);
+    if (index < 0 || index >= clips.length - 1) return const SizedBox.shrink();
+    final session = ref.read(projectSessionProvider(projectId).notifier);
+    final active = main.transitionAfter(index);
+    final maxDurationUs = TransitionLimits.maxBetween(
+      clips[index].durationUs,
+      clips[index + 1].durationUs,
+    );
+    return TransitionPanel(
+      transition: active,
+      maxDurationUs: maxDurationUs,
+      canApplyAll: clips.length >= 3,
+      onSelect: (t) {
+        session
+          ..apply(SetTransitionCommand(afterClipId, t))
+          ..seal();
+        if (t != null) {
+          final overlapUs = TransitionLimits.effectiveDurationUs(
+            t.durationUs,
+            clips[index].durationUs,
+            clips[index + 1].durationUs,
+          );
+          if (overlapUs > 0) {
+            final overlapEndUs = main.endOf(index);
+            final overlapStartUs = overlapEndUs - overlapUs;
+            final centerUs = overlapStartUs + overlapUs ~/ 2;
+            final pos = ref.read(playbackPositionProvider(projectId));
+            // Keep the playhead inside the transition so switching presets
+            // shows a live preview instead of landing on the outgoing/incoming
+            // boundary where progress is 0 or 1.
+            if (pos <= overlapStartUs || pos >= overlapEndUs) {
+              unawaited(
+                ref.read(playbackProvider(projectId).notifier).seekTo(centerUs),
+              );
+            }
+          }
+        }
+      },
+      onDurationDrag: (durationUs) {
+        if (active == null) return;
+        session.apply(
+          SetTransitionCommand(
+            afterClipId,
+            active.copyWith(durationUs: durationUs),
+            coalesce: true,
+          ),
+        );
+      },
+      onDurationDragEnd: session.seal,
+      onDurationSet: (durationUs) {
+        if (active == null) return;
+        session
+          ..apply(
+            SetTransitionCommand(
+              afterClipId,
+              active.copyWith(durationUs: durationUs),
+            ),
+          )
+          ..seal();
+      },
+      onApplyAll: () => session
+        ..apply(ApplyTransitionToAllCommand(active))
+        ..seal(),
+      onClose: () => ref
+          .read(timelineSelectionControllerProvider(projectId).notifier)
+          .clear(),
     );
   }
 }

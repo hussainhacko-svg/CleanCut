@@ -24,10 +24,17 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-/** A clip's look, swappable while the preview runs (read on the GL thread every frame). */
-class LiveClipLook(style: ClipStyle, val timelineStartUs: Long) {
+/** A clip's look and transitions, swappable while the preview runs (read on the GL thread every frame). */
+class LiveClipLook(
+    style: ClipStyle,
+    val timelineStartUs: Long,
+    transitions: ClipTransitions = ClipTransitions.NONE,
+) {
     @Volatile
     var style: ClipStyle = style
+
+    @Volatile
+    var transitions: ClipTransitions = transitions
 }
 
 /** The canvas background, shared by every clip of a composition and swappable live. */
@@ -215,6 +222,17 @@ private class ClipRenderProgram(
                 ),
             )
         }
+        val tr = look.transitions.evaluate(timeUs)
+        main.setIntUniform("uTransKind", tr.kind)
+        main.setFloatsUniform(
+            "uTransParams",
+            floatArrayOf(
+                tr.progress,
+                if (tr.isOutgoing) 1f else 0f,
+                if (tr.isTopLayer) 1f else 0f,
+                0f,
+            ),
+        )
         main.bindAttributesAndUniforms()
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
         GlUtil.checkGlError()
@@ -562,6 +580,8 @@ uniform float uOpacity;
 uniform int uMaskKind;
 uniform vec4 uMaskGeom;
 uniform vec4 uMaskParams;
+uniform int uTransKind;
+uniform vec4 uTransParams;
 varying vec2 vOut;
 
 float roundRect(vec2 p, vec2 b, float r) {
@@ -681,13 +701,127 @@ vec3 applyAdjustments(vec3 rgb) {
 }
 
 void main() {
-  vec2 p = vec2(vOut.x, 1.0 - vOut.y) * uCanvas;
+  vec2 screenUv = vec2(vOut.x, 1.0 - vOut.y);
+  vec2 sampleUv = screenUv;
+  float transAlpha = 1.0;
+  float fadeDip = 0.0;
+  vec3 fadeColor = vec3(0.0);
+
+  if (uTransKind > 0) {
+    float prog = clamp(uTransParams.x, 0.0, 1.0);
+    bool isOut = uTransParams.y > 0.5;
+    bool isTop = uTransParams.z > 0.5;
+    float s = prog * prog * (3.0 - 2.0 * prog);
+
+    if (uTransKind == 1) {
+      if (isTop) {
+        transAlpha = isOut ? (1.0 - prog) : prog;
+      }
+    } else if (uTransKind == 2 || uTransKind == 3) {
+      fadeColor = uTransKind == 3 ? vec3(1.0) : vec3(0.0);
+      // In its hidden half a clip shows nothing on the top lane and the solid
+      // fade color on the bottom lane. The lanes' frames can sit on opposite
+      // sides of the midpoint, and then the bottom one still shows the color
+      // instead of the compositor's black backdrop.
+      bool hidden = isOut ? prog >= 0.5 : prog < 0.5;
+      if (hidden) {
+        gl_FragColor = isTop ? vec4(0.0) : vec4(fadeColor, 1.0);
+        return;
+      }
+      fadeDip = isOut ? prog * 2.0 : (1.0 - prog) * 2.0;
+    } else if (uTransKind == 4) {
+      float dist = length((screenUv - 0.5) * uCanvas);
+      float maxR = length(0.5 * uCanvas) + 2.0;
+      float edge = max(2.0, min(uCanvas.x, uCanvas.y) * 0.015);
+      float r = mix(-edge, maxR + edge, s);
+      if (isTop) {
+        float inside = 1.0 - smoothstep(r - edge, r + edge, dist);
+        transAlpha = isOut ? (1.0 - inside) : inside;
+      }
+    } else if (uTransKind == 5) {
+      float cut = 1.0 - s;
+      sampleUv.x = clamp(isOut ? (screenUv.x + s) : (screenUv.x - cut), 0.0, 1.0);
+      if (isTop) {
+        float inCov = clamp((screenUv.x - cut) * uCanvas.x + 0.5, 0.0, 1.0);
+        transAlpha = isOut ? (1.0 - inCov) : inCov;
+      }
+    } else if (uTransKind == 6) {
+      float cut = s;
+      sampleUv.x = clamp(isOut ? (screenUv.x - s) : (screenUv.x + (1.0 - s)), 0.0, 1.0);
+      if (isTop) {
+        float inCov = clamp((cut - screenUv.x) * uCanvas.x + 0.5, 0.0, 1.0);
+        transAlpha = isOut ? (1.0 - inCov) : inCov;
+      }
+    } else if (uTransKind == 7) {
+      float cut = 1.0 - s;
+      sampleUv.y = clamp(isOut ? (screenUv.y + s) : (screenUv.y - cut), 0.0, 1.0);
+      if (isTop) {
+        float inCov = clamp((screenUv.y - cut) * uCanvas.y + 0.5, 0.0, 1.0);
+        transAlpha = isOut ? (1.0 - inCov) : inCov;
+      }
+    } else if (uTransKind == 8) {
+      float cut = s;
+      sampleUv.y = clamp(isOut ? (screenUv.y - s) : (screenUv.y + (1.0 - s)), 0.0, 1.0);
+      if (isTop) {
+        float inCov = clamp((cut - screenUv.y) * uCanvas.y + 0.5, 0.0, 1.0);
+        transAlpha = isOut ? (1.0 - inCov) : inCov;
+      }
+    } else if (uTransKind == 9) {
+      float f = 0.02;
+      float cut = mix(1.0 + f, -f, s);
+      if (isTop) {
+        float inCov = smoothstep(cut - f, cut + f, screenUv.x);
+        transAlpha = isOut ? (1.0 - inCov) : inCov;
+      }
+    } else if (uTransKind == 10) {
+      float f = 0.02;
+      float cut = mix(-f, 1.0 + f, s);
+      if (isTop) {
+        float inCov = 1.0 - smoothstep(cut - f, cut + f, screenUv.x);
+        transAlpha = isOut ? (1.0 - inCov) : inCov;
+      }
+    } else if (uTransKind == 11) {
+      float f = 0.02;
+      float cut = mix(1.0 + f, -f, s);
+      if (isTop) {
+        float inCov = smoothstep(cut - f, cut + f, screenUv.y);
+        transAlpha = isOut ? (1.0 - inCov) : inCov;
+      }
+    } else if (uTransKind == 12) {
+      float f = 0.02;
+      float cut = mix(-f, 1.0 + f, s);
+      if (isTop) {
+        float inCov = 1.0 - smoothstep(cut - f, cut + f, screenUv.y);
+        transAlpha = isOut ? (1.0 - inCov) : inCov;
+      }
+    } else if (uTransKind == 13) {
+      float z = isOut ? mix(1.0, 1.65, s) : mix(0.65, 1.0, s);
+      sampleUv = (screenUv - 0.5) / z + 0.5;
+      if (isTop) {
+        transAlpha = isOut ? (1.0 - s) : s;
+      }
+    } else if (uTransKind == 14) {
+      float z = isOut ? mix(1.0, 0.65, s) : mix(1.65, 1.0, s);
+      sampleUv = (screenUv - 0.5) / z + 0.5;
+      if (isTop) {
+        transAlpha = isOut ? (1.0 - s) : s;
+      }
+    }
+    if (transAlpha <= 0.0) {
+      gl_FragColor = vec4(0.0);
+      return;
+    }
+  }
+
+  vec2 clampedUv = clamp(sampleUv, 0.0, 1.0);
+  vec2 bgUv = vec2(clampedUv.x, 1.0 - clampedUv.y);
+  vec2 p = sampleUv * uCanvas;
   vec4 bg;
   if (uBgKind == 1) {
     float t = clamp(dot(p - 0.5 * uCanvas, uGradAxis.xy) / uGradAxis.z + 0.5, 0.0, 1.0);
     bg = vec4(mix(uColorA.rgb * uColorA.a, uColorB.rgb * uColorB.a, t), 1.0);
   } else if (uBgKind == 2) {
-    bg = vec4(texture2D(uBgTex, vOut).rgb, 1.0);
+    bg = vec4(texture2D(uBgTex, bgUv).rgb, 1.0);
   } else {
     bg = vec4(uColorA.rgb * uColorA.a, 1.0);
   }
@@ -698,7 +832,8 @@ void main() {
   float sd = roundRect(local, uHalf, radius);
   float coverage = clamp(0.5 - sd, 0.0, 1.0);
   if (coverage <= 0.0 || uOpacity <= 0.0) {
-    gl_FragColor = bg;
+    vec3 outBg = fadeDip > 0.0 ? mix(bg.rgb, fadeColor, fadeDip) : bg.rgb;
+    gl_FragColor = vec4(outBg, transAlpha);
     return;
   }
   vec2 u = local / max(uHalf, vec2(1e-4)) * 0.5 * uFlip + 0.5;
@@ -772,7 +907,11 @@ void main() {
     }
   }
   float mask = coverage * maskAlpha * uOpacity;
-  gl_FragColor = vec4(bg.rgb * (1.0 - outA * mask) + outRgb * mask, 1.0);
+  vec3 finalRgb = bg.rgb * (1.0 - outA * mask) + outRgb * mask;
+  if (fadeDip > 0.0) {
+    finalRgb = mix(finalRgb, fadeColor, fadeDip);
+  }
+  gl_FragColor = vec4(finalRgb, transAlpha);
 }
 """
 

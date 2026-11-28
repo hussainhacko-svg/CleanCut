@@ -264,6 +264,35 @@ enum class SpecBackgroundKind(val raw: Int) {
   }
 }
 
+/**
+ * Visual transition played across the overlap between two adjacent clips
+ * (Phase 6C).
+ */
+enum class SpecTransitionType(val raw: Int) {
+  DISSOLVE(0),
+  FADE_BLACK(1),
+  FADE_WHITE(2),
+  CIRCLE(3),
+  SLIDE_LEFT(4),
+  SLIDE_RIGHT(5),
+  SLIDE_UP(6),
+  SLIDE_DOWN(7),
+  WIPE_LEFT(8),
+  WIPE_RIGHT(9),
+  WIPE_UP(10),
+  WIPE_DOWN(11),
+  ZOOM_IN(12),
+  ZOOM_OUT(13);
+
+  companion object {
+    private val pigeonValues = values()
+
+    fun ofRaw(raw: Int): SpecTransitionType? {
+      return pigeonValues.getOrNull(raw)
+    }
+  }
+}
+
 /** Player status, mirroring Media3's `Player.STATE_*`. */
 enum class PlaybackStatus(val raw: Int) {
   IDLE(0),
@@ -760,6 +789,52 @@ data class BackgroundSpec (
 }
 
 /**
+ * Transition played between a clip and the clip immediately following it.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class TransitionSpec (
+  val type: SpecTransitionType,
+  /** Effective overlap length in microseconds. */
+  val durationUs: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): TransitionSpec {
+      val type = pigeonVar_list[0] as SpecTransitionType
+      val durationUs = pigeonVar_list[1] as Long
+      return TransitionSpec(type, durationUs)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      type,
+      durationUs,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as TransitionSpec
+    return EngineApiPigeonUtils.deepEquals(this.type, other.type) && EngineApiPigeonUtils.deepEquals(this.durationUs, other.durationUs)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.type)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.durationUs)
+    return result
+  }
+  override fun toString(): String {
+    return "TransitionSpec(type=$type, durationUs=$durationUs)"
+  }
+}
+
+/**
  * One clip of the main sequence. Times are microseconds.
  *
  * Generated class from Pigeon that represents data sent in messages.
@@ -788,7 +863,9 @@ data class ClipSpec (
    */
   val speedSteps: List<SpeedStepSpec>,
   /** Fit, crop, transform and border. */
-  val style: ClipStyleSpec
+  val style: ClipStyleSpec,
+  /** Optional transition into the next clip (null for a hard cut or last clip). */
+  val transitionOut: TransitionSpec? = null
 )
  {
   companion object {
@@ -802,7 +879,8 @@ data class ClipSpec (
       val keepPitch = pigeonVar_list[6] as Boolean
       val speedSteps = pigeonVar_list[7] as List<SpeedStepSpec>
       val style = pigeonVar_list[8] as ClipStyleSpec
-      return ClipSpec(uri, kind, sourceDurationUs, sourceInUs, sourceOutUs, speed, keepPitch, speedSteps, style)
+      val transitionOut = pigeonVar_list[9] as TransitionSpec?
+      return ClipSpec(uri, kind, sourceDurationUs, sourceInUs, sourceOutUs, speed, keepPitch, speedSteps, style, transitionOut)
     }
   }
   fun toList(): List<Any?> {
@@ -816,6 +894,7 @@ data class ClipSpec (
       keepPitch,
       speedSteps,
       style,
+      transitionOut,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -826,7 +905,7 @@ data class ClipSpec (
       return true
     }
     val other = other as ClipSpec
-    return EngineApiPigeonUtils.deepEquals(this.uri, other.uri) && EngineApiPigeonUtils.deepEquals(this.kind, other.kind) && EngineApiPigeonUtils.deepEquals(this.sourceDurationUs, other.sourceDurationUs) && EngineApiPigeonUtils.deepEquals(this.sourceInUs, other.sourceInUs) && EngineApiPigeonUtils.deepEquals(this.sourceOutUs, other.sourceOutUs) && EngineApiPigeonUtils.deepEquals(this.speed, other.speed) && EngineApiPigeonUtils.deepEquals(this.keepPitch, other.keepPitch) && EngineApiPigeonUtils.deepEquals(this.speedSteps, other.speedSteps) && EngineApiPigeonUtils.deepEquals(this.style, other.style)
+    return EngineApiPigeonUtils.deepEquals(this.uri, other.uri) && EngineApiPigeonUtils.deepEquals(this.kind, other.kind) && EngineApiPigeonUtils.deepEquals(this.sourceDurationUs, other.sourceDurationUs) && EngineApiPigeonUtils.deepEquals(this.sourceInUs, other.sourceInUs) && EngineApiPigeonUtils.deepEquals(this.sourceOutUs, other.sourceOutUs) && EngineApiPigeonUtils.deepEquals(this.speed, other.speed) && EngineApiPigeonUtils.deepEquals(this.keepPitch, other.keepPitch) && EngineApiPigeonUtils.deepEquals(this.speedSteps, other.speedSteps) && EngineApiPigeonUtils.deepEquals(this.style, other.style) && EngineApiPigeonUtils.deepEquals(this.transitionOut, other.transitionOut)
   }
 
   override fun hashCode(): Int {
@@ -840,10 +919,11 @@ data class ClipSpec (
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.keepPitch)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.speedSteps)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.style)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.transitionOut)
     return result
   }
   override fun toString(): String {
-    return "ClipSpec(uri=$uri, kind=$kind, sourceDurationUs=$sourceDurationUs, sourceInUs=$sourceInUs, sourceOutUs=$sourceOutUs, speed=$speed, keepPitch=$keepPitch, speedSteps=$speedSteps, style=$style)"
+    return "ClipSpec(uri=$uri, kind=$kind, sourceDurationUs=$sourceDurationUs, sourceInUs=$sourceInUs, sourceOutUs=$sourceOutUs, speed=$speed, keepPitch=$keepPitch, speedSteps=$speedSteps, style=$style, transitionOut=$transitionOut)"
   }
 }
 
@@ -1040,60 +1120,70 @@ private open class EngineApiPigeonCodec : StandardMessageCodec() {
       }
       133.toByte() -> {
         (readValue(buffer) as Long?)?.let {
-          PlaybackStatus.ofRaw(it.toInt())
+          SpecTransitionType.ofRaw(it.toInt())
         }
       }
       134.toByte() -> {
-        (readValue(buffer) as? List<Any?>)?.let {
-          SpeedStepSpec.fromList(it)
+        (readValue(buffer) as Long?)?.let {
+          PlaybackStatus.ofRaw(it.toInt())
         }
       }
       135.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          TransformSampleSpec.fromList(it)
+          SpeedStepSpec.fromList(it)
         }
       }
       136.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          MaskSampleSpec.fromList(it)
+          TransformSampleSpec.fromList(it)
         }
       }
       137.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          MaskSpec.fromList(it)
+          MaskSampleSpec.fromList(it)
         }
       }
       138.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          ColorAdjustmentsSpec.fromList(it)
+          MaskSpec.fromList(it)
         }
       }
       139.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          ClipStyleSpec.fromList(it)
+          ColorAdjustmentsSpec.fromList(it)
         }
       }
       140.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          BackgroundSpec.fromList(it)
+          ClipStyleSpec.fromList(it)
         }
       }
       141.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          ClipSpec.fromList(it)
+          BackgroundSpec.fromList(it)
         }
       }
       142.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          CompositionSpec.fromList(it)
+          TransitionSpec.fromList(it)
         }
       }
       143.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          PlayerStateEvent.fromList(it)
+          ClipSpec.fromList(it)
         }
       }
       144.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          CompositionSpec.fromList(it)
+        }
+      }
+      145.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          PlayerStateEvent.fromList(it)
+        }
+      }
+      146.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
           WaveformData.fromList(it)
         }
@@ -1119,52 +1209,60 @@ private open class EngineApiPigeonCodec : StandardMessageCodec() {
         stream.write(132)
         writeValue(stream, value.raw.toLong())
       }
-      is PlaybackStatus -> {
+      is SpecTransitionType -> {
         stream.write(133)
         writeValue(stream, value.raw.toLong())
       }
-      is SpeedStepSpec -> {
+      is PlaybackStatus -> {
         stream.write(134)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is TransformSampleSpec -> {
+      is SpeedStepSpec -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is MaskSampleSpec -> {
+      is TransformSampleSpec -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is MaskSpec -> {
+      is MaskSampleSpec -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is ColorAdjustmentsSpec -> {
+      is MaskSpec -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is ClipStyleSpec -> {
+      is ColorAdjustmentsSpec -> {
         stream.write(139)
         writeValue(stream, value.toList())
       }
-      is BackgroundSpec -> {
+      is ClipStyleSpec -> {
         stream.write(140)
         writeValue(stream, value.toList())
       }
-      is ClipSpec -> {
+      is BackgroundSpec -> {
         stream.write(141)
         writeValue(stream, value.toList())
       }
-      is CompositionSpec -> {
+      is TransitionSpec -> {
         stream.write(142)
         writeValue(stream, value.toList())
       }
-      is PlayerStateEvent -> {
+      is ClipSpec -> {
         stream.write(143)
         writeValue(stream, value.toList())
       }
-      is WaveformData -> {
+      is CompositionSpec -> {
         stream.write(144)
+        writeValue(stream, value.toList())
+      }
+      is PlayerStateEvent -> {
+        stream.write(145)
+        writeValue(stream, value.toList())
+      }
+      is WaveformData -> {
+        stream.write(146)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)

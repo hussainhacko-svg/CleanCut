@@ -113,6 +113,7 @@ List<DockTool> dockToolsFor(TimelineSelection selection) => switch (selection) {
     DockTool.overlay,
     DockTool.ratio,
   ],
+  TransitionSelection() => const [DockTool.back],
   MainClipSelection() || OverlaySelection() => const [
     DockTool.back,
     DockTool.split,
@@ -308,6 +309,24 @@ class PropertiesPanel extends StatelessWidget {
     switch (selection) {
       case NoSelection():
         return (l10n.panelTitle, l10n.panelNothingSelected, false);
+      case TransitionSelection(:final afterClipId):
+        final index = project.mainTrack.clips.indexWhere(
+          (c) => c.id == afterClipId,
+        );
+        final t = index >= 0 ? project.mainTrack.transitionAfter(index) : null;
+        // A transition on clips too short for it plays as a hard cut.
+        final overlapUs = t == null ? 0 : project.mainTrack.overlapAfter(index);
+        return (
+          l10n.transitionTitle,
+          t == null
+              ? l10n.transitionNone
+              : overlapUs == 0
+              ? l10n.transitionTooShort
+              : l10n.transitionDurationValue(
+                  (overlapUs / 1000000).toStringAsFixed(1),
+                ),
+          t != null,
+        );
       case MainClipSelection(:final clipId):
         for (final clip in project.mainTrack.clips) {
           if (clip.id == clipId) {

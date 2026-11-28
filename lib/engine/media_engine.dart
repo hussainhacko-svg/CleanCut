@@ -17,8 +17,10 @@ export 'package:cleancut/engine/engine_api.g.dart'
         SpecFitMode,
         SpecMaskShape,
         SpecMediaKind,
+        SpecTransitionType,
         SpeedStepSpec,
         TransformSampleSpec,
+        TransitionSpec,
         WaveformData;
 
 /// A playback position, tagged with the texture id of its preview.

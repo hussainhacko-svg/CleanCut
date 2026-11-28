@@ -232,18 +232,21 @@ abstract class _$TimelineSelectionController
   }
 }
 
-/// The tool panel open in a project's editor, if any. Closes whenever the
-/// selection changes, since every panel edits the selected clip.
+/// The tool panel open in a project's editor, if any. Selecting a transition
+/// boundary opens [ToolPanelKind.transition]; other selection changes close
+/// any open panel.
 
 @ProviderFor(OpenToolPanel)
 final openToolPanelProvider = OpenToolPanelFamily._();
 
-/// The tool panel open in a project's editor, if any. Closes whenever the
-/// selection changes, since every panel edits the selected clip.
+/// The tool panel open in a project's editor, if any. Selecting a transition
+/// boundary opens [ToolPanelKind.transition]; other selection changes close
+/// any open panel.
 final class OpenToolPanelProvider
     extends $NotifierProvider<OpenToolPanel, ToolPanelKind?> {
-  /// The tool panel open in a project's editor, if any. Closes whenever the
-  /// selection changes, since every panel edits the selected clip.
+  /// The tool panel open in a project's editor, if any. Selecting a transition
+  /// boundary opens [ToolPanelKind.transition]; other selection changes close
+  /// any open panel.
   OpenToolPanelProvider._({
     required OpenToolPanelFamily super.from,
     required String super.argument,
@@ -288,10 +291,11 @@ final class OpenToolPanelProvider
   }
 }
 
-String _$openToolPanelHash() => r'559f20834036961eb0c0648996e60ac8118fb238';
+String _$openToolPanelHash() => r'f3cf2ddb29f11bd6fec7fe480c3f2277f4468cc6';
 
-/// The tool panel open in a project's editor, if any. Closes whenever the
-/// selection changes, since every panel edits the selected clip.
+/// The tool panel open in a project's editor, if any. Selecting a transition
+/// boundary opens [ToolPanelKind.transition]; other selection changes close
+/// any open panel.
 
 final class OpenToolPanelFamily extends $Family
     with
@@ -311,8 +315,9 @@ final class OpenToolPanelFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// The tool panel open in a project's editor, if any. Closes whenever the
-  /// selection changes, since every panel edits the selected clip.
+  /// The tool panel open in a project's editor, if any. Selecting a transition
+  /// boundary opens [ToolPanelKind.transition]; other selection changes close
+  /// any open panel.
 
   OpenToolPanelProvider call(String projectId) =>
       OpenToolPanelProvider._(argument: projectId, from: this);
@@ -321,8 +326,9 @@ final class OpenToolPanelFamily extends $Family
   String toString() => r'openToolPanelProvider';
 }
 
-/// The tool panel open in a project's editor, if any. Closes whenever the
-/// selection changes, since every panel edits the selected clip.
+/// The tool panel open in a project's editor, if any. Selecting a transition
+/// boundary opens [ToolPanelKind.transition]; other selection changes close
+/// any open panel.
 
 abstract class _$OpenToolPanel extends $Notifier<ToolPanelKind?> {
   late final _$args = ref.$arg as String;

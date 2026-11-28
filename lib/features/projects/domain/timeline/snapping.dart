@@ -8,10 +8,14 @@ const double snapDistancePx = 8;
 /// unique.
 List<int> snapTargets(Project project) {
   final targets = <int>{0};
-  var start = 0;
-  for (final clip in project.mainTrack.clips) {
-    start += clip.durationUs;
-    targets.add(start);
+  final main = project.mainTrack;
+  for (var i = 0; i < main.clips.length; i++) {
+    targets
+      ..add(main.startOf(i))
+      ..add(main.endOf(i));
+    if (i < main.clips.length - 1) {
+      targets.add(main.boundaryCenterOf(i));
+    }
   }
   for (final track in project.overlayTracks) {
     for (final item in track.items) {

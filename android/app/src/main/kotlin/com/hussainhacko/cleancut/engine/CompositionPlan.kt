@@ -13,19 +13,151 @@ data class CompositionPlan(
     val frameRate: Int,
     val background: BackgroundStyle = BackgroundStyle.DEFAULT,
 ) {
-    /** Length of the sequence: the sum of the trimmed items after their speed. */
-    val durationUs: Long get() = items.sumOf { it.timelineDurationUs }
+    /** Length of the sequence: sum of clip lengths minus active transition overlaps. */
+    val durationUs: Long
+        get() = if (items.isEmpty()) 0L else timelineStartsUs.last() + items.last().timelineDurationUs
 
-    /** Timeline start of each item: the sum of the earlier items' timeline lengths. */
+    /** Timeline start of each item, accounting for overlapping transitions. */
     val timelineStartsUs: List<Long>
-        get() = items.runningFold(0L) { start, item -> start + item.timelineDurationUs }.dropLast(1)
+        get() {
+            if (items.isEmpty()) return emptyList()
+            val starts = ArrayList<Long>(items.size)
+            var start = 0L
+            for (i in items.indices) {
+                starts.add(start)
+                if (i < items.lastIndex) {
+                    start += items[i].timelineDurationUs - overlapAfter(i)
+                }
+            }
+            return starts
+        }
+
+    /** Effective transition overlap in µs between item [index] and [index] + 1. */
+    fun overlapAfter(index: Int): Long {
+        if (index !in 0 until items.lastIndex) return 0L
+        val t = items[index].transitionOut ?: return 0L
+        if (t.durationUs <= 0L) return 0L
+        val cap = minOf(
+            MAX_TRANSITION_US,
+            minOf(items[index].timelineDurationUs, items[index + 1].timelineDurationUs) / 2L,
+        )
+        val overlap = minOf(t.durationUs, cap)
+        // Clips too short for the minimum play as a hard cut (matches Dart).
+        return if (overlap < MIN_TRANSITION_US) 0L else overlap
+    }
+
+    /** Effective transition overlap in µs before item [index]. */
+    fun overlapBefore(index: Int): Long = if (index <= 0) 0L else overlapAfter(index - 1)
+
+    /** True when at least one boundary has a non-zero transition overlap. */
+    val hasTransitions: Boolean get() = (0 until items.lastIndex).any { overlapAfter(it) > 0L }
+
+    /** True when at least one item is a video (may carry audio). */
+    val hasVideo: Boolean get() = items.any { !it.isImage }
+
+    /** Incoming and outgoing transitions for item [index] in clip-relative time. */
+    fun clipTransitionsFor(index: Int): ClipTransitions {
+        if (index !in items.indices) return ClipTransitions.NONE
+        val isTopLayer = index % 2 == 0
+        val inOverlap = overlapBefore(index)
+        val incoming = if (inOverlap > 0L) {
+            val type = items[index - 1].transitionOut?.type
+            if (type != null) {
+                ActiveTransition(
+                    type = type,
+                    startUs = 0L,
+                    durationUs = inOverlap,
+                    isOutgoing = false,
+                    isTopLayer = isTopLayer,
+                )
+            } else {
+                null
+            }
+        } else {
+            null
+        }
+        val outOverlap = overlapAfter(index)
+        val outgoing = if (outOverlap > 0L) {
+            val type = items[index].transitionOut?.type
+            if (type != null) {
+                ActiveTransition(
+                    type = type,
+                    startUs = items[index].timelineDurationUs - outOverlap,
+                    durationUs = outOverlap,
+                    isOutgoing = true,
+                    isTopLayer = isTopLayer,
+                )
+            } else {
+                null
+            }
+        } else {
+            null
+        }
+        return ClipTransitions(incoming = incoming, outgoing = outgoing)
+    }
 
     /**
-     * The plan without its looks (clip styles and background). Two plans with the same key play
-     * the same media the same way, so the preview can swap looks live instead of rebuilding.
+     * Ordered clips and gaps for A/B roll [lane] (`0` = even items, `1` = odd items),
+     * covering `[0, durationUs]` with no zero-length gaps.
+     */
+    fun laneSegments(lane: Int): List<LaneSegment> {
+        val starts = timelineStartsUs
+        val total = durationUs
+        val segments = mutableListOf<LaneSegment>()
+        var cursor = 0L
+        for (i in items.indices) {
+            if (i % 2 != lane) continue
+            val start = starts[i]
+            val end = start + items[i].timelineDurationUs
+            if (start > cursor) {
+                segments.add(LaneSegment.Gap(cursor, start))
+            }
+            segments.add(LaneSegment.Clip(i, start, end))
+            cursor = end
+        }
+        if (total > cursor) {
+            segments.add(LaneSegment.Gap(cursor, total))
+        }
+        return segments
+    }
+
+    /**
+     * Whether [lane] (`0` = even, `1` = odd) holds an active clip (not a gap) at
+     * composition timestamp [presentationTimeUs].
+     */
+    fun isLaneActiveAt(lane: Int, presentationTimeUs: Long): Boolean {
+        if (items.isEmpty()) return false
+        val starts = timelineStartsUs
+        val total = durationUs
+        if (presentationTimeUs >= total) {
+            return items.lastIndex % 2 == lane
+        }
+        for (i in items.indices) {
+            if (i % 2 != lane) continue
+            val start = starts[i]
+            val end = start + items[i].timelineDurationUs
+            if (presentationTimeUs >= start && presentationTimeUs < end) return true
+        }
+        return false
+    }
+
+    /**
+     * The plan without its looks (clip styles, background, and transition types — keeping
+     * transition durations because overlaps change track timing). Two plans with the same key
+     * play the same media with the same timing, so the preview can swap looks and transition
+     * types live without rebuilding.
      */
     val structureKey: CompositionPlan
-        get() = copy(items = items.map { it.copy(style = ClipStyle.DEFAULT) }, background = BackgroundStyle.DEFAULT)
+        get() = copy(
+            items = items.mapIndexed { i, item ->
+                val overlap = overlapAfter(i)
+                item.copy(
+                    style = ClipStyle.DEFAULT,
+                    transitionOut = if (overlap > 0L) ClipTransition(TransitionType.DISSOLVE, overlap) else null,
+                )
+            },
+            background = BackgroundStyle.DEFAULT,
+        )
 
     /** True when stills and videos mix, so audio must be padded with silence. */
     val needsSilentAudio: Boolean get() = items.any { it.isImage } && items.any { !it.isImage }
@@ -37,6 +169,12 @@ data class CompositionPlan(
         /** Slowest and fastest clip speed; matches the Dart model's `SpeedLimits`. */
         const val MIN_SPEED = 0.1f
         const val MAX_SPEED = 10f
+
+        /** Longest transition overlap (3 s); matches Dart `TransitionLimits.maxDurationUs`. */
+        const val MAX_TRANSITION_US = 3_000_000L
+
+        /** Shortest transition overlap (0.1 s); matches Dart `TransitionLimits.minDurationUs`. */
+        const val MIN_TRANSITION_US = 100_000L
 
         /** Used when the spec has no usable frame rate. */
         const val DEFAULT_FRAME_RATE = 30
@@ -66,6 +204,7 @@ data class CompositionPlan(
                     keepPitch = clip.keepPitch,
                     speedSteps = if (isImage) emptyList() else stepsOf(clip.speedSteps, end - start),
                     style = ClipStyle.of(clip.style),
+                    transitionOut = ClipTransition.of(clip.transitionOut),
                 )
             }
             val rate = spec.frameRate.toInt().takeIf { it in 1..240 } ?: DEFAULT_FRAME_RATE
@@ -108,6 +247,16 @@ data class CompositionPlan(
     }
 }
 
+/** One entry in an A/B roll lane sequence when transitions are active. */
+sealed class LaneSegment {
+    abstract val startUs: Long
+    abstract val endUs: Long
+    val durationUs: Long get() = endUs - startUs
+
+    data class Clip(val itemIndex: Int, override val startUs: Long, override val endUs: Long) : LaneSegment()
+    data class Gap(override val startUs: Long, override val endUs: Long) : LaneSegment()
+}
+
 /** A constant-speed piece of a curve, from [startUs] (source time from the trim start). */
 data class SpeedStep(val startUs: Long, val speed: Float)
 
@@ -128,6 +277,8 @@ data class PlannedItem(
     val speedSteps: List<SpeedStep> = emptyList(),
     /** Fit, crop, transform and border. */
     val style: ClipStyle = ClipStyle.DEFAULT,
+    /** Optional transition into the next clip. */
+    val transitionOut: ClipTransition? = null,
 ) {
     /** Length of the used source range. */
     val clippedDurationUs: Long get() = clipEndUs - clipStartUs

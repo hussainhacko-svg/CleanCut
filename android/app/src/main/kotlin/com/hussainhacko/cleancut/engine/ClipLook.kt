@@ -56,6 +56,103 @@ enum class MaskShape(val shaderKind: Int) {
     STAR(6),
 }
 
+/** Visual transition played across the overlap between two adjacent clips (Phase 6C). */
+enum class TransitionType(val shaderKind: Int) {
+    DISSOLVE(1),
+    FADE_BLACK(2),
+    FADE_WHITE(3),
+    CIRCLE(4),
+    SLIDE_LEFT(5),
+    SLIDE_RIGHT(6),
+    SLIDE_UP(7),
+    SLIDE_DOWN(8),
+    WIPE_LEFT(9),
+    WIPE_RIGHT(10),
+    WIPE_UP(11),
+    WIPE_DOWN(12),
+    ZOOM_IN(13),
+    ZOOM_OUT(14),
+    ;
+
+    companion object {
+        fun of(spec: SpecTransitionType): TransitionType = when (spec) {
+            SpecTransitionType.DISSOLVE -> DISSOLVE
+            SpecTransitionType.FADE_BLACK -> FADE_BLACK
+            SpecTransitionType.FADE_WHITE -> FADE_WHITE
+            SpecTransitionType.CIRCLE -> CIRCLE
+            SpecTransitionType.SLIDE_LEFT -> SLIDE_LEFT
+            SpecTransitionType.SLIDE_RIGHT -> SLIDE_RIGHT
+            SpecTransitionType.SLIDE_UP -> SLIDE_UP
+            SpecTransitionType.SLIDE_DOWN -> SLIDE_DOWN
+            SpecTransitionType.WIPE_LEFT -> WIPE_LEFT
+            SpecTransitionType.WIPE_RIGHT -> WIPE_RIGHT
+            SpecTransitionType.WIPE_UP -> WIPE_UP
+            SpecTransitionType.WIPE_DOWN -> WIPE_DOWN
+            SpecTransitionType.ZOOM_IN -> ZOOM_IN
+            SpecTransitionType.ZOOM_OUT -> ZOOM_OUT
+        }
+    }
+}
+
+/** Transition between a clip and the clip immediately following it. */
+data class ClipTransition(val type: TransitionType, val durationUs: Long) {
+    companion object {
+        fun of(spec: TransitionSpec?): ClipTransition? {
+            if (spec == null || spec.durationUs <= 0L) return null
+            return ClipTransition(TransitionType.of(spec.type), spec.durationUs)
+        }
+    }
+}
+
+/** One side (incoming or outgoing) of a transition evaluated in clip-relative time. */
+data class ActiveTransition(
+    val type: TransitionType,
+    val startUs: Long,
+    val durationUs: Long,
+    val isOutgoing: Boolean,
+    /** True when this clip lives on lane 0 (composited on top of lane 1). */
+    val isTopLayer: Boolean,
+)
+
+/** Shader-ready transition state for a single frame. */
+data class TransitionEval(
+    val kind: Int = 0,
+    val progress: Float = 0f,
+    val isOutgoing: Boolean = false,
+    val isTopLayer: Boolean = false,
+) {
+    companion object {
+        val NONE = TransitionEval()
+    }
+}
+
+/** Incoming and outgoing transitions belonging to a single clip (swappable live). */
+data class ClipTransitions(
+    val incoming: ActiveTransition? = null,
+    val outgoing: ActiveTransition? = null,
+) {
+    /** Evaluates the active transition at clip-relative [clipTimeUs], or [TransitionEval.NONE]. */
+    fun evaluate(clipTimeUs: Long): TransitionEval {
+        incoming?.let { tr ->
+            if (tr.durationUs > 0L && clipTimeUs >= tr.startUs && clipTimeUs < tr.startUs + tr.durationUs) {
+                val p = ((clipTimeUs - tr.startUs).toDouble() / tr.durationUs).coerceIn(0.0, 1.0).toFloat()
+                return TransitionEval(tr.type.shaderKind, p, isOutgoing = false, isTopLayer = tr.isTopLayer)
+            }
+        }
+        outgoing?.let { tr ->
+            if (tr.durationUs > 0L && clipTimeUs >= tr.startUs && clipTimeUs <= tr.startUs + tr.durationUs) {
+                val p = ((clipTimeUs - tr.startUs).toDouble() / tr.durationUs).coerceIn(0.0, 1.0).toFloat()
+                return TransitionEval(tr.type.shaderKind, p, isOutgoing = true, isTopLayer = tr.isTopLayer)
+            }
+        }
+        return TransitionEval.NONE
+    }
+
+    companion object {
+        val NONE = ClipTransitions()
+    }
+}
+
 /** A clip mask's geometry at clip-relative timeline time [timeUs]. */
 data class MaskSample(
     val timeUs: Long,

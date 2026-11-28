@@ -327,7 +327,7 @@ void main() {
 
       final decoded = codec.decode(codec.encode(p));
       expect(decoded, p);
-      expect(decoded.schemaVersion, 5);
+      expect(decoded.schemaVersion, Project.currentSchemaVersion);
       expect(decoded.mainTrack.clips.first.blur.valueAt(0, lerpDouble), 0.45);
       expect(decoded.mainTrack.clips.first.mask?.shape, MaskShape.star);
       expect(decoded.mainTrack.clips.first.mask?.invert, isTrue);

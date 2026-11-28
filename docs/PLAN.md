@@ -197,7 +197,7 @@ Each phase ends with a working, tested build and a tag `v0.<phase>.0`.
 - [x] Adjustments panel
 - [x] Blur (whole clip)
 - [x] Mask: linear, mirror, circle, rect, heart, star — on-preview handles, feather, invert
-- [ ] Transitions between main-track clips (VCLIP ⧓ marker on each boundary; owner-added). Give the marker a real tap target without stealing taps from short clips
+- [x] Transitions between main-track clips (VCLIP ⧓ marker on each boundary; owner-added). Give the marker a real tap target without stealing taps from short clips
 
 ### Phase 7 — Photos & layers
 - [ ] Image clips on main track (default 3s) and overlay tracks (PiP)

@@ -257,6 +257,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Move the playhead over the selected clip to split it.';
 
   @override
+  String get editorSplitTransition =>
+      'Splitting here would shorten a transition. Move the playhead further from it.';
+
+  @override
   String speedValue(double value) {
     final intl.NumberFormat valueNumberFormat =
         intl.NumberFormat.decimalPattern(localeName);
@@ -609,4 +613,83 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get maskOverlayLabel => 'Mask handles';
+
+  @override
+  String get transitionTitle => 'Transition';
+
+  @override
+  String get transitionNone => 'None';
+
+  @override
+  String get transitionCategoryBasic => 'Basic';
+
+  @override
+  String get transitionCategorySlide => 'Slide';
+
+  @override
+  String get transitionCategoryWipe => 'Wipe';
+
+  @override
+  String get transitionCategoryZoom => 'Zoom';
+
+  @override
+  String get transitionDissolve => 'Dissolve';
+
+  @override
+  String get transitionFadeBlack => 'Fade black';
+
+  @override
+  String get transitionFadeWhite => 'Fade white';
+
+  @override
+  String get transitionCircle => 'Circle';
+
+  @override
+  String get transitionSlideLeft => 'Slide left';
+
+  @override
+  String get transitionSlideRight => 'Slide right';
+
+  @override
+  String get transitionSlideUp => 'Slide up';
+
+  @override
+  String get transitionSlideDown => 'Slide down';
+
+  @override
+  String get transitionWipeLeft => 'Wipe left';
+
+  @override
+  String get transitionWipeRight => 'Wipe right';
+
+  @override
+  String get transitionWipeUp => 'Wipe up';
+
+  @override
+  String get transitionWipeDown => 'Wipe down';
+
+  @override
+  String get transitionZoomIn => 'Zoom in';
+
+  @override
+  String get transitionZoomOut => 'Zoom out';
+
+  @override
+  String get transitionDuration => 'Duration';
+
+  @override
+  String transitionDurationValue(String seconds) {
+    return '${seconds}s';
+  }
+
+  @override
+  String get transitionApplyAll => 'Apply to all';
+
+  @override
+  String get transitionTooShort => 'Clips are too short for a transition.';
+
+  @override
+  String timelineTransitionBetween(int first, int second) {
+    return 'Transition between clips $first and $second';
+  }
 }
