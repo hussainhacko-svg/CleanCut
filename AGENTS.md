@@ -56,7 +56,7 @@ lib/
     app.dart                    # MaterialApp, theme + l10n wiring
     router.dart                 # go_router routes (AppRoutes)
     licenses.dart               # font licenses registration
-    theme/app_theme.dart        # ThemeData built from VCLIP tokens
+    theme/app_theme.dart        # ThemeData built from Clipcraft tokens
     l10n/app_en.arb             # ALL user-facing strings (gen/ is generated)
   core/                         # shared, no feature logic
     storage/                    # app_directories, atomic_file
@@ -75,8 +75,9 @@ lib/
         model/                  # Project, Clip, tracks, time, canvas, speed_curve,
                                 # clip_transform, clip_style, clip_color, clip_effects,
                                 # canvas_background, keyframe, animatable, easing,
-                                # retiming, crop_editing, transform_editing, mask_editing
-        commands/               # clip_, project_, style_commands (EditCommands)
+                                # retiming, crop_editing, transform_editing, mask_editing,
+                                # clip_transition
+        commands/               # clip_, project_, style_, transition_commands (EditCommands)
         history/                # EditCommand + History (undo/redo, coalescing)
         timeline/               # ruler, scale, snapping, reorder, selection
         project_repository.dart # repository interface
@@ -99,7 +100,8 @@ lib/
                                 # tabs, bubbles, slider rows, swatches, value dialog),
                                 # speed_panel, speed_scale, curve_widgets,
                                 # crop_panel, transform_panel, ratio_panel,
-                                # filters_panel, adjust_panel, blur_panel, mask_panel
+                                # filters_panel, adjust_panel, blur_panel, mask_panel,
+                                # transition_panel
     settings/                   # domain/app_settings, data/file_settings_repository,
                                 # presentation/settings_screen + providers
 pigeons/                        # bridge definitions (source of truth)
@@ -109,6 +111,7 @@ android/app/src/main/kotlin/com/hussainhacko/cleancut/
   engine/                       # EngineHost, Media3Composer, CompositionPlan,
                                 # PreviewPlayer, ClipLook (math), ClipRenderEffect (GL),
                                 # Thumbnail*/Waveform*/PeakAccumulator, CacheKeys,
+                                # CubeLut, LutLibrary, FilterPreviewGenerator,
                                 # EngineApi.g.kt
   media/                        # MediaPicker.kt, MediaPickerApi.g.kt
 android/app/src/test/kotlin/…/engine/   # JVM unit tests
@@ -288,23 +291,13 @@ docs/PLAN.md, docs/DESIGN.md
 | 6A — filters & adjustments | done | `main` (PR #14) |
 | Playhead-past-end fix | done | `main` (PR #15) |
 | 6B — blur & mask | done | `main` (PR #16) |
-| 6C — transitions | in review | `feat/phase-6c-transitions` |
+| 6C — transitions | done | `main` (PR #17) |
+| Unused code & docs cleanup | in review | `chore/cleanup-unused` |
 | 7 — photos & layers | next | — |
 
-**Phase 6C handoff:** transitions between adjacent main-track clips (14 types,
-`0.1s`..`min(3s, shorter/2)`, default `0.5s`), equal-power audio crossfade, A/B-roll
-two-sequence Media3 composition + GL shader, schema v6, `SetTransitionCommand` /
-`ApplyTransitionToAllCommand`, `TransitionPanel`, `⧓` timeline markers. Media3 1.11.1's
-multi-input graph can't flush or redraw, so with transitions `PreviewPlayer` rebuilds
-the player, coalesced (120 ms debounce, 400 ms max wait; looks swap live while playing).
-Review fixes (Claude) are in: rebuild coalescing (scrub ~50 → 4 rebuilds), fade-white
-midpoint flash, overlaps < 0.1 s = hard cut, split can't shorten a transition, hard-cut
-sequence as on `main`. Emulator-checked: all of these, a still and an audio-less video
-inside transitions, and the gain clock matches the timeline at 1× and 2×.
-Media3's multi-sequence player never reports ENDED, so `PreviewPlayer` ends a
-transition preview itself within 40 ms of the end (pause, redraw the last frame, report
-ENDED; play restarts from 0). `Apply to all` sits in the tabs row.
-Export untested (Phase 10). All uncommitted.
+**Cleanup handoff:** removed code, strings and icons that nothing used (see the
+`chore/cleanup-unused` PR) and refreshed README / PLAN / DESIGN text. Domain helpers that
+only tests use were kept.
 
 **Phase 5 leftovers:** tactile feel of haptics needs a physical device
 (emulator has no vibration motor). Reset on a keyframed property only

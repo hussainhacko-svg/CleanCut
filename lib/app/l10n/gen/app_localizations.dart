@@ -172,12 +172,6 @@ abstract class AppLocalizations {
   /// **'New project'**
   String get homeNewProject;
 
-  /// No description provided for @homeMyProjects.
-  ///
-  /// In en, this message translates to:
-  /// **'My projects'**
-  String get homeMyProjects;
-
   /// No description provided for @homeEmptyTitle.
   ///
   /// In en, this message translates to:
@@ -201,12 +195,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Options for {name}'**
   String homeProjectOptions(String name);
-
-  /// No description provided for @projectClipCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =0{Empty} =1{1 clip} other{{count} clips}}'**
-  String projectClipCount(int count);
 
   /// Last-edited date on a project card, e.g. 26, Aug, 2023.
   ///
@@ -483,12 +471,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Audio'**
   String get laneAudio;
-
-  /// No description provided for @timelineTransition.
-  ///
-  /// In en, this message translates to:
-  /// **'Transition'**
-  String get timelineTransition;
 
   /// No description provided for @timelineMuteOriginal.
   ///
@@ -801,12 +783,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Corners'**
   String get transformBorderCorners;
-
-  /// No description provided for @transformBorderColor.
-  ///
-  /// In en, this message translates to:
-  /// **'Color'**
-  String get transformBorderColor;
 
   /// A whole-number percentage, e.g. 100% or -50%.
   ///

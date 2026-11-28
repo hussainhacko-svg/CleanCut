@@ -16,9 +16,6 @@ enum AppIcons {
   /// Plus / add action.
   plus('plus'),
 
-  /// Back chevron.
-  chevronLeft('chevron_left'),
-
   /// Forward chevron.
   chevronRight('chevron_right'),
 
@@ -31,17 +28,8 @@ enum AppIcons {
   /// About / info.
   info('info'),
 
-  /// Keyframe / gestures diamond.
-  keyframe('keyframe'),
-
-  /// Snap magnet.
-  magnet('magnet'),
-
   /// Back to the home screen from the editor.
   home('chevron_left'),
-
-  /// Export the video.
-  export('export'),
 
   /// Start playback.
   play('play'),
@@ -144,9 +132,6 @@ enum AppIcons {
 
   /// Lane pill glyph: overlay.
   laneOverlay('layers'),
-
-  /// Lane pill glyph: effect.
-  laneEffect('effects'),
 
   /// Lane pill glyph: audio.
   laneAudio('music'),

@@ -8,7 +8,7 @@ Touch-first video editor for Android phones and tablets, built with Flutter (UI)
 |---|---|
 | Platform | Android only, minSdk 29 (Android 10) |
 | UI | Flutter 3.47.9 (FVM), Material 3, dark only (owner decision) |
-| Layout | Bottom Dock (phone) / Tool rail + Properties panel (tablet) — see `DESIGN.md` |
+| Layout | Clipcraft Editor B (phone) / Neon Focus (tablet) — see `DESIGN.md` |
 | Engine | Kotlin, AndroidX Media3 `CompositionPlayer` (preview) + `Transformer` (export), OpenGL ES effects |
 | Bridge | Pigeon (typed), preview rendered into a Flutter `Texture` via `SurfaceProducer` |
 | State | Riverpod 3 + code generation |
@@ -93,29 +93,21 @@ TextClip{ id, text, style: TextStyleSpec, animation: TextAnimation, transform, s
 
 ## 3. Project structure
 
+The detailed file map lives in `AGENTS.md` §3. In short:
+
 ```
 lib/
-  main.dart
-  app/            app.dart, router.dart, theme/, l10n/
-  core/           widgets/, utils/, errors/
-  engine/         engine_api.dart (generated), engine_client.dart, spec_mapper.dart
+  main.dart       composition root (overrides cross-feature providers)
+  app/            app shell, router, theme, l10n
+  core/           shared widgets, theme tokens, storage, utilities
+  engine/         Dart wrapper over the native engine + Pigeon output
   features/
-    projects/     home screen, project list, create/duplicate/delete,
-                  and (owner decision) the editor: presentation/editor/, playback/
-    media_import/ photo picker, media metadata
-    editor/       editor shell, bottom dock, responsive scaffold
-    timeline/     tracks, clips, ruler, playhead, zoom, thumbnails, waveforms
-    playback/     preview texture, transport controls
-    edit/         trim, split, speed, delete, duplicate, reorder
-    transform/    crop, rotate, position, size, mirror, flip, fill
-    style/        background, border, opacity, blur, mask
-    filters/      filter presets, adjustments
-    text/         text clips, styles, motion
-    audio/        audio tracks, volume, fades, extract
-    export/       export settings, progress, share
-    settings/     about / licenses (later: defaults)
-pigeons/engine.dart
-android/app/src/main/kotlin/com/hussainhacko/cleancut/engine/...
+    projects/     home screen and the editor (domain model + commands,
+                  data/JSON, presentation: timeline, panels, overlays, playback)
+    media_import/ photo picker
+    settings/     about / licenses
+pigeons/          bridge definitions (source of truth)
+android/app/src/main/kotlin/com/hussainhacko/cleancut/   engine/, media/
 test/             mirrors lib/
 ```
 
@@ -135,7 +127,7 @@ test/             mirrors lib/
 | `mocktail` (dev) | Tests | 1 |
 | Gradle: `androidx.media3:media3-transformer`, `-effect`, `-common`, `-exoplayer` (+ `CompositionPlayer`) | Engine | 2 |
 | Gradle: `kotlinx-coroutines-android` | Engine | 2 |
-| `flutter_svg` | VCLIP kit icons (owner-approved) | 2 |
+| `flutter_svg` | Clipcraft SVG icons (owner-approved) | 2 |
 | Gradle (test): `junit:junit` | Engine JVM unit tests (owner-approved) | 2 |
 
 Anything not listed requires owner approval (see AGENTS.md §2).
@@ -153,13 +145,13 @@ Each phase ends with a working, tested build and a tag `v0.<phase>.0`.
 - [x] GitHub repository
 
 ### Phase 1 — App shell & project model ✅
-- [x] Add Phase-1 deps; theme (dark/light M3), l10n wiring, go_router
+- [x] Add Phase-1 deps; theme (M3, dark only), l10n wiring, go_router
 - [x] Domain: `Project`, tracks, clips, `Animatable`, `Keyframe`, time utils (µs)
 - [x] `EditCommand` + `History` (undo/redo, coalescing for drags)
 - [x] `ProjectRepository` (JSON files in app docs dir, schemaVersion, autosave)
 - [x] Home screen: project grid, new project (pick media via Photo Picker, choose aspect), rename/duplicate/delete
 - [x] Tests: model invariants, commands, serialization round-trip
-- [x] Restyle to the VCLIP Figma kit (theme tokens, Plus Jakarta Sans / Bebas Neue, home list + New project tile, panel-style canvas picker)
+- [x] Restyle to the VCLIP Figma kit (later replaced by Clipcraft, PR #13)
 
 ### Phase 2 — Native engine spike (highest risk — do early)
 - [x] Pigeon `EngineHostApi` / `EngineFlutterApi` (events: position, state, errors)
@@ -170,7 +162,7 @@ Each phase ends with a working, tested build and a tag `v0.<phase>.0`.
 - [ ] Spike test on a low-end device (target: 1080p preview ≥ 30fps, seek < 150ms) — verified on the emulator only; needs a real low-end phone
 
 ### Phase 3 — Editor shell & timeline
-- [x] Responsive editor scaffold (Bottom Dock / Rail + Panel) — see DESIGN.md
+- [x] Responsive editor scaffold (phone bottom sheet / tablet inspector) — see DESIGN.md
 - [x] Timeline: ruler, playhead fixed center, horizontal scroll = scrub, pinch zoom
 - [x] Clip thumbnails strip, overlay/text/audio lanes, selection, magnetic snapping + haptics (the text lane renders once Phase 8 adds text clips to the model)
 - [x] Transport bar, full-screen preview, undo/redo buttons

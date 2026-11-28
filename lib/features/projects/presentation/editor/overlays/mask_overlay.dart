@@ -31,7 +31,6 @@ class MaskOverlay extends StatefulWidget {
   const new({
     required this.shape,
     required this.mask,
-    required this.invert,
     required this.clipTransform,
     required this.sourceRatio,
     required this.crop,
@@ -47,9 +46,6 @@ class MaskOverlay extends StatefulWidget {
 
   /// Current resolved mask parameters at the playhead.
   final ResolvedMask mask;
-
-  /// Whether the mask is inverted.
-  final bool invert;
 
   /// Clip transform at the playhead (used to align mask space to pixels).
   final ResolvedTransform clipTransform;

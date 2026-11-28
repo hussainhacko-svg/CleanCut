@@ -41,9 +41,6 @@ abstract class MediaRef with _$MediaRef {
   /// Parses a media reference from JSON.
   factory fromJson(Map<String, dynamic> json) => _$MediaRefFromJson(json);
 
-  /// Whether the media has its own length (video and audio do).
-  bool get hasIntrinsicDuration => durationUs != null;
-
   /// Whether the display is rotated a quarter turn.
   bool get isQuarterTurned => rotationDegrees % 180 != 0;
 

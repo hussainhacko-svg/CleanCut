@@ -17,14 +17,11 @@
   "settingsLicenses": "Open source licenses",
 
   "homeNewProject": "New project",
-  "homeMyProjects": "My projects",
   "homeEmptyTitle": "No projects yet",
   "homeEmptyBody": "Tap + to pick videos and photos.",
   "homeLoadFailed": "Couldn't load your projects.",
   "homeProjectOptions": "Options for {name}",
   "@homeProjectOptions": {"placeholders": {"name": {"type": "String"}}},
-  "projectClipCount": "{count, plural, =0{Empty} =1{1 clip} other{{count} clips}}",
-  "@projectClipCount": {"placeholders": {"count": {"type": "int"}}},
   "projectCardDate": "{date}",
   "@projectCardDate": {"description": "Last-edited date on a project card, e.g. 26, Aug, 2023.", "placeholders": {"date": {"type": "DateTime", "format": "d, MMM, y", "isCustomDateFormat": "true"}}},
   "projectDefaultName": "Project {date}",
@@ -82,7 +79,6 @@
 
   "laneOverlay": "Overlay",
   "laneAudio": "Audio",
-  "timelineTransition": "Transition",
   "timelineMuteOriginal": "Mute original audio",
 
   "panelTitle": "Properties",
@@ -143,7 +139,6 @@
   "transformOpacity": "Opacity",
   "transformBorderWidth": "Width",
   "transformBorderCorners": "Corners",
-  "transformBorderColor": "Color",
   "percentValue": "{value}%",
   "@percentValue": {"description": "A whole-number percentage, e.g. 100% or -50%.", "placeholders": {"value": {"type": "int"}}},
   "valueRangeLabel": "{min} to {max}",

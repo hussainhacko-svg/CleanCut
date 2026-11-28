@@ -136,9 +136,10 @@ class ProjectScreen extends ConsumerWidget {
   }
 }
 
-/// The editor layout (DESIGN.md §2, kit "Timeline"): on phones preview,
-/// transport, timeline and dock stacked; on tablets (≥ 840dp) a tool rail,
-/// the preview and a properties panel above a full-width timeline.
+/// The editor layout (DESIGN.md §2): on phones (Editor B) the preview above a
+/// rounded bottom sheet holding the transport, timeline and tool tray or panel;
+/// on tablets (≥ 840dp, Neon Focus) a top bar, the preview beside a floating
+/// inspector card, the transport, a full-width timeline and a bottom tool tray.
 class _Editor extends ConsumerWidget {
   const new({
     required this.projectId,
@@ -1388,7 +1389,6 @@ class _ClipMaskOverlayState extends ConsumerState<_ClipMaskOverlay> {
     return MaskOverlay(
       shape: mask.shape,
       mask: snapshot.mask,
-      invert: mask.invert,
       clipTransform: snapshot.transform,
       sourceRatio: sourceRatio,
       crop: clip.crop,

@@ -46,9 +46,6 @@ final class History {
   /// Number of available undo steps.
   int get undoDepth => _past.length;
 
-  /// Number of available redo steps.
-  int get redoDepth => _future.length;
-
   /// Applies [command] and records an undo step.
   ///
   /// If [command] has the same non-null [EditCommand.coalesceKey] as the

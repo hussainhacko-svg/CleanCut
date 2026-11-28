@@ -66,11 +66,11 @@ Horizontally scrolling row (`ToolDock`, height 64dp); items ≥ 60dp wide with 2
 | Text selected (Phase 8, kit "Edit") | ‹ Back · Split · Edit · Delete · Color · Font · Align |
 | Audio selected | ‹ Back · Split · Volume · Speed · Delete |
 
-Tools whose phase hasn't shipped show "Coming in a later update." All icons come from the Clipcraft icon pack (`assets/icons/`). Category icons keep their built-in duotone color; the pack's uncategorized grey glyphs (chevrons, close, plus, more, settings, info, sun, moon, sliders) take the ambient icon color so they follow the theme and dim when disabled (`AppIcons.neutral`). On filled buttons every icon is tinted `onPrimary`. **Duplicate** sits right after Split (owner decision).
+Tools whose phase hasn't shipped show "Coming in a later update." All icons come from the Clipcraft icon pack (`assets/icons/`). Category icons keep their built-in duotone color; the pack's uncategorized grey glyphs (chevrons, close, plus, more, settings, info, sliders) take the ambient icon color so they follow the theme and dim when disabled (`AppIcons.neutral`). On filled buttons every icon is tinted `onPrimary`. **Duplicate** sits right after Split (owner decision).
 
 - **Split** cuts the selected clip at the playhead; with the playhead outside the clip (or within 0.1 s of an edge) a snackbar says to move it. **Delete** removes the clip at once (undoable, no dialog). Overlay and audio clips get these tools with their phases.
 
-### Speed panel (VCLIP "Speed")
+### Speed panel
 
 ```
 ┌──────────────────────────────┐
@@ -102,7 +102,7 @@ Tools whose phase hasn't shipped show "Coming in a later update." All icons come
 - **Curve editor:** a 150dp graph of speed (10× top, 1× middle, 0.1× bottom, log scale, labelled guides) over the clip, the curve in `primary`, points as white dots (selected: larger, `primary` centre), and a white playhead line. Drag a point up/down (end points) or anywhere between its neighbours (inner points); near 1× it snaps with a haptic tick; the change applies on release (one undo step). Tap a point to select it. The button on the right is **Add point** (adds at the playhead; off when the playhead is outside the clip, on a point, or 10 points exist) or, with an inner point selected, **Delete point**. **‹ Presets** goes back to the tiles.
 - The curve follows the clip (owner decision): trimming stretches it, splitting divides it.
 
-### Crop panel (VCLIP "Crop")
+### Crop panel
 
 ```
 ┌──────────────────────────────┐
@@ -131,7 +131,7 @@ Tools whose phase hasn't shipped show "Coming in a later update." All icons come
 - **Keyframes:** each animatable row (X, Y, Scale, Rotation, Opacity) carries a 48dp ◇/◆ toggle at the right (muted hollow = constant, bright hollow = animated elsewhere, accent-gradient filled = keyframe at playhead). Timeline main clips show accent-gradient diamond markers along the top edge at every distinct keyframe timestamp, keeping them visible when an open panel shrinks the timeline and clear of the centered trim handles and `⧓` markers.
 - **On-preview `TransformGizmo`:** active whenever a main clip is selected and the playhead is on it (except while `CropOverlay` is open, which also hides when the playhead leaves the clip). 1-finger drag moves; 2-finger pinch/twist scales and rotates continuously (unwrapped angle deltas). Magnetic snap guides (canvas center X/Y, rotated bounding-box edges, and 0°/90°/180°/270° with an angle pill) draw in the accent gradient with a haptic tick on snap; each gesture coalesces into one undo step.
 
-### Ratio & Background panel (VCLIP "Ratio")
+### Ratio & Background panel
 
 - **Ratio** dock item opens a two-tab panel (`Ratio | Background`) with tab-scoped Reset:
   - **Ratio:** kit rounded aspect outlines (`Original`, 9:16, 16:9, 1:1, 4:5, 3:4, 4:3).
@@ -151,7 +151,7 @@ Tools whose phase hasn't shipped show "Coming in a later update." All icons come
   - **Apply to all** (when ≥ 3 clips exist; at the end of the category-tabs row so the panel fits the phone sheet without scrolling) copies the active transition (or clears all) across every cut in one undo step; **Reset** removes the transition on the selected boundary.
 - **Adaptive `⧓` tap targets:** each marker uses a 48dp tall target whose horizontal reach into each neighbor is full 24dp (48dp total) on clips ≥ 48dp wide and shrinks to 30% on short clips (0dp below 8dp) so short clips stay tappable; markers on a selected clip's own edges yield to trim handles, so while either neighbouring clip is selected its marker shows but can't be tapped (deselect the clip, or tap empty timeline, to reach it). Active transitions tint the `⧓` badge and show an accent overlap bar along the bottom edge of the strip.
 
-### Timeline (VCLIP "Timeline")
+### Timeline
 
 - Ruler: labels every major step (5 s at the default zoom of 22.8 px/s) in 12px at 50% white, 4 dots between labels. Steps adapt to zoom so labels stay ≥ 90px apart.
 - Playhead: a 2px white line fixed in the middle, spanning the lanes only. Dragging the timeline scrubs; within 8px of a clip edge it snaps there with a haptic tick; playback resumes after the drag if it was playing. Two-finger pinch zooms around the playhead.

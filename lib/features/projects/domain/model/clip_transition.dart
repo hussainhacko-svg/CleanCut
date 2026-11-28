@@ -115,10 +115,6 @@ abstract final class TransitionLimits {
     );
     return overlap < minDurationUs ? 0 : overlap;
   }
-
-  /// Clamps [durationUs] into `[minDurationUs, maxDurationUs]`.
-  static int clampDurationUs(int durationUs) =>
-      durationUs.clamp(minDurationUs, maxDurationUs);
 }
 
 /// Transition applied between a main-track clip and the clip immediately
