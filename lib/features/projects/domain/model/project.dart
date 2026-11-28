@@ -37,7 +37,8 @@ abstract class Project with _$Project {
   /// have `crop` and `border` (Phase 5).
   /// 4: clips may have `filter` and `adjustments` (Phase 6A).
   /// 5: clips may have `blur` and `mask` (Phase 6B).
-  static const int currentSchemaVersion = 5;
+  /// 6: `mainTrack` may have `transitions` between clips (Phase 6C).
+  static const int currentSchemaVersion = 6;
 
   /// Length of the whole edit: the end of the latest track.
   int get durationUs {
@@ -77,6 +78,9 @@ abstract class Project with _$Project {
       checkId(path, clip.id);
       problems.addAll(clip.validate().map((p) => '$path: $p'));
     }
+    problems.addAll(
+      mainTrack.validateTransitions().map((p) => 'mainTrack: $p'),
+    );
 
     final trackIds = <String>{};
     for (final (t, track) in overlayTracks.indexed) {

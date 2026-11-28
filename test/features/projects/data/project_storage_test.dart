@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:cleancut/features/projects/data/autosaver.dart';
 import 'package:cleancut/features/projects/data/file_project_repository.dart';
 import 'package:cleancut/features/projects/data/project_codec.dart';
+import 'package:cleancut/features/projects/domain/model/clip_transition.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/project_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +18,27 @@ void main() {
     test('round-trips a project', () {
       final p = project(mainSeconds: [1, 2]);
       expect(codec.decode(codec.encode(p)), p);
+    });
+
+    test('round-trips transitions and migrates v5 projects to v6', () {
+      final base = project(mainSeconds: [3, 4]);
+      final withTransition = base.copyWith(
+        mainTrack: base.mainTrack.copyWith(
+          transitions: const {
+            'm0': ClipTransition(
+              type: TransitionType.slideLeft,
+              durationUs: 700000,
+            ),
+          },
+        ),
+      );
+      expect(codec.decode(codec.encode(withTransition)), withTransition);
+
+      final v5Json = base.toJson()..['schemaVersion'] = 5;
+      (v5Json['mainTrack'] as Map<String, dynamic>).remove('transitions');
+      final decoded = codec.decode(jsonEncode(v5Json));
+      expect(decoded.schemaVersion, Project.currentSchemaVersion);
+      expect(decoded.mainTrack.transitions, isEmpty);
     });
 
     test('rejects files from a newer app', () {
@@ -40,15 +62,16 @@ void main() {
     });
 
     test('runs migrations in order up to the current version', () {
-      // Simulates a future schema 6 whose project name moved twice.
+      // Simulates a future schema 7 whose project name moved twice.
       final migrating = ProjectCodec(
-        currentVersion: 6,
+        currentVersion: 7,
         migrations: {
           1: (json) => {...json, 'title': json['label']},
           2: (json) => {...json, 'name': json['title']},
           3: (json) => json,
           4: (json) => json,
           5: (json) => json,
+          6: (json) => json,
         },
       );
       final v1 = project().toJson()
@@ -56,7 +79,7 @@ void main() {
         ..['label'] = 'Old'
         ..['schemaVersion'] = 1;
       final migrated = migrating.migrate(v1);
-      expect(migrated['schemaVersion'], 6);
+      expect(migrated['schemaVersion'], 7);
       expect(migrated['name'], 'Old');
     });
 

@@ -149,8 +149,9 @@ docs/PLAN.md, docs/DESIGN.md
   points over source progress (0–1), monotone cubic in log-speed space;
   model and engine both use the same **64 constant-speed steps**. Trim
   stretches a curve; split divides it (each half resampled from the original).
-- **Schema:** `Project.currentSchemaVersion` is **5** (v2 speed curves, v3
-  crop/border/background/keyframes, v4 filter/adjustments, v5 blur/mask). Any
+- **Schema:** `Project.currentSchemaVersion` is **6** (v2 speed curves, v3
+  crop/border/background/keyframes, v4 filter/adjustments, v5 blur/mask,
+  v6 main-track transitions). Any
   format change bumps it with a migration in `project_codec.dart` and a
   migration test.
 - Minimum clip length is 0.1 s.
@@ -286,18 +287,24 @@ docs/PLAN.md, docs/DESIGN.md
 | Clipcraft UI redesign | done | `main` (PR #13) |
 | 6A — filters & adjustments | done | `main` (PR #14) |
 | Playhead-past-end fix | done | `main` (PR #15) |
-| 6B — blur & mask | in review | `feat/phase-6b-blur-mask` |
-| 6C — transitions | next | — |
+| 6B — blur & mask | done | `main` (PR #16) |
+| 6C — transitions | in review | `feat/phase-6c-transitions` |
+| 7 — photos & layers | next | — |
 
-**Phase 6B handoff:** whole-clip Gaussian blur (`Animatable<double>`) and 6 SDF
-shape masks (`linear`, `mirror`, `circle`, `rect`, `heart`, `star`) with
-feather, invert, keyframes, `BlurPanel`, `MaskPanel`, `MaskOverlay`, schema v5
-migration, and Pigeon + GL shader support. Review fixes are included: sharpen
-no longer undoes blur, blur targets use 17 fixed sizes with a
-resolution-independent radius, Crop/Mask keep the playhead at the very end of
-the last clip, and shape switches adapt mask size. Emulator smoke test passed
-(blur, blur + sharpen, all 6 shapes, mask on a flipped, cropped, rotated clip,
-playback; no GL errors). Export is untested until Phase 10.
+**Phase 6C handoff:** transitions between adjacent main-track clips (14 types,
+`0.1s`..`min(3s, shorter/2)`, default `0.5s`), equal-power audio crossfade, A/B-roll
+two-sequence Media3 composition + GL shader, schema v6, `SetTransitionCommand` /
+`ApplyTransitionToAllCommand`, `TransitionPanel`, `⧓` timeline markers. Media3 1.11.1's
+multi-input graph can't flush or redraw, so with transitions `PreviewPlayer` rebuilds
+the player, coalesced (120 ms debounce, 400 ms max wait; looks swap live while playing).
+Review fixes (Claude) are in: rebuild coalescing (scrub ~50 → 4 rebuilds), fade-white
+midpoint flash, overlaps < 0.1 s = hard cut, split can't shorten a transition, hard-cut
+sequence as on `main`. Emulator-checked: all of these, a still and an audio-less video
+inside transitions, and the gain clock matches the timeline at 1× and 2×.
+Media3's multi-sequence player never reports ENDED, so `PreviewPlayer` ends a
+transition preview itself within 40 ms of the end (pause, redraw the last frame, report
+ENDED; play restarts from 0). `Apply to all` sits in the tabs row.
+Export untested (Phase 10). All uncommitted.
 
 **Phase 5 leftovers:** tactile feel of haptics needs a physical device
 (emulator has no vibration motor). Reset on a keyframed property only

@@ -1,47 +1,115 @@
 import 'package:cleancut/features/projects/domain/model/clip.dart';
+import 'package:cleancut/features/projects/domain/model/clip_transition.dart';
 import 'package:cleancut/features/projects/domain/model/time.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'tracks.freezed.dart';
 part 'tracks.g.dart';
 
-/// The main (magnetic) video track: clips play back to back, so a clip's
-/// start is the sum of the durations before it.
+/// The main (magnetic) video track: clips play back to back, overlapping by
+/// any [transitions] placed on their boundaries.
 @freezed
 abstract class MainTrack with _$MainTrack {
   /// Creates the main track.
-  const factory({@Default(<Clip>[]) List<Clip> clips}) = _MainTrack;
+  const factory({
+    @Default(<Clip>[]) List<Clip> clips,
+    @Default(<String, ClipTransition>{})
+    Map<String, ClipTransition> transitions,
+  }) = _MainTrack;
 
   const new _();
 
   /// Parses the main track from JSON.
   factory fromJson(Map<String, dynamic> json) => _$MainTrackFromJson(json);
 
-  /// Total length.
-  int get durationUs => clips.fold(0, (sum, c) => sum + c.durationUs);
+  /// Transition between `clips[index]` and `clips[index + 1]`, or null.
+  ClipTransition? transitionAfter(int index) {
+    if (index < 0 || index >= clips.length - 1) return null;
+    return transitions[clips[index].id];
+  }
+
+  /// Effective overlap in microseconds between `clips[index]` and
+  /// `clips[index + 1]`. Always `0` when there is no transition, and capped at
+  /// half the shorter neighbor so adjacent transitions never collide.
+  int overlapAfter(int index) {
+    final t = transitionAfter(index);
+    if (t == null) return 0;
+    return TransitionLimits.effectiveDurationUs(
+      t.durationUs,
+      clips[index].durationUs,
+      clips[index + 1].durationUs,
+    );
+  }
+
+  /// Effective overlap in microseconds before `clips[index]`.
+  int overlapBefore(int index) => index <= 0 ? 0 : overlapAfter(index - 1);
+
+  /// Total length: sum of clip lengths minus active transition overlaps.
+  int get durationUs {
+    if (clips.isEmpty) return 0;
+    return startOf(clips.length - 1) + clips.last.durationUs;
+  }
 
   /// Timeline start of the clip at [index].
   int startOf(int index) {
     RangeError.checkValidIndex(index, clips);
     var start = 0;
     for (var i = 0; i < index; i++) {
-      start += clips[i].durationUs;
+      start += clips[i].durationUs - overlapAfter(i);
     }
     return start;
   }
 
+  /// Timeline end (exclusive) of the clip at [index].
+  int endOf(int index) => startOf(index) + clips[index].durationUs;
+
+  /// Midpoint of the boundary between `clips[index]` and `clips[index + 1]`
+  /// (equals `endOf(index)` when there is no overlap).
+  int boundaryCenterOf(int index) {
+    RangeError.checkValidIndex(index, clips);
+    if (index >= clips.length - 1) return endOf(index);
+    return startOf(index + 1) + overlapAfter(index) ~/ 2;
+  }
+
+  /// Non-overlapping timeline span `(startUs, endUs)` assigned to
+  /// `clips[index]` on the single-row timeline strip, splitting each
+  /// transition overlap evenly at [boundaryCenterOf].
+  (int, int) visualSlotOf(int index) {
+    RangeError.checkValidIndex(index, clips);
+    final slotStart = index == 0 ? 0 : boundaryCenterOf(index - 1);
+    final slotEnd = index == clips.length - 1
+        ? durationUs
+        : boundaryCenterOf(index);
+    return (slotStart, slotEnd);
+  }
+
   /// Index of the clip playing at [timeUs], or `null` outside the track.
   ///
-  /// At a boundary the later clip wins.
+  /// At a boundary (or transition midpoint) the later clip wins.
   int? indexAt(int timeUs) {
-    if (timeUs < 0) return null;
-    var start = 0;
+    if (timeUs < 0 || clips.isEmpty) return null;
     for (var i = 0; i < clips.length; i++) {
-      final end = start + clips[i].durationUs;
-      if (timeUs < end) return i;
-      start = end;
+      final (_, slotEnd) = visualSlotOf(i);
+      if (timeUs < slotEnd) return i;
     }
     return null;
+  }
+
+  /// Broken invariants on [transitions], empty when valid.
+  List<String> validateTransitions() {
+    final problems = <String>[];
+    final validBoundaryIds = <String>{
+      for (var i = 0; i < clips.length - 1; i++) clips[i].id,
+    };
+    for (final entry in transitions.entries) {
+      if (!validBoundaryIds.contains(entry.key)) {
+        problems.add('transitions[${entry.key}]: not a valid clip boundary');
+      }
+      for (final p in entry.value.validate()) {
+        problems.add('transitions[${entry.key}]: $p');
+      }
+    }
+    return problems;
   }
 }
 

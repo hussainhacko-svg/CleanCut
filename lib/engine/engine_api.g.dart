@@ -123,6 +123,25 @@ enum SpecMaskShape { linear, mirror, circle, rect, heart, star }
 /// What fills the canvas behind the clips.
 enum SpecBackgroundKind { color, gradient, blur, image }
 
+/// Visual transition played across the overlap between two adjacent clips
+/// (Phase 6C).
+enum SpecTransitionType {
+  dissolve,
+  fadeBlack,
+  fadeWhite,
+  circle,
+  slideLeft,
+  slideRight,
+  slideUp,
+  slideDown,
+  wipeLeft,
+  wipeRight,
+  wipeUp,
+  wipeDown,
+  zoomIn,
+  zoomOut,
+}
+
 /// Player status, mirroring Media3's `Player.STATE_*`.
 enum PlaybackStatus { idle, buffering, ready, ended }
 
@@ -699,6 +718,54 @@ class BackgroundSpec {
   }
 }
 
+/// Transition played between a clip and the clip immediately following it.
+class TransitionSpec {
+  TransitionSpec({required this.type, required this.durationUs});
+
+  SpecTransitionType type;
+
+  /// Effective overlap length in microseconds.
+  int durationUs;
+
+  List<Object?> _toList() {
+    return <Object?>[type, durationUs];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static TransitionSpec decode(Object result) {
+    result as List<Object?>;
+    return TransitionSpec(
+      type: result[0]! as SpecTransitionType,
+      durationUs: result[1]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! TransitionSpec || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(type, other.type) &&
+        _deepEquals(durationUs, other.durationUs);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'TransitionSpec(type: $type, durationUs: $durationUs)';
+  }
+}
+
 /// One clip of the main sequence. Times are microseconds.
 class ClipSpec {
   ClipSpec({
@@ -711,6 +778,7 @@ class ClipSpec {
     required this.keepPitch,
     required this.speedSteps,
     required this.style,
+    this.transitionOut,
   });
 
   /// Content URI of the source.
@@ -742,6 +810,9 @@ class ClipSpec {
   /// Fit, crop, transform and border.
   ClipStyleSpec style;
 
+  /// Optional transition into the next clip (null for a hard cut or last clip).
+  TransitionSpec? transitionOut;
+
   List<Object?> _toList() {
     return <Object?>[
       uri,
@@ -753,6 +824,7 @@ class ClipSpec {
       keepPitch,
       speedSteps,
       style,
+      transitionOut,
     ];
   }
 
@@ -772,6 +844,7 @@ class ClipSpec {
       keepPitch: result[6]! as bool,
       speedSteps: (result[7]! as List<Object?>).cast<SpeedStepSpec>(),
       style: result[8]! as ClipStyleSpec,
+      transitionOut: result[9] as TransitionSpec?,
     );
   }
 
@@ -792,7 +865,8 @@ class ClipSpec {
         _deepEquals(speed, other.speed) &&
         _deepEquals(keepPitch, other.keepPitch) &&
         _deepEquals(speedSteps, other.speedSteps) &&
-        _deepEquals(style, other.style);
+        _deepEquals(style, other.style) &&
+        _deepEquals(transitionOut, other.transitionOut);
   }
 
   @override
@@ -801,7 +875,7 @@ class ClipSpec {
 
   @override
   String toString() {
-    return 'ClipSpec(uri: $uri, kind: $kind, sourceDurationUs: $sourceDurationUs, sourceInUs: $sourceInUs, sourceOutUs: $sourceOutUs, speed: $speed, keepPitch: $keepPitch, speedSteps: $speedSteps, style: $style)';
+    return 'ClipSpec(uri: $uri, kind: $kind, sourceDurationUs: $sourceDurationUs, sourceInUs: $sourceInUs, sourceOutUs: $sourceOutUs, speed: $speed, keepPitch: $keepPitch, speedSteps: $speedSteps, style: $style, transitionOut: $transitionOut)';
   }
 }
 
@@ -1015,41 +1089,47 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is SpecBackgroundKind) {
       buffer.putUint8(132);
       writeValue(buffer, value.index);
-    } else if (value is PlaybackStatus) {
+    } else if (value is SpecTransitionType) {
       buffer.putUint8(133);
       writeValue(buffer, value.index);
-    } else if (value is SpeedStepSpec) {
+    } else if (value is PlaybackStatus) {
       buffer.putUint8(134);
-      writeValue(buffer, value.encode());
-    } else if (value is TransformSampleSpec) {
+      writeValue(buffer, value.index);
+    } else if (value is SpeedStepSpec) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    } else if (value is MaskSampleSpec) {
+    } else if (value is TransformSampleSpec) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    } else if (value is MaskSpec) {
+    } else if (value is MaskSampleSpec) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    } else if (value is ColorAdjustmentsSpec) {
+    } else if (value is MaskSpec) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    } else if (value is ClipStyleSpec) {
+    } else if (value is ColorAdjustmentsSpec) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    } else if (value is BackgroundSpec) {
+    } else if (value is ClipStyleSpec) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    } else if (value is ClipSpec) {
+    } else if (value is BackgroundSpec) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    } else if (value is CompositionSpec) {
+    } else if (value is TransitionSpec) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    } else if (value is PlayerStateEvent) {
+    } else if (value is ClipSpec) {
       buffer.putUint8(143);
       writeValue(buffer, value.encode());
-    } else if (value is WaveformData) {
+    } else if (value is CompositionSpec) {
       buffer.putUint8(144);
+      writeValue(buffer, value.encode());
+    } else if (value is PlayerStateEvent) {
+      buffer.putUint8(145);
+      writeValue(buffer, value.encode());
+    } else if (value is WaveformData) {
+      buffer.putUint8(146);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1073,28 +1153,33 @@ class _PigeonCodec extends StandardMessageCodec {
         return value == null ? null : SpecBackgroundKind.values[value];
       case 133:
         final value = readValue(buffer) as int?;
-        return value == null ? null : PlaybackStatus.values[value];
+        return value == null ? null : SpecTransitionType.values[value];
       case 134:
-        return SpeedStepSpec.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PlaybackStatus.values[value];
       case 135:
-        return TransformSampleSpec.decode(readValue(buffer)!);
+        return SpeedStepSpec.decode(readValue(buffer)!);
       case 136:
-        return MaskSampleSpec.decode(readValue(buffer)!);
+        return TransformSampleSpec.decode(readValue(buffer)!);
       case 137:
-        return MaskSpec.decode(readValue(buffer)!);
+        return MaskSampleSpec.decode(readValue(buffer)!);
       case 138:
-        return ColorAdjustmentsSpec.decode(readValue(buffer)!);
+        return MaskSpec.decode(readValue(buffer)!);
       case 139:
-        return ClipStyleSpec.decode(readValue(buffer)!);
+        return ColorAdjustmentsSpec.decode(readValue(buffer)!);
       case 140:
-        return BackgroundSpec.decode(readValue(buffer)!);
+        return ClipStyleSpec.decode(readValue(buffer)!);
       case 141:
-        return ClipSpec.decode(readValue(buffer)!);
+        return BackgroundSpec.decode(readValue(buffer)!);
       case 142:
-        return CompositionSpec.decode(readValue(buffer)!);
+        return TransitionSpec.decode(readValue(buffer)!);
       case 143:
-        return PlayerStateEvent.decode(readValue(buffer)!);
+        return ClipSpec.decode(readValue(buffer)!);
       case 144:
+        return CompositionSpec.decode(readValue(buffer)!);
+      case 145:
+        return PlayerStateEvent.decode(readValue(buffer)!);
+      case 146:
         return WaveformData.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);

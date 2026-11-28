@@ -16,6 +16,12 @@ sealed class TimelineSelection {
     NoSelection() => this,
     MainClipSelection(:final clipId) =>
       project.mainTrack.clips.any((c) => c.id == clipId) ? this : none,
+    TransitionSelection(:final afterClipId) =>
+      project.mainTrack.clips.indexWhere((c) => c.id == afterClipId) >= 0 &&
+              project.mainTrack.clips.indexWhere((c) => c.id == afterClipId) <
+                  project.mainTrack.clips.length - 1
+          ? this
+          : none,
     OverlaySelection(:final trackId, :final clipId) =>
       project.overlayTracks.any(
             (t) => t.id == trackId && t.items.any((i) => i.clip.id == clipId),
@@ -57,6 +63,22 @@ final class MainClipSelection extends TimelineSelection {
 
   @override
   int get hashCode => clipId.hashCode;
+}
+
+/// A transition boundary immediately after main-track clip [afterClipId].
+final class TransitionSelection extends TimelineSelection {
+  /// Selects the transition boundary after [afterClipId].
+  const new(this.afterClipId);
+
+  /// Id of the clip immediately preceding the boundary.
+  final String afterClipId;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TransitionSelection && other.afterClipId == afterClipId;
+
+  @override
+  int get hashCode => Object.hash(TransitionSelection, afterClipId);
 }
 
 /// A clip on an overlay track.

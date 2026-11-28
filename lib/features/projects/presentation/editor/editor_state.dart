@@ -70,16 +70,24 @@ enum ToolPanelKind {
 
   /// Shape mask with feather, invert, and on-preview handles.
   mask,
+
+  /// Transition between two adjacent main-track clips.
+  transition,
 }
 
-/// The tool panel open in a project's editor, if any. Closes whenever the
-/// selection changes, since every panel edits the selected clip.
+/// The tool panel open in a project's editor, if any. Selecting a transition
+/// boundary opens [ToolPanelKind.transition]; other selection changes close
+/// any open panel.
 @riverpod
 class OpenToolPanel extends _$OpenToolPanel {
   @override
   ToolPanelKind? build(String projectId) {
     ref.listen(timelineSelectionControllerProvider(projectId), (prev, next) {
-      if (prev != next) state = null;
+      if (next is TransitionSelection) {
+        state = ToolPanelKind.transition;
+      } else if (prev != next) {
+        state = null;
+      }
     });
     return null;
   }

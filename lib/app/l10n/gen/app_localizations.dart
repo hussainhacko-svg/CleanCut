@@ -520,6 +520,12 @@ abstract class AppLocalizations {
   /// **'Move the playhead over the selected clip to split it.'**
   String get editorSplitOutside;
 
+  /// No description provided for @editorSplitTransition.
+  ///
+  /// In en, this message translates to:
+  /// **'Splitting here would shorten a transition. Move the playhead further from it.'**
+  String get editorSplitTransition;
+
   /// A playback speed, e.g. 0.5× or 2×.
   ///
   /// In en, this message translates to:
@@ -1173,6 +1179,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mask handles'**
   String get maskOverlayLabel;
+
+  /// No description provided for @transitionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transition'**
+  String get transitionTitle;
+
+  /// No description provided for @transitionNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get transitionNone;
+
+  /// No description provided for @transitionCategoryBasic.
+  ///
+  /// In en, this message translates to:
+  /// **'Basic'**
+  String get transitionCategoryBasic;
+
+  /// No description provided for @transitionCategorySlide.
+  ///
+  /// In en, this message translates to:
+  /// **'Slide'**
+  String get transitionCategorySlide;
+
+  /// No description provided for @transitionCategoryWipe.
+  ///
+  /// In en, this message translates to:
+  /// **'Wipe'**
+  String get transitionCategoryWipe;
+
+  /// No description provided for @transitionCategoryZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom'**
+  String get transitionCategoryZoom;
+
+  /// No description provided for @transitionDissolve.
+  ///
+  /// In en, this message translates to:
+  /// **'Dissolve'**
+  String get transitionDissolve;
+
+  /// No description provided for @transitionFadeBlack.
+  ///
+  /// In en, this message translates to:
+  /// **'Fade black'**
+  String get transitionFadeBlack;
+
+  /// No description provided for @transitionFadeWhite.
+  ///
+  /// In en, this message translates to:
+  /// **'Fade white'**
+  String get transitionFadeWhite;
+
+  /// No description provided for @transitionCircle.
+  ///
+  /// In en, this message translates to:
+  /// **'Circle'**
+  String get transitionCircle;
+
+  /// No description provided for @transitionSlideLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Slide left'**
+  String get transitionSlideLeft;
+
+  /// No description provided for @transitionSlideRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Slide right'**
+  String get transitionSlideRight;
+
+  /// No description provided for @transitionSlideUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Slide up'**
+  String get transitionSlideUp;
+
+  /// No description provided for @transitionSlideDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Slide down'**
+  String get transitionSlideDown;
+
+  /// No description provided for @transitionWipeLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Wipe left'**
+  String get transitionWipeLeft;
+
+  /// No description provided for @transitionWipeRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Wipe right'**
+  String get transitionWipeRight;
+
+  /// No description provided for @transitionWipeUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Wipe up'**
+  String get transitionWipeUp;
+
+  /// No description provided for @transitionWipeDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Wipe down'**
+  String get transitionWipeDown;
+
+  /// No description provided for @transitionZoomIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom in'**
+  String get transitionZoomIn;
+
+  /// No description provided for @transitionZoomOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom out'**
+  String get transitionZoomOut;
+
+  /// No description provided for @transitionDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get transitionDuration;
+
+  /// A transition duration in seconds, e.g. 0.5s.
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds}s'**
+  String transitionDurationValue(String seconds);
+
+  /// No description provided for @transitionApplyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to all'**
+  String get transitionApplyAll;
+
+  /// No description provided for @transitionTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Clips are too short for a transition.'**
+  String get transitionTooShort;
+
+  /// Accessible label for a transition marker between two clips.
+  ///
+  /// In en, this message translates to:
+  /// **'Transition between clips {first} and {second}'**
+  String timelineTransitionBetween(int first, int second);
 }
 
 class _AppLocalizationsDelegate

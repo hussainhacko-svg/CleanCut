@@ -90,6 +90,9 @@ const Map<int, JsonMigration> projectMigrations = {
   // 4 -> 5: clips gained `blur` (default constant 0) and optional `mask`
   // (default null), neither needing existing JSON to change.
   4: _addBlurAndMask,
+  // 5 -> 6: mainTrack gained `transitions` (default empty map), so v5 files
+  // need no change.
+  5: _addTransitions,
 };
 
 Map<String, dynamic> _addSpeedCurves(Map<String, dynamic> json) => json;
@@ -97,6 +100,8 @@ Map<String, dynamic> _addSpeedCurves(Map<String, dynamic> json) => json;
 Map<String, dynamic> _addClipColor(Map<String, dynamic> json) => json;
 
 Map<String, dynamic> _addBlurAndMask(Map<String, dynamic> json) => json;
+
+Map<String, dynamic> _addTransitions(Map<String, dynamic> json) => json;
 
 Map<String, dynamic> _canvasBackground(Map<String, dynamic> json) {
   final canvas = json['canvas'];

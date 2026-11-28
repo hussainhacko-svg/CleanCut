@@ -6,6 +6,7 @@ import 'dart:math' as math;
 
 import 'package:cleancut/features/projects/domain/history/edit_command.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart';
+import 'package:cleancut/features/projects/domain/model/clip_transition.dart';
 import 'package:cleancut/features/projects/domain/model/keyframe.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
@@ -173,17 +174,56 @@ final class SplitClipCommand extends EditCommand {
     );
     final updated = [...project.mainTrack.clips]
       ..replaceRange(index, index + 1, [first, second]);
-    return _withClips(project, updated);
+    // Keep any outgoing transition attached to the second half; the new
+    // middle cut starts without a transition.
+    final transitions = Map<String, ClipTransition>.of(
+      project.mainTrack.transitions,
+    );
+    final trailing = transitions.remove(clip.id);
+    if (trailing != null) transitions[second.id] = trailing;
+    final track = project.mainTrack.copyWith(
+      clips: updated,
+      transitions: transitions,
+    );
+    // A transition is capped at half its shorter clip, so a piece that is
+    // too short would shorten it and shift every later clip. A split must
+    // keep the project's timing.
+    final old = project.mainTrack;
+    if (track.overlapBefore(index) != old.overlapBefore(index) ||
+        track.overlapAfter(index + 1) != old.overlapAfter(index)) {
+      throw InvalidEditException(
+        'Split at $timeUs us would shorten a transition of $clipId',
+      );
+    }
+    return project.copyWith(mainTrack: track);
   }
 }
 
-/// Whether [SplitClipCommand] can cut clip [clipId] at [timeUs].
+/// Whether [SplitClipCommand] can cut clip [clipId] at [timeUs]: far enough
+/// from both edges ([splitTooCloseToEdge]) and without shortening a
+/// neighbouring transition.
 bool canSplitAt(Project project, String clipId, int timeUs) {
+  if (splitTooCloseToEdge(project, clipId, timeUs)) return false;
+  try {
+    SplitClipCommand(
+      clipId,
+      timeUs: timeUs,
+      newId: () => '_split_probe',
+    ).apply(project);
+    return true;
+  } on InvalidEditException {
+    return false;
+  }
+}
+
+/// Whether a cut of clip [clipId] at [timeUs] is outside the clip or would
+/// leave a piece shorter than [minClipDurationUs].
+bool splitTooCloseToEdge(Project project, String clipId, int timeUs) {
   final index = project.mainTrack.clips.indexWhere((c) => c.id == clipId);
-  if (index < 0) return false;
+  if (index < 0) return true;
   final offset = timeUs - project.mainTrack.startOf(index);
-  return offset >= minClipDurationUs &&
-      project.mainTrack.clips[index].durationUs - offset >= minClipDurationUs;
+  return offset < minClipDurationUs ||
+      project.mainTrack.clips[index].durationUs - offset < minClipDurationUs;
 }
 
 /// Removes clip [clipId]; later clips move up (the main track is magnetic).
@@ -196,8 +236,19 @@ final class DeleteClipCommand extends EditCommand {
 
   @override
   Project apply(Project project) {
+    final clips = project.mainTrack.clips;
     final index = _indexOf(project, clipId);
-    return _withClips(project, [...project.mainTrack.clips]..removeAt(index));
+    final updated = [...clips]..removeAt(index);
+    final transitions = Map<String, ClipTransition>.of(
+      project.mainTrack.transitions,
+    )..remove(clipId);
+    if (index > 0) transitions.remove(clips[index - 1].id);
+    return project.copyWith(
+      mainTrack: project.mainTrack.copyWith(
+        clips: updated,
+        transitions: transitions,
+      ),
+    );
   }
 }
 
@@ -216,10 +267,21 @@ final class DuplicateClipCommand extends EditCommand {
   Project apply(Project project) {
     final index = _indexOf(project, clipId);
     final clip = project.mainTrack.clips[index];
-    return _withClips(
-      project,
-      [...project.mainTrack.clips]
-        ..insert(index + 1, clip.copyWith(id: newId())),
+    final copyId = newId();
+    final updated = [...project.mainTrack.clips]
+      ..insert(index + 1, clip.copyWith(id: copyId));
+    // Move any outgoing transition onto the copy (still facing the old next
+    // clip); the new cut between clip and its copy starts without one.
+    final transitions = Map<String, ClipTransition>.of(
+      project.mainTrack.transitions,
+    );
+    final trailing = transitions.remove(clip.id);
+    if (trailing != null) transitions[copyId] = trailing;
+    return project.copyWith(
+      mainTrack: project.mainTrack.copyWith(
+        clips: updated,
+        transitions: transitions,
+      ),
     );
   }
 }
@@ -247,7 +309,22 @@ final class MoveClipCommand extends EditCommand {
     final updated = [...clips];
     final clip = updated.removeAt(index);
     updated.insert(toIndex, clip);
-    return _withClips(project, updated);
+    // Preserve transitions only where the same adjacent pair stayed together.
+    final oldPairs = <(String, String), ClipTransition>{
+      for (var i = 0; i < clips.length - 1; i++)
+        (clips[i].id, clips[i + 1].id):
+            ?project.mainTrack.transitions[clips[i].id],
+    };
+    final transitions = <String, ClipTransition>{
+      for (var i = 0; i < updated.length - 1; i++)
+        updated[i].id: ?oldPairs[(updated[i].id, updated[i + 1].id)],
+    };
+    return project.copyWith(
+      mainTrack: project.mainTrack.copyWith(
+        clips: updated,
+        transitions: transitions,
+      ),
+    );
   }
 }
 

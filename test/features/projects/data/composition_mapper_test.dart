@@ -5,6 +5,7 @@ import 'package:cleancut/features/projects/domain/model/canvas_background.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart';
 import 'package:cleancut/features/projects/domain/model/clip_style.dart';
 import 'package:cleancut/features/projects/domain/model/clip_transform.dart';
+import 'package:cleancut/features/projects/domain/model/clip_transition.dart';
 import 'package:cleancut/features/projects/domain/model/easing.dart';
 import 'package:cleancut/features/projects/domain/model/keyframe.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
@@ -300,6 +301,35 @@ void main() {
       expect(style.transform.single.rotation, 45);
       expect(style.transform.single.scale, 1);
       expect(style.transform.single.opacity, 1);
+    });
+  });
+
+  group('transitions (Phase 6C)', () {
+    test('maps every TransitionType and caps effective overlap duration', () {
+      for (final type in TransitionType.values) {
+        final base = project(mainSeconds: [1, 4]);
+        final p = base.copyWith(
+          mainTrack: base.mainTrack.copyWith(
+            transitions: {
+              'm0': ClipTransition(type: type, durationUs: 1200000),
+            },
+          ),
+        );
+        final spec = compositionSpecOf(p);
+        final tr = spec.clips.first.transitionOut;
+        expect(tr, isNotNull);
+        expect(tr!.type, specTransitionTypeOf(type));
+        // Capped at half of the shorter 1 s clip = 0.5 s.
+        expect(tr.durationUs, 500000);
+        // Last clip never carries an outgoing transition.
+        expect(spec.clips.last.transitionOut, isNull);
+      }
+    });
+
+    test('hard cuts map to null transitionOut', () {
+      final spec = compositionSpecOf(project(mainSeconds: [2, 2]));
+      expect(spec.clips[0].transitionOut, isNull);
+      expect(spec.clips[1].transitionOut, isNull);
     });
   });
 }

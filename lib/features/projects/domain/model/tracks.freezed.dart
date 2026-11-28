@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$MainTrack {
 
- List<Clip> get clips;
+ List<Clip> get clips; Map<String, ClipTransition> get transitions;
 /// Create a copy of MainTrack
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,20 +30,20 @@ $MainTrackCopyWith<MainTrack> get copyWith => _$MainTrackCopyWithImpl<MainTrack>
 @override
 bool operator ==(Object other) {
   final _this = this as MainTrack;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is MainTrack&&const DeepCollectionEquality().equals(other.clips, _this.clips));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is MainTrack&&const DeepCollectionEquality().equals(other.clips, _this.clips)&&const DeepCollectionEquality().equals(other.transitions, _this.transitions));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as MainTrack;
-  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.clips));
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.clips),const DeepCollectionEquality().hash(_this.transitions));
 }
 
 @override
 String toString() {
   final _this = this as MainTrack;
-  return 'MainTrack(clips: ${_this.clips})';
+  return 'MainTrack(clips: ${_this.clips}, transitions: ${_this.transitions})';
 }
 
 
@@ -54,7 +54,7 @@ abstract mixin class $MainTrackCopyWith<$Res>  {
   factory $MainTrackCopyWith(MainTrack value, $Res Function(MainTrack) _then) = _$MainTrackCopyWithImpl;
 @useResult
 $Res call({
- List<Clip> clips
+ List<Clip> clips, Map<String, ClipTransition> transitions
 });
 
 
@@ -71,10 +71,11 @@ class _$MainTrackCopyWithImpl<$Res>
 
 /// Create a copy of MainTrack
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? clips = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? clips = null,Object? transitions = null,}) {
   return _then(MainTrack(
 clips: null == clips ? _self.clips : clips // ignore: cast_nullable_to_non_nullable
-as List<Clip>,
+as List<Clip>,transitions: null == transitions ? _self.transitions : transitions // ignore: cast_nullable_to_non_nullable
+as Map<String, ClipTransition>,
   ));
 }
 
@@ -159,10 +160,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<Clip> clips)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<Clip> clips,  Map<String, ClipTransition> transitions)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _MainTrack() when $default != null:
-return $default(_that.clips);case _:
+return $default(_that.clips,_that.transitions);case _:
   return orElse();
 
 }
@@ -180,10 +181,10 @@ return $default(_that.clips);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<Clip> clips)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<Clip> clips,  Map<String, ClipTransition> transitions)  $default,) {final _that = this;
 switch (_that) {
 case _MainTrack():
-return $default(_that.clips);case _:
+return $default(_that.clips,_that.transitions);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +201,10 @@ return $default(_that.clips);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<Clip> clips)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<Clip> clips,  Map<String, ClipTransition> transitions)?  $default,) {final _that = this;
 switch (_that) {
 case _MainTrack() when $default != null:
-return $default(_that.clips);case _:
+return $default(_that.clips,_that.transitions);case _:
   return null;
 
 }
@@ -215,7 +216,7 @@ return $default(_that.clips);case _:
 @JsonSerializable()
 
 class _MainTrack extends MainTrack {
-  const _MainTrack({ List<Clip> clips = const <Clip>[]}): _clips = clips,super._();
+  const _MainTrack({ List<Clip> clips = const <Clip>[],  Map<String, ClipTransition> transitions = const <String, ClipTransition>{}}): _clips = clips,_transitions = transitions,super._();
   factory _MainTrack.fromJson(Map<String, dynamic> json) => _$MainTrackFromJson(json);
 
  final  List<Clip> _clips;
@@ -223,6 +224,13 @@ class _MainTrack extends MainTrack {
   if (_clips is EqualUnmodifiableListView) return _clips;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_clips);
+}
+
+ final  Map<String, ClipTransition> _transitions;
+@override@JsonKey() Map<String, ClipTransition> get transitions {
+  if (_transitions is EqualUnmodifiableMapView) return _transitions;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(_transitions);
 }
 
 
@@ -239,18 +247,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _MainTrack&&const DeepCollectionEquality().equals(other.clips, _clips));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _MainTrack&&const DeepCollectionEquality().equals(other.clips, _clips)&&const DeepCollectionEquality().equals(other.transitions, _transitions));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_clips));
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_clips),const DeepCollectionEquality().hash(_transitions));
 }
 
 @override
 String toString() {
-    return 'MainTrack(clips: $clips)';
+    return 'MainTrack(clips: $clips, transitions: $transitions)';
 }
 
 
@@ -261,7 +269,7 @@ abstract mixin class _$MainTrackCopyWith<$Res> implements $MainTrackCopyWith<$Re
   factory _$MainTrackCopyWith(_MainTrack value, $Res Function(_MainTrack) _then) = __$MainTrackCopyWithImpl;
 @override @useResult
 $Res call({
- List<Clip> clips
+ List<Clip> clips, Map<String, ClipTransition> transitions
 });
 
 
@@ -278,10 +286,11 @@ class __$MainTrackCopyWithImpl<$Res>
 
 /// Create a copy of MainTrack
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? clips = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? clips = null,Object? transitions = null,}) {
   return _then(_MainTrack(
 clips: null == clips ? _self._clips : clips // ignore: cast_nullable_to_non_nullable
-as List<Clip>,
+as List<Clip>,transitions: null == transitions ? _self._transitions : transitions // ignore: cast_nullable_to_non_nullable
+as Map<String, ClipTransition>,
   ));
 }
 
