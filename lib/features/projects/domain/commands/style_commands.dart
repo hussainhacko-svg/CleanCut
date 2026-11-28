@@ -15,30 +15,16 @@ import 'package:cleancut/features/projects/domain/model/keyframe.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/model/time.dart';
 import 'package:cleancut/features/projects/domain/model/vec2.dart';
+import 'package:cleancut/features/projects/domain/timeline/clip_lookup.dart';
 
-/// Returns [project] with main-track clip [clipId] replaced by
-/// `update(clip)`. Throws an [InvalidEditException] for an unknown clip or
-/// an invalid result.
+/// Returns [project] with visual clip [clipId] (main track or overlay track)
+/// replaced by `update(clip)`. Throws an [InvalidEditException] for an unknown
+/// clip or an invalid result.
 Project _updateClip(
   Project project,
   String clipId,
   Clip Function(Clip clip) update,
-) {
-  final clips = project.mainTrack.clips;
-  final index = clips.indexWhere((c) => c.id == clipId);
-  if (index < 0) throw InvalidEditException('No clip $clipId');
-  final updated = update(clips[index]);
-  if (identical(updated, clips[index]) || updated == clips[index]) {
-    return project;
-  }
-  final problems = updated.validate();
-  if (problems.isNotEmpty) {
-    throw InvalidEditException('Invalid clip: ${problems.join('; ')}');
-  }
-  return project.copyWith(
-    mainTrack: project.mainTrack.copyWith(clips: [...clips]..[index] = updated),
-  );
-}
+) => replaceClip(project, clipId, update);
 
 /// Half a frame at the project's frame rate: a keyframe this close to the
 /// playhead counts as "at" the playhead.

@@ -20,9 +20,11 @@ import androidx.media3.transformer.Effects
 /** A built composition plus the handles that change its looks without a rebuild. */
 class ComposedPlan(
     val composition: Composition,
-    /** One per plan item, in order. */
+    /** One per main-track plan item, in order. */
     val looks: List<LiveClipLook>,
     val background: LiveBackground,
+    /** One list per overlay track, one handle per placed overlay item, in order. */
+    val overlayLooks: List<List<LiveClipLook>> = emptyList(),
 ) {
     /**
      * Swaps in the looks and transition types of [plan], which must have the same structure
@@ -34,6 +36,11 @@ class ComposedPlan(
             looks[i].style = item.style
             looks[i].transitions = plan.clipTransitionsFor(i)
         }
+        plan.overlayTracks.forEachIndexed { t, track ->
+            track.items.forEachIndexed { i, placed ->
+                overlayLooks[t][i].style = placed.item.style
+            }
+        }
     }
 }
 
@@ -44,56 +51,114 @@ class ComposedPlan(
 @OptIn(UnstableApi::class)
 object Media3Composer {
     fun build(plan: CompositionPlan): ComposedPlan {
-        require(plan.items.isNotEmpty()) { "An empty plan has no composition" }
+        require(!plan.isEmpty) { "An empty plan has no composition" }
         val background = LiveBackground(plan.background)
         val starts = plan.timelineStartsUs
         val looks = plan.items.mapIndexed { i, item ->
             LiveClipLook(item.style, starts[i], plan.clipTransitionsFor(i))
         }
-        if (!plan.hasTransitions) {
+        val overlayLooks = plan.overlayTracks.map { track ->
+            track.items.map { placed ->
+                LiveClipLook(placed.item.style, placed.startUs)
+            }
+        }
+
+        if (!plan.isMultiSequence) {
             val items = plan.items.mapIndexed { i, item ->
                 val render = ClipRenderEffect(looks[i], background, plan.width, plan.height)
                 editedItem(item, plan.frameRate, render, audioProcessors = emptyList())
             }
-            // Same as before Phase 6C: one sequence, stills padded with silence so
-            // audio and video stay aligned.
+            // Single-sequence fast path: stills/muted clips padded with silence so audio stays aligned.
             val sequence = EditedMediaItemSequence.Builder(items)
                 .experimentalSetForceAudioTrack(plan.needsSilentAudio)
                 .build()
             return ComposedPlan(Composition.Builder(sequence).build(), looks, background)
         }
 
-        // A/B roll: even clips on lane 0 (top), odd clips on lane 1 (bottom), padded with gaps
-        // so both sequences span [0, durationUs] and overlap cleanly across every transition.
-        val laneTracks = if (plan.hasVideo) {
-            setOf(C.TRACK_TYPE_VIDEO, C.TRACK_TYPE_AUDIO)
-        } else {
-            setOf(C.TRACK_TYPE_VIDEO)
-        }
-        val sequences = (0..1).map { lane ->
-            val builder = EditedMediaItemSequence.Builder(laneTracks)
-            for (segment in plan.laneSegments(lane)) {
+        val sequences = mutableListOf<EditedMediaItemSequence>()
+
+        // Overlay tracks come first: in Media3 DefaultVideoCompositor, index 0 renders on top.
+        plan.overlayTracks.forEachIndexed { t, track ->
+            val trackTypes = if (track.hasAudio) {
+                setOf(C.TRACK_TYPE_VIDEO, C.TRACK_TYPE_AUDIO)
+            } else {
+                setOf(C.TRACK_TYPE_VIDEO)
+            }
+            val builder = EditedMediaItemSequence.Builder(trackTypes)
+            for (segment in track.segments(plan.durationUs)) {
                 when (segment) {
                     is LaneSegment.Gap -> builder.addGap(segment.durationUs)
                     is LaneSegment.Clip -> {
                         val i = segment.itemIndex
-                        val item = plan.items[i]
-                        val render = ClipRenderEffect(looks[i], background, plan.width, plan.height)
-                        val audio = audioCrossfadeProcessors(
-                            item,
-                            inOverlapUs = plan.overlapBefore(i),
-                            outOverlapUs = plan.overlapAfter(i),
+                        val placed = track.items[i]
+                        val render = ClipRenderEffect(
+                            overlayLooks[t][i],
+                            background,
+                            plan.width,
+                            plan.height,
+                            isOverlay = true,
+                            overlayDrawsBackgroundAt = { timeUs -> plan.overlayDrawsBackgroundAt(t, timeUs) },
                         )
-                        builder.addItem(editedItem(item, plan.frameRate, render, audio))
+                        builder.addItem(
+                            editedItem(placed.item, plan.frameRate, render, audioProcessors = emptyList()),
+                        )
                     }
                 }
             }
-            builder.build()
+            sequences.add(builder.build())
         }
+
+        if (plan.items.isNotEmpty()) {
+            val laneTracks = if (plan.hasVideo) {
+                setOf(C.TRACK_TYPE_VIDEO, C.TRACK_TYPE_AUDIO)
+            } else {
+                setOf(C.TRACK_TYPE_VIDEO)
+            }
+            if (plan.hasTransitions) {
+                // A/B roll: even clips on lane 0 (above lane 1), odd clips on lane 1 (bottom).
+                for (lane in 0..1) {
+                    val builder = EditedMediaItemSequence.Builder(laneTracks)
+                    for (segment in plan.laneSegments(lane)) {
+                        when (segment) {
+                            is LaneSegment.Gap -> builder.addGap(segment.durationUs)
+                            is LaneSegment.Clip -> {
+                                val i = segment.itemIndex
+                                val item = plan.items[i]
+                                val render = ClipRenderEffect(looks[i], background, plan.width, plan.height)
+                                val audio = audioCrossfadeProcessors(
+                                    item,
+                                    inOverlapUs = plan.overlapBefore(i),
+                                    outOverlapUs = plan.overlapAfter(i),
+                                )
+                                builder.addItem(editedItem(item, plan.frameRate, render, audio))
+                            }
+                        }
+                    }
+                    sequences.add(builder.build())
+                }
+            } else {
+                val builder = EditedMediaItemSequence.Builder(laneTracks)
+                for (segment in plan.mainSingleSegments()) {
+                    when (segment) {
+                        is LaneSegment.Gap -> builder.addGap(segment.durationUs)
+                        is LaneSegment.Clip -> {
+                            val i = segment.itemIndex
+                            val item = plan.items[i]
+                            val render = ClipRenderEffect(looks[i], background, plan.width, plan.height)
+                            builder.addItem(
+                                editedItem(item, plan.frameRate, render, audioProcessors = emptyList()),
+                            )
+                        }
+                    }
+                }
+                sequences.add(builder.build())
+            }
+        }
+
         val composition = Composition.Builder(sequences)
-            .setVideoCompositorSettings(TransitionCompositorSettings(plan))
+            .setVideoCompositorSettings(CompositionCompositorSettings(plan))
             .build()
-        return ComposedPlan(composition, looks, background)
+        return ComposedPlan(composition, looks, background, overlayLooks)
     }
 
     private fun editedItem(
@@ -117,12 +182,13 @@ object Media3Composer {
         return EditedMediaItem.Builder(media.build())
             .setDurationUs(item.sourceDurationUs)
             .apply { if (item.isImage) setFrameRate(frameRate) }
+            .apply { if (item.muted && !item.isImage) setRemoveAudio(true) }
             .apply {
                 if (item.hasSpeedChange) {
                     setSpeed(SpeedParameters(ItemSpeedProvider(item), item.keepPitch))
                 }
             }
-            .setEffects(Effects(audioProcessors, listOf(render)))
+            .setEffects(Effects(if (item.muted) emptyList() else audioProcessors, listOf(render)))
             .build()
     }
 
@@ -132,7 +198,7 @@ object Media3Composer {
         inOverlapUs: Long,
         outOverlapUs: Long,
     ): List<AudioProcessor> {
-        if (item.isImage || (inOverlapUs <= 1L && outOverlapUs <= 1L)) return emptyList()
+        if (item.isImage || item.muted || (inOverlapUs <= 1L && outOverlapUs <= 1L)) return emptyList()
         val builder = DefaultGainProvider.Builder(1.0f)
         if (inOverlapUs > 1L) {
             builder.addFadeAt(0L, inOverlapUs, DefaultGainProvider.FADE_IN_EQUAL_POWER)
@@ -146,17 +212,17 @@ object Media3Composer {
 }
 
 /**
- * Keeps the output sized to the canvas (even when lane 0 is inside a blank-frame gap) and hides
- * whichever A/B roll lane is currently in a gap so the active lane shines through.
+ * Keeps the output sized to the canvas (even when sequence 0 is inside a blank-frame gap) and
+ * hides whichever sequence is currently in a gap so lower sequences shine through.
  */
 @OptIn(UnstableApi::class)
-internal class TransitionCompositorSettings(
+internal class CompositionCompositorSettings(
     private val plan: CompositionPlan,
 ) : VideoCompositorSettings {
     override fun getOutputSize(inputSizes: List<Size>): Size = Size(plan.width, plan.height)
 
     override fun getOverlaySettings(inputId: Int, presentationTimeUs: Long): OverlaySettings =
-        if (plan.isLaneActiveAt(inputId, presentationTimeUs)) OPAQUE else HIDDEN
+        if (plan.isSequenceActiveAt(inputId, presentationTimeUs)) OPAQUE else HIDDEN
 
     private companion object {
         val OPAQUE = object : OverlaySettings {}

@@ -332,4 +332,54 @@ void main() {
       expect(spec.clips[1].transitionOut, isNull);
     });
   });
+
+  group('overlays (Phase 7A)', () {
+    test('maps overlayTracks in order with muted flag and uncroppedClipId', () {
+      final overlay =
+          Clip.fromMedia(
+            id: 'ov0',
+            media: video(seconds: 4, uri: 'content://ov/1'),
+          ).copyWith(
+            muted: true,
+            crop: const CropRect(left: 0.2, top: 0.2, right: 0.8, bottom: 0.8),
+            transform: const ClipTransform(
+              scale: Animatable<double>.constant(0.5),
+              opacity: Animatable<double>.constant(0.7),
+            ),
+          );
+      final p = project(mainSeconds: [6]).copyWith(
+        overlayTracks: [
+          LayerTrack(
+            id: 't0',
+            items: [PlacedClip(startUs: 1500000, clip: overlay)],
+          ),
+        ],
+      );
+
+      final spec = compositionSpecOf(p);
+      expect(spec.overlayTracks, hasLength(1));
+      final placed = spec.overlayTracks.single.clips.single;
+      expect(placed.startUs, 1500000);
+      expect(placed.clip.muted, isTrue);
+      expect(placed.clip.style.transform.single.scale, 0.5);
+      expect(placed.clip.style.transform.single.opacity, 0.7);
+
+      // uncroppedClipId also applies to overlay clips while Crop is open.
+      final uncropped = compositionSpecOf(
+        p,
+        uncroppedClipId: 'ov0',
+      ).overlayTracks.single.clips.single.clip.style;
+      expect(
+        [
+          uncropped.cropLeft,
+          uncropped.cropTop,
+          uncropped.cropRight,
+          uncropped.cropBottom,
+        ],
+        [0, 0, 1, 1],
+      );
+      expect(uncropped.transform.single.scale, 1);
+      expect(uncropped.transform.single.opacity, 1);
+    });
+  });
 }

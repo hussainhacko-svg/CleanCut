@@ -10,10 +10,13 @@ import 'package:cleancut/core/theme/timeline_colors.dart';
 import 'package:cleancut/core/widgets/app_icon.dart';
 import 'package:cleancut/engine/media_engine.dart';
 import 'package:cleancut/features/projects/domain/commands/clip_commands.dart';
+import 'package:cleancut/features/projects/domain/commands/overlay_commands.dart';
 import 'package:cleancut/features/projects/domain/model/clip.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/model/time.dart';
+import 'package:cleancut/features/projects/domain/model/tracks.dart';
+import 'package:cleancut/features/projects/domain/timeline/clip_lookup.dart';
 import 'package:cleancut/features/projects/domain/timeline/reorder.dart';
 import 'package:cleancut/features/projects/domain/timeline/ruler.dart';
 import 'package:cleancut/features/projects/domain/timeline/snapping.dart';
@@ -21,6 +24,7 @@ import 'package:cleancut/features/projects/domain/timeline/timeline_scale.dart';
 import 'package:cleancut/features/projects/domain/timeline/timeline_selection.dart';
 import 'package:cleancut/features/projects/presentation/editor/editor_state.dart';
 import 'package:cleancut/features/projects/presentation/playback/playback_controller.dart';
+import 'package:cleancut/features/projects/presentation/project_providers.dart';
 import 'package:cleancut/features/projects/presentation/project_session.dart';
 import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
@@ -72,6 +76,62 @@ typedef TrimDrag = ({
 /// A long-press reorder in progress: the clip, how far it moved and the
 /// index it would land on.
 typedef ReorderDrag = ({String clipId, double dx, int toIndex});
+
+/// An overlay trim in progress: committed as one `TrimOverlayCommand` on
+/// release.
+typedef OverlayTrimDrag = ({
+  String trackId,
+  String clipId,
+  bool start,
+  int startUs,
+  int sourceInUs,
+  int sourceOutUs,
+});
+
+/// An overlay long-press move in progress (horizontal time + vertical lane).
+typedef OverlayMoveDrag = ({
+  String trackId,
+  String clipId,
+  int originTrackIndex,
+  int originStartUs,
+  int durationUs,
+  Offset offset,
+  int targetStartUs,
+  int targetTrackIndex,
+  bool valid,
+});
+
+/// Callbacks from overlay pill trim handles and long-press move gestures.
+final class OverlayGestures {
+  /// Creates the callbacks.
+  const new({
+    required this.onTrimStart,
+    required this.onTrimUpdate,
+    required this.onTrimEnd,
+    required this.onMoveStart,
+    required this.onMoveUpdate,
+    required this.onMoveEnd,
+  });
+
+  /// A trim handle of overlay item `itemIndex` on track `trackId` was grabbed.
+  final void Function(String trackId, int itemIndex, {required bool start})
+  onTrimStart;
+
+  /// The grabbed overlay trim handle moved by `dx` px.
+  final ValueChanged<double> onTrimUpdate;
+
+  /// The overlay trim handle was released.
+  final VoidCallback onTrimEnd;
+
+  /// Overlay item `itemIndex` on track `trackId` was long-pressed to move.
+  final void Function(String trackId, int itemIndex) onMoveStart;
+
+  /// The lifted overlay moved by `offsetFromOrigin` px.
+  final ValueChanged<Offset> onMoveUpdate;
+
+  /// The lifted overlay was dropped.
+  final VoidCallback onMoveEnd;
+}
 
 /// Callbacks from the main strip's trim handles and long-press reorder.
 final class MainStripGestures {
@@ -153,6 +213,18 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
   // Reorder (long-press + drag).
   ReorderDrag? _reorder;
 
+  // Overlay trim (selected overlay handles).
+  OverlayTrimDrag? _overlayTrim;
+  LayerTrack? _overlayTrimTrack;
+  int _overlayTrimIndex = -1;
+  double _overlayTrimDx = 0;
+  bool _overlayTrimSnapped = false;
+
+  // Overlay move (long-press + drag in time and across lanes).
+  OverlayMoveDrag? _overlayMove;
+  List<int> _overlayMoveSnapTargets = const [];
+  int? _overlayMoveLastSnapUs;
+
   late final MainStripGestures _gestures = MainStripGestures(
     onTrimStart: _onTrimStart,
     onTrimUpdate: _onTrimUpdate,
@@ -160,6 +232,15 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
     onReorderStart: _onReorderStart,
     onReorderUpdate: _onReorderUpdate,
     onReorderEnd: _onReorderEnd,
+  );
+
+  late final OverlayGestures _overlayGestures = OverlayGestures(
+    onTrimStart: _onOverlayTrimStart,
+    onTrimUpdate: _onOverlayTrimUpdate,
+    onTrimEnd: _onOverlayTrimEnd,
+    onMoveStart: _onOverlayMoveStart,
+    onMoveUpdate: _onOverlayMoveUpdate,
+    onMoveEnd: _onOverlayMoveEnd,
   );
 
   @override
@@ -186,6 +267,15 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
       }
       if (_reorder != null && !clips.any((c) => c.id == _reorder!.clipId)) {
         _reorder = null;
+      }
+      if (_overlayTrim != null &&
+          locateClip(widget.project, _overlayTrim!.clipId) == null) {
+        _overlayTrim = null;
+        _overlayTrimTrack = null;
+      }
+      if (_overlayMove != null &&
+          locateClip(widget.project, _overlayMove!.clipId) == null) {
+        _overlayMove = null;
       }
     }
   }
@@ -406,6 +496,289 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
       ..seal();
   }
 
+  void _onOverlayTrimStart(
+    String trackId,
+    int itemIndex, {
+    required bool start,
+  }) {
+    final track = widget.project.overlayTracks
+        .where((t) => t.id == trackId)
+        .firstOrNull;
+    if (track == null || itemIndex < 0 || itemIndex >= track.items.length) {
+      return;
+    }
+    final item = track.items[itemIndex];
+    _pauseForEdit();
+    unawaited(HapticFeedback.selectionClick());
+    setState(() {
+      _overlayTrimTrack = track;
+      _overlayTrimIndex = itemIndex;
+      _overlayTrimDx = 0;
+      _overlayTrimSnapped = false;
+      _overlayTrim = (
+        trackId: trackId,
+        clipId: item.clip.id,
+        start: start,
+        startUs: item.startUs,
+        sourceInUs: item.clip.sourceInUs,
+        sourceOutUs: item.clip.sourceOutUs,
+      );
+    });
+  }
+
+  void _onOverlayTrimUpdate(double dx) {
+    final track = _overlayTrimTrack;
+    final trim = _overlayTrim;
+    if (track == null ||
+        trim == null ||
+        _overlayTrimIndex < 0 ||
+        _overlayTrimIndex >= track.items.length) {
+      return;
+    }
+    final item = track.items[_overlayTrimIndex];
+    final clip = item.clip;
+    _overlayTrimDx += dx;
+    final playhead = ref.read(playbackPositionProvider(widget.projectId));
+    final tolerance = _scale.toUs(snapDistancePx);
+    final deltaTimeline = _scale.toUs(_overlayTrimDx);
+    var startUs = item.startUs;
+    var sourceIn = clip.sourceInUs;
+    var sourceOut = clip.sourceOutUs;
+    var snapped = false;
+
+    if (trim.start) {
+      final clamped = clampOverlayTrimStart(
+        track,
+        _overlayTrimIndex,
+        deltaTimelineUs: deltaTimeline,
+      );
+      startUs = clamped.startUs;
+      sourceIn = clamped.sourceInUs;
+      sourceOut = clamped.sourceOutUs;
+      if ((startUs - playhead).abs() <= tolerance) {
+        final snappedClamp = clampOverlayTrimStart(
+          track,
+          _overlayTrimIndex,
+          deltaTimelineUs: playhead - item.startUs,
+        );
+        startUs = snappedClamp.startUs;
+        sourceIn = snappedClamp.sourceInUs;
+        sourceOut = snappedClamp.sourceOutUs;
+        snapped = true;
+      }
+    } else {
+      final deltaSource = (deltaTimeline * clip.averageSpeed).round();
+      sourceOut = clampOverlayTrimEnd(
+        track,
+        _overlayTrimIndex,
+        sourceOutUs: clip.sourceOutUs + deltaSource,
+      );
+      final edge =
+          item.startUs + clip.timelineLengthOf(sourceOut - clip.sourceInUs);
+      if ((edge - playhead).abs() <= tolerance) {
+        sourceOut = clampOverlayTrimEnd(
+          track,
+          _overlayTrimIndex,
+          sourceOutUs:
+              clip.sourceInUs +
+              ((playhead - item.startUs) * clip.averageSpeed).round(),
+        );
+        snapped = true;
+      }
+    }
+
+    if (snapped && !_overlayTrimSnapped) {
+      unawaited(HapticFeedback.selectionClick());
+    }
+    _overlayTrimSnapped = snapped;
+    if (startUs == trim.startUs &&
+        sourceIn == trim.sourceInUs &&
+        sourceOut == trim.sourceOutUs) {
+      return;
+    }
+    setState(() {
+      _overlayTrim = (
+        trackId: trim.trackId,
+        clipId: trim.clipId,
+        start: trim.start,
+        startUs: startUs,
+        sourceInUs: sourceIn,
+        sourceOutUs: sourceOut,
+      );
+    });
+  }
+
+  void _onOverlayTrimEnd() {
+    final trim = _overlayTrim;
+    final track = _overlayTrimTrack;
+    final itemIndex = _overlayTrimIndex;
+    if (trim == null || track == null) return;
+    setState(() {
+      _overlayTrim = null;
+      _overlayTrimTrack = null;
+      _overlayTrimIndex = -1;
+    });
+    if (itemIndex < 0 || itemIndex >= track.items.length) return;
+    final item = track.items[itemIndex];
+    final clip = item.clip;
+    if (locateClip(widget.project, clip.id) == null) return;
+    if (trim.startUs == item.startUs &&
+        trim.sourceInUs == clip.sourceInUs &&
+        trim.sourceOutUs == clip.sourceOutUs) {
+      return;
+    }
+    _session
+      ..apply(
+        TrimOverlayCommand(
+          clip.id,
+          startUs: trim.startUs,
+          sourceInUs: trim.sourceInUs,
+          sourceOutUs: trim.sourceOutUs,
+        ),
+      )
+      ..seal();
+    final length = clip.timelineLengthOf(trim.sourceOutUs - trim.sourceInUs);
+    final frameUs = Micros.perSecond ~/ widget.project.canvas.fps;
+    final edge = trim.start
+        ? trim.startUs
+        : trim.startUs + math.max<int>(0, length - frameUs);
+    unawaited(_playback.seekTo(edge));
+  }
+
+  void _onOverlayMoveStart(String trackId, int itemIndex) {
+    final trackIndex = widget.project.overlayTracks.indexWhere(
+      (t) => t.id == trackId,
+    );
+    if (trackIndex < 0) return;
+    final track = widget.project.overlayTracks[trackIndex];
+    if (itemIndex < 0 || itemIndex >= track.items.length) return;
+    final item = track.items[itemIndex];
+    _pauseForEdit();
+    unawaited(HapticFeedback.mediumImpact());
+    final playhead = ref.read(playbackPositionProvider(widget.projectId));
+    // Snap targets exclude this overlay's own current edges so it doesn't stick
+    // to its starting position while dragging away.
+    final targets = <int>{0, playhead};
+    final main = widget.project.mainTrack;
+    for (var i = 0; i < main.clips.length; i++) {
+      targets
+        ..add(main.startOf(i))
+        ..add(main.endOf(i));
+    }
+    for (final t in widget.project.overlayTracks) {
+      for (final other in t.items) {
+        if (other.clip.id == item.clip.id) continue;
+        targets
+          ..add(other.range.startUs)
+          ..add(other.range.endUs);
+      }
+    }
+    _overlayMoveSnapTargets = targets.toList()..sort();
+    _overlayMoveLastSnapUs = null;
+    setState(() {
+      _overlayMove = (
+        trackId: trackId,
+        clipId: item.clip.id,
+        originTrackIndex: trackIndex,
+        originStartUs: item.startUs,
+        durationUs: item.clip.durationUs,
+        offset: Offset.zero,
+        targetStartUs: item.startUs,
+        targetTrackIndex: trackIndex,
+        valid: true,
+      );
+    });
+  }
+
+  void _onOverlayMoveUpdate(Offset offsetFromOrigin) {
+    final move = _overlayMove;
+    if (move == null) return;
+    final tracks = widget.project.overlayTracks;
+    final rawStart = math.max(
+      0,
+      move.originStartUs + _scale.toUs(offsetFromOrigin.dx),
+    );
+    final tolerance = _scale.toUs(snapDistancePx);
+    final startSnap = snapTo(
+      rawStart,
+      _overlayMoveSnapTargets,
+      toleranceUs: tolerance,
+    );
+    final endSnap = snapTo(
+      rawStart + move.durationUs,
+      _overlayMoveSnapTargets,
+      toleranceUs: tolerance,
+    );
+    var targetStart = rawStart;
+    int? snappedUs;
+    if (startSnap != null &&
+        (endSnap == null ||
+            (startSnap - rawStart).abs() <=
+                (endSnap - (rawStart + move.durationUs)).abs())) {
+      targetStart = startSnap;
+      snappedUs = startSnap;
+    } else if (endSnap != null && endSnap - move.durationUs >= 0) {
+      targetStart = endSnap - move.durationUs;
+      snappedUs = endSnap;
+    }
+    if (snappedUs != null && snappedUs != _overlayMoveLastSnapUs) {
+      unawaited(HapticFeedback.selectionClick());
+    }
+    _overlayMoveLastSnapUs = snappedUs;
+
+    const laneStep = TimelineMetrics.laneHeight + TimelineMetrics.laneGap;
+    final laneDelta = (offsetFromOrigin.dy / laneStep).round();
+    final targetTrackIndex = (move.originTrackIndex + laneDelta).clamp(
+      -1,
+      tracks.length,
+    );
+    if (targetTrackIndex != move.targetTrackIndex) {
+      unawaited(HapticFeedback.selectionClick());
+    }
+    final valid = canPlaceOverlayOnTrack(
+      tracks,
+      movingClipId: move.clipId,
+      targetTrackIndex: targetTrackIndex,
+      range: TimeRange(targetStart, targetStart + move.durationUs),
+    );
+    setState(() {
+      _overlayMove = (
+        trackId: move.trackId,
+        clipId: move.clipId,
+        originTrackIndex: move.originTrackIndex,
+        originStartUs: move.originStartUs,
+        durationUs: move.durationUs,
+        offset: offsetFromOrigin,
+        targetStartUs: targetStart,
+        targetTrackIndex: targetTrackIndex,
+        valid: valid,
+      );
+    });
+  }
+
+  void _onOverlayMoveEnd() {
+    final move = _overlayMove;
+    if (move == null) return;
+    setState(() => _overlayMove = null);
+    if (!move.valid) return;
+    if (move.targetStartUs == move.originStartUs &&
+        move.targetTrackIndex == move.originTrackIndex) {
+      return;
+    }
+    // The selection follows the clip onto its new lane
+    // (TimelineSelection.validIn).
+    _session
+      ..apply(
+        MoveOverlayCommand(
+          move.clipId,
+          startUs: move.targetStartUs,
+          trackIndex: move.targetTrackIndex,
+          newTrackId: ref.read(idGeneratorProvider),
+        ),
+      )
+      ..seal();
+  }
+
   // Pinch: two pointers zoom around the playhead; scrolling pauses.
   void _onPointerDown(PointerDownEvent e) {
     _pointers[e.pointer] = e.position;
@@ -531,6 +904,9 @@ class _TimelineViewState extends ConsumerState<TimelineView> {
                             trim: _trim,
                             reorder: _reorder,
                             gestures: _gestures,
+                            overlayTrim: _overlayTrim,
+                            overlayMove: _overlayMove,
+                            overlayGestures: _overlayGestures,
                           ),
                         ),
                       ),
@@ -644,6 +1020,9 @@ class _TimelineContent extends ConsumerWidget {
     required this.trim,
     required this.reorder,
     required this.gestures,
+    required this.overlayTrim,
+    required this.overlayMove,
+    required this.overlayGestures,
   });
 
   final String projectId;
@@ -657,6 +1036,9 @@ class _TimelineContent extends ConsumerWidget {
   final TrimDrag? trim;
   final ReorderDrag? reorder;
   final MainStripGestures gestures;
+  final OverlayTrimDrag? overlayTrim;
+  final OverlayMoveDrag? overlayMove;
+  final OverlayGestures overlayGestures;
 
   /// Width of each trim handle's touch target (AGENTS.md section 8).
   static const double handleTarget = 48;
@@ -692,26 +1074,133 @@ class _TimelineContent extends ConsumerWidget {
       ),
     ];
 
-    // Overlay lanes.
+    // Overlay lanes: trim handles on selected overlay, long-press drag to
+    // reposition in time or across lanes, plus keyframe markers.
+    Widget? liftedOverlay;
+    final overlayHandles = <Widget>[];
     for (final (i, track) in project.overlayTracks.indexed) {
-      for (final item in track.items) {
-        final sel = OverlaySelection(trackId: track.id, clipId: item.clip.id);
-        children.add(
-          _pill(
-            top: layout.overlayTops[i],
-            startUs: item.range.startUs,
-            endUs: item.range.endUs,
-            child: LanePill(
-              color: colors.overlay,
-              icon: AppIcons.laneOverlay,
-              label: item.clip.media.displayName ?? l10n.laneOverlay,
-              selected: selection == sel,
-              dimmed: dimOthers,
-              onTap: () => selector.toggle(sel),
-            ),
+      for (final (itemIndex, item) in track.items.indexed) {
+        final clip = item.clip;
+        final sel = OverlaySelection(trackId: track.id, clipId: clip.id);
+        final trimming = overlayTrim?.clipId == clip.id ? overlayTrim : null;
+        final shownClip = trimming == null
+            ? clip
+            : clip.copyWith(
+                sourceInUs: trimming.sourceInUs,
+                sourceOutUs: trimming.sourceOutUs,
+              );
+        final shownStartUs = trimming?.startUs ?? item.startUs;
+        final shownEndUs = shownStartUs + shownClip.durationUs;
+        final isLifted = overlayMove?.clipId == clip.id;
+        final pillLeft =
+            _x(shownStartUs) + (isLifted ? overlayMove!.offset.dx : 0);
+        final pillTop =
+            layout.overlayTops[i] + (isLifted ? overlayMove!.offset.dy : 0);
+        final pillWidth = math.max(
+          TimelineMetrics.laneHeight,
+          scale.toPx(shownEndUs - shownStartUs),
+        );
+        final keyframeTimes = shownClip.keyframeTimes;
+        final pillWidget = Positioned(
+          // Keyed so a lifted overlay keeps its long-press gesture recognizer
+          // when moved to the top of the Stack.
+          key: ValueKey(('overlayClip', clip.id)),
+          left: pillLeft,
+          top: pillTop,
+          width: pillWidth,
+          height: TimelineMetrics.laneHeight,
+          child: LanePill(
+            color: colors.overlay,
+            icon: AppIcons.laneOverlay,
+            label: clip.media.displayName ?? l10n.laneOverlay,
+            selected: selection == sel,
+            dimmed: dimOthers,
+            lifted: isLifted,
+            onTap: () => selector.toggle(sel),
+            onLongPressStart: () =>
+                overlayGestures.onMoveStart(track.id, itemIndex),
+            onLongPressMove: overlayGestures.onMoveUpdate,
+            onLongPressEnd: overlayGestures.onMoveEnd,
+            overlay: keyframeTimes.isEmpty
+                ? null
+                : ClipKeyframeMarkers(
+                    timesUs: keyframeTimes,
+                    clipDurationUs: shownClip.durationUs,
+                    scale: scale,
+                  ),
           ),
         );
+        if (isLifted) {
+          liftedOverlay = pillWidget;
+        } else {
+          children.add(pillWidget);
+        }
+        if (selection == sel && overlayMove == null && reorder == null) {
+          // Each 48dp target reaches at most a quarter of the pill inward, so
+          // the middle of a short pill stays free for long-press moves.
+          final inward = math.min(handleTarget / 2, pillWidth / 4);
+          for (final isStart in [true, false]) {
+            final edgeX = isStart ? pillLeft : pillLeft + pillWidth;
+            overlayHandles.add(
+              Positioned(
+                key: ValueKey(isStart ? 'overlayTrimStart' : 'overlayTrimEnd'),
+                left: isStart
+                    ? edgeX - (handleTarget - inward)
+                    : edgeX - inward,
+                top: layout.overlayTops[i] - 9,
+                width: handleTarget,
+                height: 48,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  dragStartBehavior: DragStartBehavior.down,
+                  onHorizontalDragStart: (_) => overlayGestures.onTrimStart(
+                    track.id,
+                    itemIndex,
+                    start: isStart,
+                  ),
+                  onHorizontalDragUpdate: (d) => overlayGestures.onTrimUpdate(
+                    d.primaryDelta ?? d.delta.dx,
+                  ),
+                  onHorizontalDragEnd: (_) => overlayGestures.onTrimEnd(),
+                  onHorizontalDragCancel: overlayGestures.onTrimEnd,
+                ),
+              ),
+            );
+          }
+        }
       }
+    }
+    if (overlayMove case final move?) {
+      const laneStep = TimelineMetrics.laneHeight + TimelineMetrics.laneGap;
+      final ghostTop = move.targetTrackIndex < 0
+          ? layout.overlayTops.first - laneStep * 0.45
+          : move.targetTrackIndex >= layout.overlayTops.length
+          ? layout.overlayTops.last + laneStep * 0.45
+          : layout.overlayTops[move.targetTrackIndex];
+      final ghostColor = move.valid ? colors.overlay : scheme.error;
+      children.add(
+        Positioned(
+          key: const ValueKey('overlayDropGhost'),
+          left: _x(move.targetStartUs),
+          top: ghostTop,
+          width: math.max(
+            TimelineMetrics.laneHeight,
+            scale.toPx(move.durationUs),
+          ),
+          height: TimelineMetrics.laneHeight,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: ghostColor.withValues(alpha: 0.22),
+                borderRadius: const BorderRadius.all(
+                  Radius.circular(TimelineMetrics.laneHeight / 2),
+                ),
+                border: Border.all(color: ghostColor, width: 1.5),
+              ),
+            ),
+          ),
+        ),
+      );
     }
 
     // Main strip: clips laid out along their visual slots (overlapping across
@@ -951,7 +1440,9 @@ class _TimelineContent extends ConsumerWidget {
     children
       ..addAll(overlapBands)
       ..addAll(markers)
-      ..addAll(handles);
+      ..addAll(handles)
+      ..addAll(overlayHandles);
+    if (liftedOverlay != null) children.add(liftedOverlay);
     if (reorder != null && lifted != null) {
       // Where the lifted clip will land: before the clip now at that slot
       // (ignoring the lifted one), or after the last.
@@ -1574,7 +2065,12 @@ class LanePill extends StatelessWidget {
     required this.selected,
     required this.dimmed,
     required this.onTap,
+    this.lifted = false,
+    this.onLongPressStart,
+    this.onLongPressMove,
+    this.onLongPressEnd,
     this.trailing,
+    this.overlay,
     super.key,
   });
 
@@ -1593,11 +2089,26 @@ class LanePill extends StatelessWidget {
   /// Dimmed while a main-track clip is selected.
   final bool dimmed;
 
+  /// Whether the pill is lifted for moving (drawn raised with shadow).
+  final bool lifted;
+
   /// Selects / deselects the clip.
   final VoidCallback onTap;
 
+  /// Long press: lift the pill to move it.
+  final VoidCallback? onLongPressStart;
+
+  /// The lifted pill moved by `offsetFromOrigin` px.
+  final ValueChanged<Offset>? onLongPressMove;
+
+  /// The lifted pill was dropped.
+  final VoidCallback? onLongPressEnd;
+
   /// Content after the label (e.g. a waveform).
   final Widget? trailing;
+
+  /// Optional overlay painted across the pill (e.g. keyframe diamond markers).
+  final Widget? overlay;
 
   @override
   Widget build(BuildContext context) {
@@ -1611,85 +2122,115 @@ class LanePill extends StatelessWidget {
       fontVariations: const [FontVariation.weight(700)],
       color: scheme.onSurface,
     );
+    final move = onLongPressMove;
+    final body = Opacity(
+      opacity: dimmed ? TimelineColors.dimmedLane : 1,
+      child: Stack(
+        clipBehavior: ui.Clip.none,
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: color.withValues(
+                  alpha: selected
+                      ? TimelineColors.selectedPillFill
+                      : TimelineColors.unselectedPillFill,
+                ),
+                borderRadius: radius,
+                border: Border.all(
+                  color: selected ? color : color.withValues(alpha: 0.45),
+                  width: selected ? 2 : 1,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: radius,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Drop label / waveform on narrow pills so short or
+                    // zoomed-out clips never trigger a Row overflow.
+                    final showLabel = constraints.maxWidth >= 44;
+                    final showTrailing =
+                        trailing != null && constraints.maxWidth >= 72;
+                    return Padding(
+                      padding: EdgeInsetsDirectional.only(
+                        start: showLabel ? 10 : 0,
+                        end: showLabel ? 4 : 0,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: showLabel
+                            ? MainAxisAlignment.start
+                            : MainAxisAlignment.center,
+                        children: [
+                          AppIcon(icon, size: 10, color: scheme.onSurface),
+                          if (showLabel) ...[
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: textStyle,
+                              ),
+                            ),
+                          ],
+                          if (trailing case final t? when showTrailing) ...[
+                            const SizedBox(width: 8),
+                            Expanded(child: t),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+          if (overlay case final o?) Positioned.fill(child: o),
+          if (selected)
+            for (final left in [true, false])
+              Positioned(
+                left: left ? -8 : null,
+                right: left ? null : -8,
+                top: TimelineMetrics.laneHeight / 2 - 7,
+                child: _Handle(color: color),
+              ),
+        ],
+      ),
+    );
     return Semantics(
       button: true,
       selected: selected,
       label: label,
       child: GestureDetector(
         onTap: onTap,
-        child: Opacity(
-          opacity: dimmed ? TimelineColors.dimmedLane : 1,
-          child: Stack(
-            clipBehavior: ui.Clip.none,
-            children: [
-              Positioned.fill(
+        onLongPressStart: onLongPressStart == null
+            ? null
+            : (_) => onLongPressStart!(),
+        onLongPressMoveUpdate: move == null
+            ? null
+            : (d) => move(d.offsetFromOrigin),
+        onLongPressEnd: onLongPressEnd == null
+            ? null
+            : (_) => onLongPressEnd!(),
+        onLongPressCancel: onLongPressEnd,
+        child: lifted
+            ? Transform.translate(
+                offset: const Offset(0, -4),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: color.withValues(
-                      alpha: selected
-                          ? TimelineColors.selectedPillFill
-                          : TimelineColors.unselectedPillFill,
-                    ),
                     borderRadius: radius,
-                    border: Border.all(
-                      color: selected ? color : color.withValues(alpha: 0.45),
-                      width: selected ? 2 : 1,
-                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: scheme.shadow.withValues(alpha: 0.6),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
-                  child: ClipRRect(
-                    borderRadius: radius,
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        // Drop label / waveform on narrow pills so short or
-                        // zoomed-out clips never trigger a Row overflow.
-                        final showLabel = constraints.maxWidth >= 44;
-                        final showTrailing =
-                            trailing != null && constraints.maxWidth >= 72;
-                        return Padding(
-                          padding: EdgeInsetsDirectional.only(
-                            start: showLabel ? 10 : 0,
-                            end: showLabel ? 4 : 0,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: showLabel
-                                ? MainAxisAlignment.start
-                                : MainAxisAlignment.center,
-                            children: [
-                              AppIcon(icon, size: 10, color: scheme.onSurface),
-                              if (showLabel) ...[
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Text(
-                                    label,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: textStyle,
-                                  ),
-                                ),
-                              ],
-                              if (trailing case final t? when showTrailing) ...[
-                                const SizedBox(width: 8),
-                                Expanded(child: t),
-                              ],
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+                  child: Opacity(opacity: 0.9, child: body),
                 ),
-              ),
-              if (selected)
-                for (final left in [true, false])
-                  Positioned(
-                    left: left ? -8 : null,
-                    right: left ? null : -8,
-                    top: TimelineMetrics.laneHeight / 2 - 7,
-                    child: _Handle(color: color),
-                  ),
-            ],
-          ),
-        ),
+              )
+            : body,
       ),
     );
   }

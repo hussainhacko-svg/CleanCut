@@ -835,7 +835,7 @@ data class TransitionSpec (
 }
 
 /**
- * One clip of the main sequence. Times are microseconds.
+ * One clip of the main or an overlay sequence. Times are microseconds.
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
@@ -865,7 +865,9 @@ data class ClipSpec (
   /** Fit, crop, transform and border. */
   val style: ClipStyleSpec,
   /** Optional transition into the next clip (null for a hard cut or last clip). */
-  val transitionOut: TransitionSpec? = null
+  val transitionOut: TransitionSpec? = null,
+  /** Whether this clip's audio track is muted. */
+  val muted: Boolean
 )
  {
   companion object {
@@ -880,7 +882,8 @@ data class ClipSpec (
       val speedSteps = pigeonVar_list[7] as List<SpeedStepSpec>
       val style = pigeonVar_list[8] as ClipStyleSpec
       val transitionOut = pigeonVar_list[9] as TransitionSpec?
-      return ClipSpec(uri, kind, sourceDurationUs, sourceInUs, sourceOutUs, speed, keepPitch, speedSteps, style, transitionOut)
+      val muted = pigeonVar_list[10] as Boolean
+      return ClipSpec(uri, kind, sourceDurationUs, sourceInUs, sourceOutUs, speed, keepPitch, speedSteps, style, transitionOut, muted)
     }
   }
   fun toList(): List<Any?> {
@@ -895,6 +898,7 @@ data class ClipSpec (
       speedSteps,
       style,
       transitionOut,
+      muted,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -905,7 +909,7 @@ data class ClipSpec (
       return true
     }
     val other = other as ClipSpec
-    return EngineApiPigeonUtils.deepEquals(this.uri, other.uri) && EngineApiPigeonUtils.deepEquals(this.kind, other.kind) && EngineApiPigeonUtils.deepEquals(this.sourceDurationUs, other.sourceDurationUs) && EngineApiPigeonUtils.deepEquals(this.sourceInUs, other.sourceInUs) && EngineApiPigeonUtils.deepEquals(this.sourceOutUs, other.sourceOutUs) && EngineApiPigeonUtils.deepEquals(this.speed, other.speed) && EngineApiPigeonUtils.deepEquals(this.keepPitch, other.keepPitch) && EngineApiPigeonUtils.deepEquals(this.speedSteps, other.speedSteps) && EngineApiPigeonUtils.deepEquals(this.style, other.style) && EngineApiPigeonUtils.deepEquals(this.transitionOut, other.transitionOut)
+    return EngineApiPigeonUtils.deepEquals(this.uri, other.uri) && EngineApiPigeonUtils.deepEquals(this.kind, other.kind) && EngineApiPigeonUtils.deepEquals(this.sourceDurationUs, other.sourceDurationUs) && EngineApiPigeonUtils.deepEquals(this.sourceInUs, other.sourceInUs) && EngineApiPigeonUtils.deepEquals(this.sourceOutUs, other.sourceOutUs) && EngineApiPigeonUtils.deepEquals(this.speed, other.speed) && EngineApiPigeonUtils.deepEquals(this.keepPitch, other.keepPitch) && EngineApiPigeonUtils.deepEquals(this.speedSteps, other.speedSteps) && EngineApiPigeonUtils.deepEquals(this.style, other.style) && EngineApiPigeonUtils.deepEquals(this.transitionOut, other.transitionOut) && EngineApiPigeonUtils.deepEquals(this.muted, other.muted)
   }
 
   override fun hashCode(): Int {
@@ -920,15 +924,106 @@ data class ClipSpec (
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.speedSteps)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.style)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.transitionOut)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.muted)
     return result
   }
   override fun toString(): String {
-    return "ClipSpec(uri=$uri, kind=$kind, sourceDurationUs=$sourceDurationUs, sourceInUs=$sourceInUs, sourceOutUs=$sourceOutUs, speed=$speed, keepPitch=$keepPitch, speedSteps=$speedSteps, style=$style, transitionOut=$transitionOut)"
+    return "ClipSpec(uri=$uri, kind=$kind, sourceDurationUs=$sourceDurationUs, sourceInUs=$sourceInUs, sourceOutUs=$sourceOutUs, speed=$speed, keepPitch=$keepPitch, speedSteps=$speedSteps, style=$style, transitionOut=$transitionOut, muted=$muted)"
   }
 }
 
 /**
- * What the preview plays: the main track, fitted into the canvas.
+ * An overlay clip placed at timeline time [startUs] (Phase 7A).
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class PlacedClipSpec (
+  /** Timeline start time in microseconds. */
+  val startUs: Long,
+  /** The overlay clip. */
+  val clip: ClipSpec
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlacedClipSpec {
+      val startUs = pigeonVar_list[0] as Long
+      val clip = pigeonVar_list[1] as ClipSpec
+      return PlacedClipSpec(startUs, clip)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      startUs,
+      clip,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlacedClipSpec
+    return EngineApiPigeonUtils.deepEquals(this.startUs, other.startUs) && EngineApiPigeonUtils.deepEquals(this.clip, other.clip)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.startUs)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.clip)
+    return result
+  }
+  override fun toString(): String {
+    return "PlacedClipSpec(startUs=$startUs, clip=$clip)"
+  }
+}
+
+/**
+ * One overlay (PiP) track of non-overlapping placed clips (Phase 7A).
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class OverlayTrackSpec (
+  /** Non-overlapping overlay clips, sorted by start time. */
+  val clips: List<PlacedClipSpec>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): OverlayTrackSpec {
+      val clips = pigeonVar_list[0] as List<PlacedClipSpec>
+      return OverlayTrackSpec(clips)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      clips,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as OverlayTrackSpec
+    return EngineApiPigeonUtils.deepEquals(this.clips, other.clips)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.clips)
+    return result
+  }
+  override fun toString(): String {
+    return "OverlayTrackSpec(clips=$clips)"
+  }
+}
+
+/**
+ * What the preview plays: the main track plus any overlay tracks, fitted
+ * into the canvas.
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
@@ -941,7 +1036,9 @@ data class CompositionSpec (
   /** Frames per second used for still images. */
   val frameRate: Long,
   /** What fills the canvas behind the clips. */
-  val background: BackgroundSpec
+  val background: BackgroundSpec,
+  /** Overlay (PiP) tracks, frontmost first (index 0 renders on top). */
+  val overlayTracks: List<OverlayTrackSpec>
 )
  {
   companion object {
@@ -951,7 +1048,8 @@ data class CompositionSpec (
       val canvasHeight = pigeonVar_list[2] as Long
       val frameRate = pigeonVar_list[3] as Long
       val background = pigeonVar_list[4] as BackgroundSpec
-      return CompositionSpec(clips, canvasWidth, canvasHeight, frameRate, background)
+      val overlayTracks = pigeonVar_list[5] as List<OverlayTrackSpec>
+      return CompositionSpec(clips, canvasWidth, canvasHeight, frameRate, background, overlayTracks)
     }
   }
   fun toList(): List<Any?> {
@@ -961,6 +1059,7 @@ data class CompositionSpec (
       canvasHeight,
       frameRate,
       background,
+      overlayTracks,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -971,7 +1070,7 @@ data class CompositionSpec (
       return true
     }
     val other = other as CompositionSpec
-    return EngineApiPigeonUtils.deepEquals(this.clips, other.clips) && EngineApiPigeonUtils.deepEquals(this.canvasWidth, other.canvasWidth) && EngineApiPigeonUtils.deepEquals(this.canvasHeight, other.canvasHeight) && EngineApiPigeonUtils.deepEquals(this.frameRate, other.frameRate) && EngineApiPigeonUtils.deepEquals(this.background, other.background)
+    return EngineApiPigeonUtils.deepEquals(this.clips, other.clips) && EngineApiPigeonUtils.deepEquals(this.canvasWidth, other.canvasWidth) && EngineApiPigeonUtils.deepEquals(this.canvasHeight, other.canvasHeight) && EngineApiPigeonUtils.deepEquals(this.frameRate, other.frameRate) && EngineApiPigeonUtils.deepEquals(this.background, other.background) && EngineApiPigeonUtils.deepEquals(this.overlayTracks, other.overlayTracks)
   }
 
   override fun hashCode(): Int {
@@ -981,10 +1080,11 @@ data class CompositionSpec (
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.canvasHeight)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.frameRate)
     result = 31 * result + EngineApiPigeonUtils.deepHash(this.background)
+    result = 31 * result + EngineApiPigeonUtils.deepHash(this.overlayTracks)
     return result
   }
   override fun toString(): String {
-    return "CompositionSpec(clips=$clips, canvasWidth=$canvasWidth, canvasHeight=$canvasHeight, frameRate=$frameRate, background=$background)"
+    return "CompositionSpec(clips=$clips, canvasWidth=$canvasWidth, canvasHeight=$canvasHeight, frameRate=$frameRate, background=$background, overlayTracks=$overlayTracks)"
   }
 }
 
@@ -1175,15 +1275,25 @@ private open class EngineApiPigeonCodec : StandardMessageCodec() {
       }
       144.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          CompositionSpec.fromList(it)
+          PlacedClipSpec.fromList(it)
         }
       }
       145.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          PlayerStateEvent.fromList(it)
+          OverlayTrackSpec.fromList(it)
         }
       }
       146.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          CompositionSpec.fromList(it)
+        }
+      }
+      147.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          PlayerStateEvent.fromList(it)
+        }
+      }
+      148.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
           WaveformData.fromList(it)
         }
@@ -1253,16 +1363,24 @@ private open class EngineApiPigeonCodec : StandardMessageCodec() {
         stream.write(143)
         writeValue(stream, value.toList())
       }
-      is CompositionSpec -> {
+      is PlacedClipSpec -> {
         stream.write(144)
         writeValue(stream, value.toList())
       }
-      is PlayerStateEvent -> {
+      is OverlayTrackSpec -> {
         stream.write(145)
         writeValue(stream, value.toList())
       }
-      is WaveformData -> {
+      is CompositionSpec -> {
         stream.write(146)
+        writeValue(stream, value.toList())
+      }
+      is PlayerStateEvent -> {
+        stream.write(147)
+        writeValue(stream, value.toList())
+      }
+      is WaveformData -> {
+        stream.write(148)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)

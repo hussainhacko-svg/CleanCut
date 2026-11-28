@@ -68,7 +68,8 @@ Horizontally scrolling row (`ToolDock`, height 64dp); items ≥ 60dp wide with 2
 
 Tools whose phase hasn't shipped show "Coming in a later update." All icons come from the Clipcraft icon pack (`assets/icons/`). Category icons keep their built-in duotone color; the pack's uncategorized grey glyphs (chevrons, close, plus, more, settings, info, sliders) take the ambient icon color so they follow the theme and dim when disabled (`AppIcons.neutral`). On filled buttons every icon is tinted `onPrimary`. **Duplicate** sits right after Split (owner decision).
 
-- **Split** cuts the selected clip at the playhead; with the playhead outside the clip (or within 0.1 s of an edge) a snackbar says to move it. **Delete** removes the clip at once (undoable, no dialog). Overlay and audio clips get these tools with their phases.
+- **Split** cuts the selected clip at the playhead; with the playhead outside the clip (or within 0.1 s of an edge) a snackbar says to move it. **Delete** removes the clip at once (undoable, no dialog). Both main-track and overlay clips support the full clip tool set; audio clips get theirs in Phase 9.
+- **Overlay (Phase 7A):** Tapping `Overlay` opens the Photo Picker (`pickVisualMedia`) and inserts the picked photo or video at the playhead scaled to 50% centered (video overlays default to muted), auto-selecting it with the on-preview `TransformGizmo` frame visible. Overlapping overlays stack onto a new frontmost overlay lane; non-overlapping overlays reuse the lowest free lane. Selected overlay pills support 48dp left/right trim handles (extending stills from either edge; each reaches at most a quarter of the pill inward so short pills stay long-pressable), long-press drag in time and across lanes (with snap + drop-target ghost), and keyframe diamond markers.
 
 ### Speed panel
 

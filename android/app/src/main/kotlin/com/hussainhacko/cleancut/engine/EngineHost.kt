@@ -73,7 +73,11 @@ class EngineHost(
 
     /** Parses the composition's LUTs on IO so the GL thread only has to upload them. */
     private fun prefetchLuts(spec: CompositionSpec) {
-        val ids = spec.clips.mapNotNull { it.style.filterId?.takeIf { id -> id.isNotEmpty() } }.distinct()
+        val mainIds = spec.clips.mapNotNull { it.style.filterId?.takeIf { id -> id.isNotEmpty() } }
+        val overlayIds = spec.overlayTracks.flatMap { track ->
+            track.clips.mapNotNull { it.clip.style.filterId?.takeIf { id -> id.isNotEmpty() } }
+        }
+        val ids = (mainIds + overlayIds).distinct()
         if (ids.isEmpty()) return
         scope.launch(Dispatchers.IO) { ids.forEach { LutLibrary.get(context, it) } }
     }

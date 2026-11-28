@@ -174,7 +174,7 @@ final class TimelineSelectionControllerProvider
 }
 
 String _$timelineSelectionControllerHash() =>
-    r'ad072c7a47508ee7f55178106c9ddf4f03cb3ff2';
+    r'b08e214aa003c5d29f93a240f05b40f53c2c46c3';
 
 /// What is selected on a project's timeline. Drops the selection when its
 /// item disappears (delete, undo).

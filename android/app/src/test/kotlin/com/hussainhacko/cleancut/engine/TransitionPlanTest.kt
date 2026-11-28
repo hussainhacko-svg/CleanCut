@@ -22,10 +22,11 @@ class TransitionPlanTest {
         speedSteps = emptyList(),
         style = styleSpec(),
         transitionOut = transitionOut,
+        muted = false,
     )
 
     private fun spec(vararg clips: ClipSpec) =
-        CompositionSpec(clips.toList(), 1080, 1920, 30, backgroundSpec())
+        CompositionSpec(clips.toList(), 1080, 1920, 30, backgroundSpec(), emptyList())
 
     @Test
     fun `overlapping transitions shorten duration and shift clip starts`() {

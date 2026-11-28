@@ -11,7 +11,9 @@ sealed class TimelineSelection {
   static const TimelineSelection none = NoSelection();
 
   /// This selection if its item still exists in [project], else [none]
-  /// (e.g. after the item was deleted or an undo removed it).
+  /// (e.g. after the item was deleted or an undo removed it). An overlay
+  /// selection follows its clip onto another overlay lane (a lane move, its
+  /// undo, or a speed change that bumped the clip).
   TimelineSelection validIn(Project project) => switch (this) {
     NoSelection() => this,
     MainClipSelection(:final clipId) =>
@@ -22,12 +24,14 @@ sealed class TimelineSelection {
                   project.mainTrack.clips.length - 1
           ? this
           : none,
-    OverlaySelection(:final trackId, :final clipId) =>
-      project.overlayTracks.any(
-            (t) => t.id == trackId && t.items.any((i) => i.clip.id == clipId),
-          )
-          ? this
-          : none,
+    OverlaySelection(:final trackId, :final clipId) => switch (project
+        .overlayTracks
+        .where((t) => t.items.any((i) => i.clip.id == clipId))
+        .firstOrNull) {
+      null => none,
+      final track when track.id == trackId => this,
+      final track => OverlaySelection(trackId: track.id, clipId: clipId),
+    },
     AudioSelection(:final trackId, :final clipId) =>
       project.audioTracks.any(
             (t) => t.id == trackId && t.items.any((i) => i.clip.id == clipId),

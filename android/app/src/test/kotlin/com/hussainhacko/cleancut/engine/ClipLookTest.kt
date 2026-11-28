@@ -233,12 +233,12 @@ class ClipLookTest {
     }
 
     private fun clip(uri: String, outUs: Long, style: ClipStyleSpec = styleSpec()) =
-        ClipSpec(uri, SpecMediaKind.VIDEO, 10_000_000, 0, outUs, 2.0, true, emptyList(), style)
+        ClipSpec(uri, SpecMediaKind.VIDEO, 10_000_000, 0, outUs, 2.0, true, emptyList(), style, null, false)
 
     @Test
     fun `items start where the previous ones end on the timeline`() {
         val plan = CompositionPlan.of(
-            CompositionSpec(listOf(clip("a", 4_000_000), clip("b", 2_000_000)), 1080, 1920, 30, backgroundSpec()),
+            CompositionSpec(listOf(clip("a", 4_000_000), clip("b", 2_000_000)), 1080, 1920, 30, backgroundSpec(), emptyList()),
         )
         assertEquals(listOf(0L, 2_000_000L), plan.timelineStartsUs)
     }
@@ -246,7 +246,7 @@ class ClipLookTest {
     @Test
     fun `looks do not change the structure key, media does`() {
         fun plan(style: ClipStyleSpec, background: BackgroundSpec, out: Long = 4_000_000) = CompositionPlan.of(
-            CompositionSpec(listOf(clip("a", out, style)), 1080, 1920, 30, background),
+            CompositionSpec(listOf(clip("a", out, style)), 1080, 1920, 30, background, emptyList()),
         )
         val base = plan(styleSpec(), backgroundSpec())
         val restyled = plan(

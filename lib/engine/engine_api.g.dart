@@ -766,7 +766,7 @@ class TransitionSpec {
   }
 }
 
-/// One clip of the main sequence. Times are microseconds.
+/// One clip of the main or an overlay sequence. Times are microseconds.
 class ClipSpec {
   ClipSpec({
     required this.uri,
@@ -779,6 +779,7 @@ class ClipSpec {
     required this.speedSteps,
     required this.style,
     this.transitionOut,
+    this.muted = false,
   });
 
   /// Content URI of the source.
@@ -813,6 +814,9 @@ class ClipSpec {
   /// Optional transition into the next clip (null for a hard cut or last clip).
   TransitionSpec? transitionOut;
 
+  /// Whether this clip's audio track is muted.
+  bool muted;
+
   List<Object?> _toList() {
     return <Object?>[
       uri,
@@ -825,6 +829,7 @@ class ClipSpec {
       speedSteps,
       style,
       transitionOut,
+      muted,
     ];
   }
 
@@ -845,6 +850,7 @@ class ClipSpec {
       speedSteps: (result[7]! as List<Object?>).cast<SpeedStepSpec>(),
       style: result[8]! as ClipStyleSpec,
       transitionOut: result[9] as TransitionSpec?,
+      muted: result[10]! as bool,
     );
   }
 
@@ -866,7 +872,8 @@ class ClipSpec {
         _deepEquals(keepPitch, other.keepPitch) &&
         _deepEquals(speedSteps, other.speedSteps) &&
         _deepEquals(style, other.style) &&
-        _deepEquals(transitionOut, other.transitionOut);
+        _deepEquals(transitionOut, other.transitionOut) &&
+        _deepEquals(muted, other.muted);
   }
 
   @override
@@ -875,11 +882,104 @@ class ClipSpec {
 
   @override
   String toString() {
-    return 'ClipSpec(uri: $uri, kind: $kind, sourceDurationUs: $sourceDurationUs, sourceInUs: $sourceInUs, sourceOutUs: $sourceOutUs, speed: $speed, keepPitch: $keepPitch, speedSteps: $speedSteps, style: $style, transitionOut: $transitionOut)';
+    return 'ClipSpec(uri: $uri, kind: $kind, sourceDurationUs: $sourceDurationUs, sourceInUs: $sourceInUs, sourceOutUs: $sourceOutUs, speed: $speed, keepPitch: $keepPitch, speedSteps: $speedSteps, style: $style, transitionOut: $transitionOut, muted: $muted)';
   }
 }
 
-/// What the preview plays: the main track, fitted into the canvas.
+/// An overlay clip placed at timeline time [startUs] (Phase 7A).
+class PlacedClipSpec {
+  PlacedClipSpec({required this.startUs, required this.clip});
+
+  /// Timeline start time in microseconds.
+  int startUs;
+
+  /// The overlay clip.
+  ClipSpec clip;
+
+  List<Object?> _toList() {
+    return <Object?>[startUs, clip];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static PlacedClipSpec decode(Object result) {
+    result as List<Object?>;
+    return PlacedClipSpec(
+      startUs: result[0]! as int,
+      clip: result[1]! as ClipSpec,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlacedClipSpec || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(startUs, other.startUs) && _deepEquals(clip, other.clip);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlacedClipSpec(startUs: $startUs, clip: $clip)';
+  }
+}
+
+/// One overlay (PiP) track of non-overlapping placed clips (Phase 7A).
+class OverlayTrackSpec {
+  OverlayTrackSpec({required this.clips});
+
+  /// Non-overlapping overlay clips, sorted by start time.
+  List<PlacedClipSpec> clips;
+
+  List<Object?> _toList() {
+    return <Object?>[clips];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static OverlayTrackSpec decode(Object result) {
+    result as List<Object?>;
+    return OverlayTrackSpec(
+      clips: (result[0]! as List<Object?>).cast<PlacedClipSpec>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! OverlayTrackSpec || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(clips, other.clips);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'OverlayTrackSpec(clips: $clips)';
+  }
+}
+
+/// What the preview plays: the main track plus any overlay tracks, fitted
+/// into the canvas.
 class CompositionSpec {
   CompositionSpec({
     required this.clips,
@@ -887,6 +987,7 @@ class CompositionSpec {
     required this.canvasHeight,
     required this.frameRate,
     required this.background,
+    this.overlayTracks = const [],
   });
 
   /// Main-track clips in timeline order.
@@ -903,8 +1004,18 @@ class CompositionSpec {
   /// What fills the canvas behind the clips.
   BackgroundSpec background;
 
+  /// Overlay (PiP) tracks, frontmost first (index 0 renders on top).
+  List<OverlayTrackSpec> overlayTracks;
+
   List<Object?> _toList() {
-    return <Object?>[clips, canvasWidth, canvasHeight, frameRate, background];
+    return <Object?>[
+      clips,
+      canvasWidth,
+      canvasHeight,
+      frameRate,
+      background,
+      overlayTracks,
+    ];
   }
 
   Object encode() {
@@ -919,6 +1030,7 @@ class CompositionSpec {
       canvasHeight: result[2]! as int,
       frameRate: result[3]! as int,
       background: result[4]! as BackgroundSpec,
+      overlayTracks: (result[5]! as List<Object?>).cast<OverlayTrackSpec>(),
     );
   }
 
@@ -935,7 +1047,8 @@ class CompositionSpec {
         _deepEquals(canvasWidth, other.canvasWidth) &&
         _deepEquals(canvasHeight, other.canvasHeight) &&
         _deepEquals(frameRate, other.frameRate) &&
-        _deepEquals(background, other.background);
+        _deepEquals(background, other.background) &&
+        _deepEquals(overlayTracks, other.overlayTracks);
   }
 
   @override
@@ -944,7 +1057,7 @@ class CompositionSpec {
 
   @override
   String toString() {
-    return 'CompositionSpec(clips: $clips, canvasWidth: $canvasWidth, canvasHeight: $canvasHeight, frameRate: $frameRate, background: $background)';
+    return 'CompositionSpec(clips: $clips, canvasWidth: $canvasWidth, canvasHeight: $canvasHeight, frameRate: $frameRate, background: $background, overlayTracks: $overlayTracks)';
   }
 }
 
@@ -1122,14 +1235,20 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is ClipSpec) {
       buffer.putUint8(143);
       writeValue(buffer, value.encode());
-    } else if (value is CompositionSpec) {
+    } else if (value is PlacedClipSpec) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    } else if (value is PlayerStateEvent) {
+    } else if (value is OverlayTrackSpec) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    } else if (value is WaveformData) {
+    } else if (value is CompositionSpec) {
       buffer.putUint8(146);
+      writeValue(buffer, value.encode());
+    } else if (value is PlayerStateEvent) {
+      buffer.putUint8(147);
+      writeValue(buffer, value.encode());
+    } else if (value is WaveformData) {
+      buffer.putUint8(148);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1176,10 +1295,14 @@ class _PigeonCodec extends StandardMessageCodec {
       case 143:
         return ClipSpec.decode(readValue(buffer)!);
       case 144:
-        return CompositionSpec.decode(readValue(buffer)!);
+        return PlacedClipSpec.decode(readValue(buffer)!);
       case 145:
-        return PlayerStateEvent.decode(readValue(buffer)!);
+        return OverlayTrackSpec.decode(readValue(buffer)!);
       case 146:
+        return CompositionSpec.decode(readValue(buffer)!);
+      case 147:
+        return PlayerStateEvent.decode(readValue(buffer)!);
+      case 148:
         return WaveformData.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);

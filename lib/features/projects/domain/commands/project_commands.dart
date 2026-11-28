@@ -4,6 +4,7 @@ import 'package:cleancut/features/projects/domain/model/clip_transform.dart';
 import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/model/project_canvas.dart';
+import 'package:cleancut/features/projects/domain/timeline/clip_lookup.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 /// Renames the project. Leading and trailing whitespace is removed.
@@ -87,16 +88,8 @@ final class SetClipTransformCommand extends EditCommand {
   Object? get coalesceKey => (SetClipTransformCommand, clipId);
 
   @override
-  Project apply(Project project) {
-    final clips = project.mainTrack.clips;
-    final index = clips.indexWhere((c) => c.id == clipId);
-    if (index < 0) throw InvalidEditException('No clip $clipId');
-    final updated = [...clips];
-    updated[index] = clips[index].copyWith(transform: transform);
-    return project.copyWith(
-      mainTrack: project.mainTrack.copyWith(clips: updated),
-    );
-  }
+  Project apply(Project project) =>
+      replaceClip(project, clipId, (c) => c.copyWith(transform: transform));
 }
 
 /// Creates a new empty project with sensible canvas defaults.

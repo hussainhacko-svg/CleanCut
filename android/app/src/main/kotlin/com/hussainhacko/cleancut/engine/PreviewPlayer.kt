@@ -61,6 +61,12 @@ class PreviewPlayer(
      */
     private var endedAtEnd = false
 
+    /**
+     * The next time a sequence enters a video that Media3 won't start on its own
+     * ([CompositionPlan.videoEntryTimesUs]); playback restarts the player there. Null when none.
+     */
+    private var nextVideoEntryUs: Long? = null
+
     private val ticker = object : Runnable {
         override fun run() {
             if (multiInput &&
@@ -70,6 +76,7 @@ class PreviewPlayer(
                 finishAtEnd()
                 return
             }
+            if (maybeRestartAtVideoEntry()) return
             listener.onPosition(textureId, positionUs())
             handler.postDelayed(this, POSITION_INTERVAL_MS)
         }
@@ -136,7 +143,7 @@ class PreviewPlayer(
             size = Size(plan.width, plan.height)
             producer.setSize(plan.width, plan.height)
         }
-        if (plan.items.isEmpty()) {
+        if (plan.isEmpty) {
             // Clear before stop() so any listener callback triggered by stop()
             // also reports an empty timeline rather than stale duration/position.
             cancelPendingLoad()
@@ -185,8 +192,8 @@ class PreviewPlayer(
             positionMs = if (hasComposition) pending?.positionMs else 0L,
             play = pending?.play ?: (hasComposition && player.isPlaying),
         )
-        if (multiInput && plan.hasTransitions) {
-            // Structure changed (e.g. a transition duration drag): rebuild once it settles.
+        if (multiInput && plan.isMultiSequence) {
+            // Structure changed (e.g. a transition duration drag or overlay move): rebuild once it settles.
             scheduleLoad(load)
         } else {
             // First load, a switch between graph modes, or a single-input update.
@@ -201,11 +208,13 @@ class PreviewPlayer(
         // whenever multi-input is active (or when switching graph modes) guarantees a clean
         // compositor at the target timestamp. Callers coalesce these rebuilds through
         // [scheduleLoad] so scrubs and slider drags don't rebuild on every event.
-        if (plan.hasTransitions || multiInput) {
-            recreatePlayer(needsMultiInput = plan.hasTransitions)
+        if (plan.isMultiSequence || multiInput) {
+            recreatePlayer(needsMultiInput = plan.isMultiSequence)
         }
         endedAtEnd = false
-        val startMs = positionMs.coerceIn(0L, (plan.durationUs / 1000 - 1).coerceAtLeast(0L))
+        val requestedMs = positionMs.coerceIn(0L, (plan.durationUs / 1000 - 1).coerceAtLeast(0L))
+        val startMs = if (plan.isMultiSequence && !play) plan.safePausedStartMs(requestedMs) else requestedMs
+        nextVideoEntryUs = if (plan.isMultiSequence) plan.nextVideoEntryAfterUs(startMs * 1000) else null
         val built = Media3Composer.build(plan)
         player.setComposition(built.composition, startMs)
         composed = built
@@ -306,6 +315,21 @@ class PreviewPlayer(
         listener.onState(state())
     }
 
+    /**
+     * Restarts a playing multi-input preview inside the video it is about to enter (see
+     * [nextVideoEntryUs]); a short hitch instead of a frozen or missing layer. Returns whether
+     * it restarted (the new player restarts the ticker).
+     */
+    private fun maybeRestartAtVideoEntry(): Boolean {
+        val entryUs = nextVideoEntryUs ?: return false
+        val plan = currentPlan ?: return false
+        if (!multiInput || pendingLoad != null || !player.isPlaying) return false
+        val positionMs = player.currentPosition
+        if (positionMs * 1000 < entryUs - VIDEO_ENTRY_LEAD_US) return false
+        loadPlanAt(plan, videoEntryRestartMs(entryUs, positionMs), play = true)
+        return true
+    }
+
     private fun attachSurface() {
         if (!released) player.setVideoSurface(producer.surface, size)
     }
@@ -347,6 +371,17 @@ class PreviewPlayer(
     }
 
     companion object {
+        /** Restart this early (µs) before a video entry: about half a position tick. */
+        private const val VIDEO_ENTRY_LEAD_US = 15_000L
+
+        /**
+         * Where to restart for a video entry at [entryUs] with the playhead at [positionMs]:
+         * rounded up to whole ms so the new player starts inside the video (rounding down
+         * could land just before it, stuck again, restarting forever), and never behind the
+         * playhead.
+         */
+        fun videoEntryRestartMs(entryUs: Long, positionMs: Long): Long = maxOf((entryUs + 999) / 1000, positionMs)
+
         /** About 30 position updates a second while playing. */
         private const val POSITION_INTERVAL_MS = 33L
 

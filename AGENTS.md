@@ -292,21 +292,51 @@ docs/PLAN.md, docs/DESIGN.md
 | Playhead-past-end fix | done | `main` (PR #15) |
 | 6B — blur & mask | done | `main` (PR #16) |
 | 6C — transitions | done | `main` (PR #17) |
-| Unused code & docs cleanup | in review | `chore/cleanup-unused` |
-| 7 — photos & layers | next | — |
+| Unused code & docs cleanup | done | `main` |
+| 7A — overlay layers (PiP photos & videos) | in review (PR) | `feat/phase-7a-overlays` |
+| 7B — photo motion (Ken Burns) | next | — |
 
-**Cleanup handoff:** removed code, strings and icons that nothing used (see the
-`chore/cleanup-unused` PR) and refreshed README / PLAN / DESIGN text. Domain helpers that
-only tests use were kept.
+**Phase 7A handoff:** implemented overlay (PiP) layers end-to-end on
+`feat/phase-7a-overlays` (PR open): Pigeon `OverlayTrackSpec` /
+`PlacedClipSpec` / `ClipSpec.muted`, `CompositionPlan` & `Media3Composer`
+multi-sequence compositing (overlay sequences frontmost, `ClipRenderEffect`
+straight-alpha overlay mode, live look swaps), `overlay_commands.dart` +
+`clip_lookup.dart` generalizing all clip/style/effect commands to overlays,
+and timeline overlay trim handles, long-press move/lane-switch, keyframe
+markers, and preview gizmos (`TransformGizmo` / `CropOverlay` /
+`MaskOverlay`). Claude review fixes: an overlay selection
+follows its clip across lanes (`TimelineSelection.validIn`), so undoing a lane
+move or a speed bump no longer deselects it; overlays paint the canvas
+background when nothing is below them (past the main track's end or with an
+empty main track); short selected overlay pills stay long-pressable.
+Emulator check (2026-11-28) passed for photo overlays: exact colours for
+PNG alpha and the opacity slider, lane stacking, a leading gap with a
+transition, and the background past the main end (paused and playing).
+**Emulator GPU:** this AVD defaulted to SwiftShader (software GL), making
+multi-sequence preview ~0.3× real time; launch with `-gpu host` for any
+playback check (`adb shell dumpsys SurfaceFlinger | grep GLES`).
+**Media3 multi-sequence bug (also on `main`, 6C; 1.11.1 and 1.12.0-rc01):**
+during playback a sequence stalls (whole compositor stops) when it enters a
+video after a gap or still, and a secondary sequence also when entering a
+video after a video. Workaround (owner-approved):
+`CompositionPlan.videoEntryTimesUs` + `PreviewPlayer.maybeRestartAtVideoEntry`
+rebuild the playing player inside the video (~0.4 s hitch on the host GPU).
+Paused rebuild on a layer's last frame before it switches items showed only
+the top layer: `CompositionPlan.safePausedStartMs` starts such paused loads
+two frames earlier (emulator-verified). Both in `VideoEntryTest`. The
+lingering dissolve and the black screen-recording overlay box were
+SwiftShader artifacts (gone on the host GPU). Main audio under muted
+overlays verified from logs. PLAN boxes stay unticked until a final
+playback pass on `-gpu host` (or a device); merge before Phase 7B. Unmuting overlays comes with the Phase 9 Volume tool.
 
 **Phase 5 leftovers:** tactile feel of haptics needs a physical device
 (emulator has no vibration motor). Reset on a keyframed property only
 resets the playhead's value — owner decided to leave it as is.
 
 **Open items:** Phase 2 physical low-end device check (1080p ≥ 30 fps, seek
-< 150 ms); audible keep-pitch check; split/delete/speed for overlay and audio
-clips come with Phases 7/9; curve editor shrinks the phone timeline to 80 dp;
-stills keep an old curve until a Normal speed is set.
+< 150 ms); audible keep-pitch check; split/delete/speed for audio clips come
+with Phase 9; curve editor shrinks the phone timeline to 80 dp; stills keep
+an old curve until a Normal speed is set.
 
 ### Owner decisions
 
@@ -321,4 +351,7 @@ stills keep an old curve until a Normal speed is set.
   9:16, 16:9, 3:4, 4:3, 2:1, 4:5.
 - **Canvas background** is a tab of the Ratio panel — no new dock item.
 - **Resolution** is chosen in the Phase 10 export sheet, not Phase 5.
+- **Overlays (Phase 7A):** newly added overlays start scaled to 50% centered,
+  and video overlays default to muted.
+- **Motion / Animation (Phase 7B):** CapCut-style animation/motion behavior.
 - Trim = drag the white handles; reorder = long-press + drag.
