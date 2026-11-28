@@ -14,13 +14,13 @@ class CompositionPlanTest {
         speed: Double = 1.0,
         keepPitch: Boolean = true,
         steps: List<SpeedStepSpec> = emptyList(),
-    ) = ClipSpec(uri, SpecMediaKind.VIDEO, durationUs, inUs, outUs, speed, keepPitch, steps, styleSpec())
+    ) = ClipSpec(uri, SpecMediaKind.VIDEO, durationUs, inUs, outUs, speed, keepPitch, steps, styleSpec(), null, false)
 
     private fun image(inUs: Long, outUs: Long, speed: Double = 1.0) =
-        ClipSpec("content://i", SpecMediaKind.IMAGE, 3_000_000, inUs, outUs, speed, true, emptyList(), styleSpec())
+        ClipSpec("content://i", SpecMediaKind.IMAGE, 3_000_000, inUs, outUs, speed, true, emptyList(), styleSpec(), null, false)
 
     private fun spec(vararg clips: ClipSpec, w: Long = 1080, h: Long = 1920, fps: Long = 30) =
-        CompositionSpec(clips.toList(), w, h, fps, backgroundSpec())
+        CompositionSpec(clips.toList(), w, h, fps, backgroundSpec(), emptyList())
 
     @Test
     fun `video keeps its trim and full source length`() {
@@ -124,7 +124,7 @@ class CompositionPlanTest {
     fun `images ignore curve steps`() {
         val image = ClipSpec(
             "content://i", SpecMediaKind.IMAGE, 3_000_000, 0, 2_000_000, 1.0, true,
-            listOf(SpeedStepSpec(0, 4.0)), styleSpec(),
+            listOf(SpeedStepSpec(0, 4.0)), styleSpec(), null, false,
         )
         val item = CompositionPlan.of(spec(image)).items.single()
         assertTrue(item.speedSteps.isEmpty())

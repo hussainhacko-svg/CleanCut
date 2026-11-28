@@ -148,6 +148,28 @@ void main() {
       );
     });
 
+    test('an overlay selection follows its clip to another lane', () {
+      final clip = Clip.fromMedia(id: 'o', media: video(seconds: 2));
+      final p = project(mainSeconds: [5]).copyWith(
+        overlayTracks: [
+          LayerTrack(
+            id: 'top',
+            items: [PlacedClip(startUs: 0, clip: clip)],
+          ),
+          const LayerTrack(id: 'bottom'),
+        ],
+      );
+      // e.g. undo of a lane move, or a speed change that bumped the clip.
+      expect(
+        const OverlaySelection(trackId: 'bottom', clipId: 'o').validIn(p),
+        const OverlaySelection(trackId: 'top', clipId: 'o'),
+      );
+      expect(
+        const OverlaySelection(trackId: 'top', clipId: 'o').validIn(p),
+        const OverlaySelection(trackId: 'top', clipId: 'o'),
+      );
+    });
+
     test('equality by value', () {
       expect(const MainClipSelection('a'), const MainClipSelection('a'));
       expect(

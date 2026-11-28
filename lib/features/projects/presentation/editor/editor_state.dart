@@ -40,6 +40,11 @@ class TimelineSelectionController extends _$TimelineSelectionController {
   void toggle(TimelineSelection selection) =>
       state = state == selection ? TimelineSelection.none : selection;
 
+  /// Explicitly sets the selection to [selection].
+  // A method so it matches toggle() / clear() and can be passed as a callback.
+  // ignore: use_setters_to_change_properties
+  void select(TimelineSelection selection) => state = selection;
+
   /// Clears the selection.
   void clear() => state = TimelineSelection.none;
 }

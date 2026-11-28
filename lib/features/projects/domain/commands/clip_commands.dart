@@ -12,6 +12,8 @@ import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/model/retiming.dart';
 import 'package:cleancut/features/projects/domain/model/speed_curve.dart';
+import 'package:cleancut/features/projects/domain/model/tracks.dart';
+import 'package:cleancut/features/projects/domain/timeline/clip_lookup.dart';
 
 /// Shortest timeline length a trim or split may leave (0.1 s).
 const int minClipDurationUs = 100000;
@@ -121,14 +123,14 @@ int clampTrimEnd(Clip clip, int sourceOutUs) {
   return sourceOutUs;
 }
 
-/// Splits the main-track clip under timeline time [timeUs] into two clips.
+/// Splits visual clip [clipId] (main track or overlay track) under timeline
+/// time [timeUs] into two clips.
 ///
 /// The first part keeps its id; the second gets [newId]'s id and is placed
 /// right after it. Keyframes are partitioned at the cut, each half pinning
 /// the value at the cut; a speed curve is divided the same way (owner
 /// decision), each half stretched back over its part. Both parts must be at
-/// least [minClipDurationUs]
-/// long, so a split right at a clip edge is rejected.
+/// least [minClipDurationUs] long, so a split right at a clip edge is rejected.
 final class SplitClipCommand extends EditCommand {
   /// Creates the command.
   const new(this.clipId, {required this.timeUs, required this.newId});
@@ -144,9 +146,10 @@ final class SplitClipCommand extends EditCommand {
 
   @override
   Project apply(Project project) {
-    final index = _indexOf(project, clipId);
-    final clip = project.mainTrack.clips[index];
-    final offset = timeUs - project.mainTrack.startOf(index);
+    final loc = locateClip(project, clipId);
+    if (loc == null) throw InvalidEditException('No clip $clipId');
+    final clip = loc.clip;
+    final offset = timeUs - loc.startUs;
     if (offset < minClipDurationUs ||
         clip.durationUs - offset < minClipDurationUs) {
       throw InvalidEditException(
@@ -172,6 +175,23 @@ final class SplitClipCommand extends EditCommand {
       blur: shiftKeyframes(clip.blur, -offset, lerpDouble),
       mask: clip.mask?.shifted(-offset),
     );
+
+    if (loc.isOverlay) {
+      final trackIndex = loc.overlayTrackIndex!;
+      final track = project.overlayTracks[trackIndex];
+      final firstPlaced = PlacedClip(startUs: loc.startUs, clip: first);
+      final secondPlaced = PlacedClip(
+        startUs: firstPlaced.range.endUs,
+        clip: second,
+      );
+      final items = [...track.items]
+        ..replaceRange(loc.index, loc.index + 1, [firstPlaced, secondPlaced]);
+      final tracks = [...project.overlayTracks]
+        ..[trackIndex] = track.copyWith(items: items);
+      return project.copyWith(overlayTracks: tracks);
+    }
+
+    final index = loc.index;
     final updated = [...project.mainTrack.clips]
       ..replaceRange(index, index + 1, [first, second]);
     // Keep any outgoing transition attached to the second half; the new
@@ -219,14 +239,16 @@ bool canSplitAt(Project project, String clipId, int timeUs) {
 /// Whether a cut of clip [clipId] at [timeUs] is outside the clip or would
 /// leave a piece shorter than [minClipDurationUs].
 bool splitTooCloseToEdge(Project project, String clipId, int timeUs) {
-  final index = project.mainTrack.clips.indexWhere((c) => c.id == clipId);
-  if (index < 0) return true;
-  final offset = timeUs - project.mainTrack.startOf(index);
+  final loc = locateClip(project, clipId);
+  if (loc == null) return true;
+  final offset = timeUs - loc.startUs;
   return offset < minClipDurationUs ||
-      project.mainTrack.clips[index].durationUs - offset < minClipDurationUs;
+      loc.clip.durationUs - offset < minClipDurationUs;
 }
 
-/// Removes clip [clipId]; later clips move up (the main track is magnetic).
+/// Removes visual clip [clipId]. On the main track later clips move up
+/// (magnetic); on an overlay track the item is removed and any empty overlay
+/// lane is pruned.
 final class DeleteClipCommand extends EditCommand {
   /// Creates the command.
   const new(this.clipId);
@@ -236,8 +258,22 @@ final class DeleteClipCommand extends EditCommand {
 
   @override
   Project apply(Project project) {
+    final loc = locateClip(project, clipId);
+    if (loc == null) throw InvalidEditException('No clip $clipId');
+    if (loc.isOverlay) {
+      final trackIndex = loc.overlayTrackIndex!;
+      final track = project.overlayTracks[trackIndex];
+      final items = [...track.items]..removeAt(loc.index);
+      final tracks = [...project.overlayTracks];
+      if (items.isEmpty) {
+        tracks.removeAt(trackIndex);
+      } else {
+        tracks[trackIndex] = track.copyWith(items: items);
+      }
+      return project.copyWith(overlayTracks: tracks);
+    }
     final clips = project.mainTrack.clips;
-    final index = _indexOf(project, clipId);
+    final index = loc.index;
     final updated = [...clips]..removeAt(index);
     final transitions = Map<String, ClipTransition>.of(
       project.mainTrack.transitions,
@@ -252,7 +288,11 @@ final class DeleteClipCommand extends EditCommand {
   }
 }
 
-/// Inserts a copy of clip [clipId] right after it, with [newId]'s id.
+/// Inserts a copy of visual clip [clipId] right after it, with [newId]'s id.
+///
+/// For an overlay clip, the copy is placed immediately after the original on
+/// the same lane when free, or on another non-overlapping lane (creating a new
+/// top lane if needed).
 final class DuplicateClipCommand extends EditCommand {
   /// Creates the command.
   const new(this.clipId, {required this.newId});
@@ -265,9 +305,32 @@ final class DuplicateClipCommand extends EditCommand {
 
   @override
   Project apply(Project project) {
-    final index = _indexOf(project, clipId);
-    final clip = project.mainTrack.clips[index];
+    final loc = locateClip(project, clipId);
+    if (loc == null) throw InvalidEditException('No clip $clipId');
+    final clip = loc.clip;
     final copyId = newId();
+    if (loc.isOverlay) {
+      final trackIndex = loc.overlayTrackIndex!;
+      final track = project.overlayTracks[trackIndex];
+      final placed = PlacedClip(
+        startUs: loc.endUs,
+        clip: clip.copyWith(id: copyId),
+      );
+      if (!trackOverlaps(track, placed.range)) {
+        final items = [...track.items, placed]
+          ..sort((a, b) => a.startUs.compareTo(b.startUs));
+        final tracks = [...project.overlayTracks]
+          ..[trackIndex] = track.copyWith(items: items);
+        return project.copyWith(overlayTracks: tracks);
+      }
+      final tracks = placeOnFreeOverlayTrack(
+        project.overlayTracks,
+        placed,
+        newTrackId: newId,
+      );
+      return project.copyWith(overlayTracks: tracks);
+    }
+    final index = loc.index;
     final updated = [...project.mainTrack.clips]
       ..insert(index + 1, clip.copyWith(id: copyId));
     // Move any outgoing transition onto the copy (still facing the old next
@@ -328,6 +391,60 @@ final class MoveClipCommand extends EditCommand {
   }
 }
 
+/// Updates visual clip [clipId] (main track or overlay track) after a speed or
+/// curve change, moving an overlay to a free lane if lengthening it would
+/// overlap a sibling on its current lane.
+Project _replaceRetimedClip(
+  Project project,
+  String clipId,
+  Clip Function(Clip clip) update,
+) {
+  final loc = locateClip(project, clipId);
+  if (loc == null) throw InvalidEditException('No clip $clipId');
+  final updated = update(loc.clip);
+  if (identical(updated, loc.clip) || updated == loc.clip) return project;
+  if (!loc.isOverlay) {
+    final clips = [...project.mainTrack.clips]..[loc.index] = updated;
+    return _withClips(project, clips);
+  }
+  final trackIndex = loc.overlayTrackIndex!;
+  final track = project.overlayTracks[trackIndex];
+  final placed = PlacedClip(startUs: loc.startUs, clip: updated);
+  if (!trackOverlaps(track, placed.range, ignoreClipId: clipId)) {
+    final items = [...track.items]..[loc.index] = placed;
+    final tracks = [...project.overlayTracks]
+      ..[trackIndex] = track.copyWith(items: items);
+    return project.copyWith(overlayTracks: tracks);
+  }
+  // Lengthening would overlap a sibling: move to another free lane (or a new
+  // top lane) and prune the source track if it becomes empty.
+  final remaining = [...track.items]..removeAt(loc.index);
+  final tracks = [...project.overlayTracks];
+  if (remaining.isEmpty) {
+    tracks.removeAt(trackIndex);
+  } else {
+    tracks[trackIndex] = track.copyWith(items: remaining);
+  }
+  final usedIds = {for (final t in tracks) t.id};
+  String nextLaneId() {
+    var n = 1;
+    while (usedIds.contains('${clipId}_lane_$n')) {
+      n++;
+    }
+    final id = '${clipId}_lane_$n';
+    usedIds.add(id);
+    return id;
+  }
+
+  return project.copyWith(
+    overlayTracks: placeOnFreeOverlayTrack(
+      tracks,
+      placed,
+      newTrackId: nextLaneId,
+    ),
+  );
+}
+
 /// Sets the constant playback speed of clip [clipId] (Flow "Normal") and,
 /// when given, whether its audio keeps its pitch.
 ///
@@ -357,23 +474,21 @@ final class SetClipSpeedCommand extends EditCommand {
     if (!SpeedLimits.contains(speed)) {
       throw InvalidEditException('Speed $speed outside the allowed range');
     }
-    final index = _indexOf(project, clipId);
-    final clip = project.mainTrack.clips[index];
-    final pitch = keepPitch ?? clip.keepPitch;
-    if (speed == clip.speed &&
-        pitch == clip.keepPitch &&
-        clip.speedCurve == null) {
-      return project;
-    }
-    if (clip.media.kind == MediaKind.image && pitch != clip.keepPitch) {
-      throw const InvalidEditException('Images have no audio pitch');
-    }
-    final updated = [...project.mainTrack.clips];
-    updated[index] = _retimed(
-      clip,
-      clip.copyWith(speed: speed, speedCurve: null, keepPitch: pitch),
-    );
-    return _withClips(project, updated);
+    return _replaceRetimedClip(project, clipId, (clip) {
+      final pitch = keepPitch ?? clip.keepPitch;
+      if (speed == clip.speed &&
+          pitch == clip.keepPitch &&
+          clip.speedCurve == null) {
+        return clip;
+      }
+      if (clip.media.kind == MediaKind.image && pitch != clip.keepPitch) {
+        throw const InvalidEditException('Images have no audio pitch');
+      }
+      return _retimed(
+        clip,
+        clip.copyWith(speed: speed, speedCurve: null, keepPitch: pitch),
+      );
+    });
   }
 }
 
@@ -399,12 +514,10 @@ final class SetClipSpeedCurveCommand extends EditCommand {
         throw InvalidEditException('Invalid speed curve: $problems');
       }
     }
-    final index = _indexOf(project, clipId);
-    final clip = project.mainTrack.clips[index];
-    if (curve == clip.speedCurve) return project;
-    final updated = [...project.mainTrack.clips];
-    updated[index] = _retimed(clip, clip.copyWith(speedCurve: curve));
-    return _withClips(project, updated);
+    return _replaceRetimedClip(project, clipId, (clip) {
+      if (curve == clip.speedCurve) return clip;
+      return _retimed(clip, clip.copyWith(speedCurve: curve));
+    });
   }
 }
 
@@ -421,15 +534,11 @@ final class SetClipKeepPitchCommand extends EditCommand {
   final bool keepPitch;
 
   @override
-  Project apply(Project project) {
-    final index = _indexOf(project, clipId);
-    final clip = project.mainTrack.clips[index];
-    if (clip.keepPitch == keepPitch) return project;
+  Project apply(Project project) => replaceClip(project, clipId, (clip) {
+    if (clip.keepPitch == keepPitch) return clip;
     if (clip.media.kind == MediaKind.image) {
       throw const InvalidEditException('Images have no audio pitch');
     }
-    final updated = [...project.mainTrack.clips];
-    updated[index] = clip.copyWith(keepPitch: keepPitch);
-    return _withClips(project, updated);
-  }
+    return clip.copyWith(keepPitch: keepPitch);
+  });
 }

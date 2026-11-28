@@ -235,7 +235,7 @@ class TransitionSpec {
   final int durationUs;
 }
 
-/// One clip of the main sequence. Times are microseconds.
+/// One clip of the main or an overlay sequence. Times are microseconds.
 class ClipSpec {
   ClipSpec({
     required this.uri,
@@ -248,6 +248,7 @@ class ClipSpec {
     required this.speedSteps,
     required this.style,
     this.transitionOut,
+    this.muted = false,
   });
 
   /// Content URI of the source.
@@ -280,9 +281,32 @@ class ClipSpec {
 
   /// Optional transition into the next clip (null for a hard cut or last clip).
   final TransitionSpec? transitionOut;
+
+  /// Whether this clip's audio track is muted.
+  final bool muted;
 }
 
-/// What the preview plays: the main track, fitted into the canvas.
+/// An overlay clip placed at timeline time [startUs] (Phase 7A).
+class PlacedClipSpec {
+  PlacedClipSpec({required this.startUs, required this.clip});
+
+  /// Timeline start time in microseconds.
+  final int startUs;
+
+  /// The overlay clip.
+  final ClipSpec clip;
+}
+
+/// One overlay (PiP) track of non-overlapping placed clips (Phase 7A).
+class OverlayTrackSpec {
+  OverlayTrackSpec({required this.clips});
+
+  /// Non-overlapping overlay clips, sorted by start time.
+  final List<PlacedClipSpec> clips;
+}
+
+/// What the preview plays: the main track plus any overlay tracks, fitted
+/// into the canvas.
 class CompositionSpec {
   CompositionSpec({
     required this.clips,
@@ -290,6 +314,7 @@ class CompositionSpec {
     required this.canvasHeight,
     required this.frameRate,
     required this.background,
+    this.overlayTracks = const [],
   });
 
   /// Main-track clips in timeline order.
@@ -304,6 +329,9 @@ class CompositionSpec {
 
   /// What fills the canvas behind the clips.
   final BackgroundSpec background;
+
+  /// Overlay (PiP) tracks, frontmost first (index 0 renders on top).
+  final List<OverlayTrackSpec> overlayTracks;
 }
 
 /// Player status, mirroring Media3's `Player.STATE_*`.

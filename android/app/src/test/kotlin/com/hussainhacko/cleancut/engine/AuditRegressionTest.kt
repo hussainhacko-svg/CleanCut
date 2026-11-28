@@ -43,17 +43,17 @@ class AuditRegressionTest {
     @Test
     fun `a sub-millisecond still lasts at least 1 ms`() {
         val spec = CompositionSpec(
-            listOf(ClipSpec("content://i", SpecMediaKind.IMAGE, 3_000_000, 0, 400, 1.0, true, emptyList(), styleSpec())),
+            listOf(ClipSpec("content://i", SpecMediaKind.IMAGE, 3_000_000, 0, 400, 1.0, true, emptyList(), styleSpec(), null, false)),
             1080,
             1920,
-            30, backgroundSpec(),
+            30, backgroundSpec(), emptyList(),
         )
         assertEquals(1L, CompositionPlan.of(spec).items.single().imageDurationMs)
         val normal = CompositionSpec(
-            listOf(ClipSpec("content://i", SpecMediaKind.IMAGE, 3_000_000, 0, 2_500_000, 1.0, true, emptyList(), styleSpec())),
+            listOf(ClipSpec("content://i", SpecMediaKind.IMAGE, 3_000_000, 0, 2_500_000, 1.0, true, emptyList(), styleSpec(), null, false)),
             1080,
             1920,
-            30, backgroundSpec(),
+            30, backgroundSpec(), emptyList(),
         )
         assertEquals(2500L, CompositionPlan.of(normal).items.single().imageDurationMs)
     }

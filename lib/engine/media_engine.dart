@@ -11,6 +11,8 @@ export 'package:cleancut/engine/engine_api.g.dart'
         CompositionSpec,
         MaskSampleSpec,
         MaskSpec,
+        OverlayTrackSpec,
+        PlacedClipSpec,
         PlaybackStatus,
         PlayerStateEvent,
         SpecBackgroundKind,

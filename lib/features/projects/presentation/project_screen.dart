@@ -6,6 +6,7 @@ import 'package:cleancut/app/l10n/gen/app_localizations.dart';
 import 'package:cleancut/core/theme/app_tokens.dart';
 import 'package:cleancut/core/widgets/app_icon.dart';
 import 'package:cleancut/features/projects/domain/commands/clip_commands.dart';
+import 'package:cleancut/features/projects/domain/commands/overlay_commands.dart';
 import 'package:cleancut/features/projects/domain/commands/project_commands.dart';
 import 'package:cleancut/features/projects/domain/commands/style_commands.dart';
 import 'package:cleancut/features/projects/domain/commands/transition_commands.dart';
@@ -22,6 +23,7 @@ import 'package:cleancut/features/projects/domain/model/media_ref.dart';
 import 'package:cleancut/features/projects/domain/model/project.dart';
 import 'package:cleancut/features/projects/domain/model/project_canvas.dart';
 import 'package:cleancut/features/projects/domain/project_repository.dart';
+import 'package:cleancut/features/projects/domain/timeline/clip_lookup.dart';
 import 'package:cleancut/features/projects/domain/timeline/timeline_selection.dart';
 import 'package:cleancut/features/projects/presentation/editor/editor_state.dart';
 import 'package:cleancut/features/projects/presentation/editor/overlays/crop_overlay.dart';
@@ -191,6 +193,55 @@ class _Editor extends ConsumerWidget {
             .apply(
               AppendMediaCommand(media, newId: ref.read(idGeneratorProvider)),
             );
+      case DockTool.overlay:
+        final List<MediaRef> media;
+        try {
+          media = await ref.read(mediaPickerProvider).pickVisualMedia();
+        } on PlatformException {
+          if (context.mounted) {
+            messenger.showSnackBar(
+              SnackBar(content: Text(l10n.mediaPickerFailed)),
+            );
+          }
+          return;
+        }
+        if (media.isEmpty || !context.mounted) return;
+        final idGen = ref.read(idGeneratorProvider);
+        String? firstClipId;
+        String nextClipId() {
+          final id = idGen();
+          firstClipId ??= id;
+          return id;
+        }
+        final atUs = ref.read(playbackPositionProvider(projectId));
+        ref.read(projectSessionProvider(projectId).notifier)
+          ..apply(
+            AddOverlayCommand(
+              media,
+              atUs: atUs,
+              newId: nextClipId,
+              newTrackId: idGen,
+            ),
+          )
+          ..seal();
+        final updated = ref
+            .read(projectSessionProvider(projectId))
+            .value
+            ?.history
+            .present;
+        if (updated != null && firstClipId != null) {
+          final loc = locateClip(updated, firstClipId!);
+          if (loc != null && loc.overlayTrackId != null) {
+            ref
+                .read(timelineSelectionControllerProvider(projectId).notifier)
+                .select(
+                  OverlaySelection(
+                    trackId: loc.overlayTrackId!,
+                    clipId: firstClipId!,
+                  ),
+                );
+          }
+        }
       case DockTool.split ||
           DockTool.duplicate ||
           DockTool.delete ||
@@ -204,12 +255,13 @@ class _Editor extends ConsumerWidget {
         final selection = ref.read(
           timelineSelectionControllerProvider(projectId),
         );
-        // Overlay and audio clips get these tools with their phases.
-        if (selection is! MainClipSelection) {
+        final loc = locateSelection(project, selection);
+        // Audio clips get their tools in Phase 9.
+        if (loc == null) {
           _soon(messenger, l10n);
           return;
         }
-        _onClipTool(ref, messenger, l10n, tool, selection.clipId);
+        _onClipTool(ref, messenger, l10n, tool, loc.clip.id);
       case DockTool.ratio:
         ref
             .read(openToolPanelProvider(projectId).notifier)
@@ -218,7 +270,6 @@ class _Editor extends ConsumerWidget {
           DockTool.voice ||
           DockTool.text ||
           DockTool.effect ||
-          DockTool.overlay ||
           DockTool.animation ||
           DockTool.volume:
         _soon(messenger, l10n);
@@ -226,19 +277,19 @@ class _Editor extends ConsumerWidget {
   }
 
   /// Seeks to the start of clip [clipId] unless the playhead already shows it
-  /// (the very end of the project counts as on the last clip, like
+  /// (the very end of the project counts as on a clip ending there, like
   /// [_OnClipOnly]).
   void _seekOntoClip(WidgetRef ref, String clipId) {
-    final clips = project.mainTrack.clips;
-    final index = clips.indexWhere((c) => c.id == clipId);
-    if (index < 0) return;
-    final startUs = project.mainTrack.startOf(index);
-    final endUs = startUs + clips[index].durationUs;
+    final loc = locateClip(project, clipId);
+    if (loc == null) return;
+    final startUs = loc.startUs;
+    final endUs = loc.endUs;
     final positionUs = ref.read(playbackPositionProvider(projectId));
-    final isLast = index == clips.length - 1;
+    final includeEnd =
+        loc.isLastMainClip || (loc.isOverlay && endUs == project.durationUs);
     final onClip =
         positionUs >= startUs &&
-        (positionUs < endUs || (isLast && positionUs == endUs));
+        (positionUs < endUs || (includeEnd && positionUs == endUs));
     if (!onClip) {
       unawaited(ref.read(playbackProvider(projectId).notifier).seekTo(startUs));
     }
@@ -346,13 +397,10 @@ class _Editor extends ConsumerWidget {
         afterClipId: selection.afterClipId,
       );
     }
-    if (selection is! MainClipSelection) return null;
-    final index = project.mainTrack.clips.indexWhere(
-      (c) => c.id == selection.clipId,
-    );
-    if (index < 0) return null;
-    final clip = project.mainTrack.clips[index];
-    final clipStartUs = project.mainTrack.startOf(index);
+    final loc = locateSelection(project, selection);
+    if (loc == null) return null;
+    final clip = loc.clip;
+    final clipStartUs = loc.startUs;
     return switch (kind) {
       ToolPanelKind.speed => _ClipSpeedPanel(
         projectId: projectId,
@@ -399,15 +447,13 @@ class _Editor extends ConsumerWidget {
 
   /// The active preview overlay (crop handles while Crop is open, mask handles
   /// while Mask is open with an active shape, or the direct-manipulation
-  /// transform gizmo whenever a main clip is selected), shown only while the
-  /// playhead is on that clip.
+  /// transform gizmo whenever a main or overlay clip is selected), shown only
+  /// while the playhead is on that clip.
   Widget? _previewOverlay(WidgetRef ref, TimelineSelection selection) {
-    if (selection is! MainClipSelection) return null;
-    final clips = project.mainTrack.clips;
-    final index = clips.indexWhere((c) => c.id == selection.clipId);
-    if (index < 0) return null;
-    final clip = clips[index];
-    final clipStartUs = project.mainTrack.startOf(index);
+    final loc = locateSelection(project, selection);
+    if (loc == null) return null;
+    final clip = loc.clip;
+    final clipStartUs = loc.startUs;
     final canvasRatio = project.canvas.aspect.ratio;
     final kind = ref.watch(openToolPanelProvider(projectId));
     final Widget overlay;
@@ -433,7 +479,7 @@ class _Editor extends ConsumerWidget {
         clip: clip,
         clipStartUs: clipStartUs,
         canvasRatio: canvasRatio,
-        showFrame: kind == ToolPanelKind.transform,
+        showFrame: kind == ToolPanelKind.transform || loc.isOverlay,
         keyframeToleranceUs: keyframeToleranceUs(project),
       );
     }
@@ -441,9 +487,10 @@ class _Editor extends ConsumerWidget {
       projectId: projectId,
       startUs: clipStartUs,
       endUs: clipStartUs + clip.durationUs,
-      // At the very end of the project the preview still shows the last
-      // clip's final frame.
-      includeEnd: index == clips.length - 1,
+      // At the very end of the project the preview still shows the final frame.
+      includeEnd:
+          loc.isLastMainClip ||
+          (loc.isOverlay && loc.endUs == project.durationUs),
       child: overlay,
     );
   }
@@ -1812,7 +1859,11 @@ class _PlaybackBindingState extends ConsumerState<_PlaybackBinding> {
     final selection = ref.read(
       timelineSelectionControllerProvider(widget.projectId),
     );
-    return selection is MainClipSelection ? selection.clipId : null;
+    return switch (selection) {
+      MainClipSelection(:final clipId) ||
+      OverlaySelection(:final clipId) => clipId,
+      _ => null,
+    };
   }
 
   void _resyncPreview() => _syncPreview(

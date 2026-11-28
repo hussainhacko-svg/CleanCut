@@ -66,47 +66,66 @@ CompositionSpec compositionSpecOf(
     );
   }
 
+  ClipSpec clipSpecOf(Clip clip, {TransitionSpec? transitionOut}) {
+    if (clip.media.kind == MediaKind.image) {
+      // A still has no source timeline: it simply shows for its length
+      // on the timeline, which already includes its speed.
+      return ClipSpec(
+        uri: clip.media.uri,
+        kind: SpecMediaKind.image,
+        sourceDurationUs: clip.durationUs,
+        sourceInUs: 0,
+        sourceOutUs: clip.durationUs,
+        speed: 1,
+        keepPitch: true,
+        speedSteps: const [],
+        style: styleOf(clip),
+        transitionOut: transitionOut,
+        muted: clip.muted,
+      );
+    }
+    return ClipSpec(
+      uri: clip.media.uri,
+      kind: SpecMediaKind.video,
+      sourceDurationUs: clip.media.durationUs ?? clip.sourceOutUs,
+      sourceInUs: clip.sourceInUs,
+      sourceOutUs: clip.sourceOutUs,
+      speed: clip.speed,
+      keepPitch: clip.keepPitch,
+      speedSteps: [
+        for (final step
+            in clip.speedCurve?.steps(clip.sourceDurationUs) ??
+                const <SpeedStep>[])
+          SpeedStepSpec(startUs: step.startUs, speed: step.speed),
+      ],
+      style: styleOf(clip),
+      transitionOut: transitionOut,
+      muted: clip.muted,
+    );
+  }
+
   return CompositionSpec(
     clips: [
       for (final (i, clip) in project.mainTrack.clips.indexed)
-        if (clip.media.kind == MediaKind.image)
-          // A still has no source timeline: it simply shows for its length
-          // on the timeline, which already includes its speed.
-          ClipSpec(
-            uri: clip.media.uri,
-            kind: SpecMediaKind.image,
-            sourceDurationUs: clip.durationUs,
-            sourceInUs: 0,
-            sourceOutUs: clip.durationUs,
-            speed: 1,
-            keepPitch: true,
-            speedSteps: const [],
-            style: styleOf(clip),
-            transitionOut: transitionOutOf(i),
-          )
-        else
-          ClipSpec(
-            uri: clip.media.uri,
-            kind: SpecMediaKind.video,
-            sourceDurationUs: clip.media.durationUs ?? clip.sourceOutUs,
-            sourceInUs: clip.sourceInUs,
-            sourceOutUs: clip.sourceOutUs,
-            speed: clip.speed,
-            keepPitch: clip.keepPitch,
-            speedSteps: [
-              for (final step
-                  in clip.speedCurve?.steps(clip.sourceDurationUs) ??
-                      const <SpeedStep>[])
-                SpeedStepSpec(startUs: step.startUs, speed: step.speed),
-            ],
-            style: styleOf(clip),
-            transitionOut: transitionOutOf(i),
-          ),
+        clipSpecOf(clip, transitionOut: transitionOutOf(i)),
     ],
     canvasWidth: size.width,
     canvasHeight: size.height,
     frameRate: fps,
     background: backgroundSpecOf(project.canvas.background),
+    overlayTracks: [
+      for (final track in project.overlayTracks)
+        if (track.items.isNotEmpty)
+          OverlayTrackSpec(
+            clips: [
+              for (final item in track.items)
+                PlacedClipSpec(
+                  startUs: item.startUs,
+                  clip: clipSpecOf(item.clip),
+                ),
+            ],
+          ),
+    ],
   );
 }
 

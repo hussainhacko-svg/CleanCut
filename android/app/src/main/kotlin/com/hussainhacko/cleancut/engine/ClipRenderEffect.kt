@@ -44,9 +44,15 @@ class LiveBackground(background: BackgroundStyle) {
 }
 
 /**
- * Draws one clip onto the canvas: background (color, gradient, blurred clip or image), then the
- * clip cropped, fitted, transformed (keyframes), with rounded corners, border and opacity.
- * Output is always the canvas size, so every clip of the sequence lines up.
+ * Draws one clip onto the canvas: background (color, gradient, blurred clip or image, skipped
+ * for overlays), then the clip cropped, fitted, transformed (keyframes), with rounded corners,
+ * border and opacity. Output is always the canvas size, so every clip of the sequence lines up.
+ *
+ * When [isOverlay] is true, the canvas background is omitted and pixels outside the clip (or
+ * faded by opacity/mask/PNG alpha) are output with straight alpha so Media3's compositor blends
+ * the layer cleanly over lower sequences. While [overlayDrawsBackgroundAt] is true for a frame
+ * (no main clip or lower overlay is showing, e.g. past the main track's end), the overlay draws
+ * the canvas background itself so it never sits on black.
  */
 @OptIn(UnstableApi::class)
 class ClipRenderEffect(
@@ -54,9 +60,20 @@ class ClipRenderEffect(
     private val background: LiveBackground,
     private val canvasWidth: Int,
     private val canvasHeight: Int,
+    private val isOverlay: Boolean = false,
+    private val overlayDrawsBackgroundAt: (presentationTimeUs: Long) -> Boolean = { false },
 ) : GlEffect {
     override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram =
-        ClipRenderProgram(context, useHdr, look, background, canvasWidth, canvasHeight)
+        ClipRenderProgram(
+            context,
+            useHdr,
+            look,
+            background,
+            canvasWidth,
+            canvasHeight,
+            isOverlay,
+            overlayDrawsBackgroundAt,
+        )
 }
 
 @OptIn(UnstableApi::class)
@@ -67,6 +84,8 @@ private class ClipRenderProgram(
     private val background: LiveBackground,
     private val canvasWidth: Int,
     private val canvasHeight: Int,
+    private val isOverlay: Boolean,
+    private val overlayDrawsBackgroundAt: (Long) -> Boolean,
 ) : BaseGlShaderProgram(useHdr, /* texturePoolCapacity= */ 1) {
     private val main = program(FRAGMENT_MAIN)
     private val downsample = program(FRAGMENT_DOWNSAMPLE)
@@ -103,22 +122,29 @@ private class ClipRenderProgram(
             val outputFbo = IntArray(1).also { GLES20.glGetIntegerv(GLES20.GL_FRAMEBUFFER_BINDING, it, 0) }[0]
             val style = look.style
             val bg = background.background
-            val backgroundTexture = when (bg.kind) {
-                BackgroundStyle.Kind.BLUR -> {
-                    releaseImageBackground()
-                    blurredInput(inputTexId, style, bg)
-                }
-                BackgroundStyle.Kind.IMAGE -> imageBackground(bg)
-                else -> {
-                    releaseImageBackground()
-                    NO_TEXTURE
+            // An overlay renders as a transparent layer unless nothing is below it.
+            val transparent = isOverlay && !overlayDrawsBackgroundAt(presentationTimeUs)
+            val backgroundTexture = if (transparent) {
+                releaseImageBackground()
+                NO_TEXTURE
+            } else {
+                when (bg.kind) {
+                    BackgroundStyle.Kind.BLUR -> {
+                        releaseImageBackground()
+                        blurredInput(inputTexId, style, bg)
+                    }
+                    BackgroundStyle.Kind.IMAGE -> imageBackground(bg)
+                    else -> {
+                        releaseImageBackground()
+                        NO_TEXTURE
+                    }
                 }
             }
             val clipTimeUs = (presentationTimeUs - look.timelineStartUs).coerceAtLeast(0L)
             val g = ClipFrameGeometry.of(style, inputWidth, inputHeight, canvasWidth, canvasHeight, clipTimeUs)
             val clipBlurTexture = if (g.blur > 0.0) blurredClip(inputTexId, style, g.blur) else NO_TEXTURE
             GlUtil.focusFramebufferUsingCurrentContext(outputFbo, canvasWidth, canvasHeight)
-            drawClip(inputTexId, style, bg, backgroundTexture, clipBlurTexture, g, clipTimeUs)
+            drawClip(inputTexId, style, bg, backgroundTexture, clipBlurTexture, g, clipTimeUs, transparent)
         } catch (e: GlUtil.GlException) {
             throw VideoFrameProcessingException(e, presentationTimeUs)
         }
@@ -132,6 +158,7 @@ private class ClipRenderProgram(
         clipBlurTexture: Int,
         g: ClipFrameGeometry,
         timeUs: Long,
+        transparent: Boolean,
     ) {
         val lut = style.filterId?.takeIf { style.filterIntensity > 0.0 }?.let(::lutTexture)
         val adj = style.adjustments
@@ -223,6 +250,7 @@ private class ClipRenderProgram(
             )
         }
         val tr = look.transitions.evaluate(timeUs)
+        main.setIntUniform("uIsOverlay", if (transparent) 1 else 0)
         main.setIntUniform("uTransKind", tr.kind)
         main.setFloatsUniform(
             "uTransParams",
@@ -558,6 +586,7 @@ uniform sampler2D uLutTex;
 uniform sampler2D uClipBlurTex;
 uniform float uClipBlurMix;
 uniform float uLutSize;
+uniform int uIsOverlay;
 uniform float uLutIntensity;
 uniform vec2 uTexel;
 uniform vec4 uAdjA;
@@ -816,14 +845,16 @@ void main() {
   vec2 clampedUv = clamp(sampleUv, 0.0, 1.0);
   vec2 bgUv = vec2(clampedUv.x, 1.0 - clampedUv.y);
   vec2 p = sampleUv * uCanvas;
-  vec4 bg;
-  if (uBgKind == 1) {
-    float t = clamp(dot(p - 0.5 * uCanvas, uGradAxis.xy) / uGradAxis.z + 0.5, 0.0, 1.0);
-    bg = vec4(mix(uColorA.rgb * uColorA.a, uColorB.rgb * uColorB.a, t), 1.0);
-  } else if (uBgKind == 2) {
-    bg = vec4(texture2D(uBgTex, bgUv).rgb, 1.0);
-  } else {
-    bg = vec4(uColorA.rgb * uColorA.a, 1.0);
+  vec4 bg = vec4(0.0);
+  if (uIsOverlay == 0) {
+    if (uBgKind == 1) {
+      float t = clamp(dot(p - 0.5 * uCanvas, uGradAxis.xy) / uGradAxis.z + 0.5, 0.0, 1.0);
+      bg = vec4(mix(uColorA.rgb * uColorA.a, uColorB.rgb * uColorB.a, t), 1.0);
+    } else if (uBgKind == 2) {
+      bg = vec4(texture2D(uBgTex, bgUv).rgb, 1.0);
+    } else {
+      bg = vec4(uColorA.rgb * uColorA.a, 1.0);
+    }
   }
 
   vec2 d = p - uCenter;
@@ -832,6 +863,10 @@ void main() {
   float sd = roundRect(local, uHalf, radius);
   float coverage = clamp(0.5 - sd, 0.0, 1.0);
   if (coverage <= 0.0 || uOpacity <= 0.0) {
+    if (uIsOverlay == 1) {
+      gl_FragColor = vec4(0.0);
+      return;
+    }
     vec3 outBg = fadeDip > 0.0 ? mix(bg.rgb, fadeColor, fadeDip) : bg.rgb;
     gl_FragColor = vec4(outBg, transAlpha);
     return;
@@ -907,6 +942,17 @@ void main() {
     }
   }
   float mask = coverage * maskAlpha * uOpacity;
+  if (uIsOverlay == 1) {
+    float finalA = outA * mask * transAlpha;
+    if (finalA <= 1e-4) {
+      gl_FragColor = vec4(0.0);
+    } else {
+      // Media3 DefaultVideoCompositor blends with GL_SRC_ALPHA / GL_ONE_MINUS_SRC_ALPHA
+      // (straight alpha), while outRgb above is premultiplied by outA.
+      gl_FragColor = vec4(outRgb / max(outA, 1e-4), finalA);
+    }
+    return;
+  }
   vec3 finalRgb = bg.rgb * (1.0 - outA * mask) + outRgb * mask;
   if (fadeDip > 0.0) {
     finalRgb = mix(finalRgb, fadeColor, fadeDip);
