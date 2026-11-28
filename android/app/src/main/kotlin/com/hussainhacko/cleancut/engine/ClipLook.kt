@@ -334,19 +334,6 @@ data class ColorAdjustments(
     val sharpen: Double = 0.0,
     val vignette: Double = 0.0,
 ) {
-    /** Whether every adjustment is neutral (0). */
-    val isNone: Boolean
-        get() = exposure == 0.0 &&
-            brightness == 0.0 &&
-            contrast == 0.0 &&
-            saturation == 0.0 &&
-            warmth == 0.0 &&
-            tint == 0.0 &&
-            highlights == 0.0 &&
-            shadows == 0.0 &&
-            sharpen == 0.0 &&
-            vignette == 0.0
-
     companion object {
         val DEFAULT = ColorAdjustments()
 

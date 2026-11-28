@@ -221,13 +221,6 @@ abstract class ClipMask with _$ClipMask {
     );
   }
 
-  /// Whether any mask property is keyframed.
-  bool get isAnimated =>
-      center.isAnimated ||
-      size.isAnimated ||
-      rotation.isAnimated ||
-      feather.isAnimated;
-
   /// Sorted, distinct times of all mask keyframes.
   List<int> get keyframeTimes => {
     ...center.keyframeTimes,

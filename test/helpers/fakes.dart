@@ -60,7 +60,6 @@ class FakeMediaPicker implements MediaPicker {
   List<MediaRef> next = const [];
   MediaRef? nextImage;
   int calls = 0;
-  int imageCalls = 0;
 
   @override
   Future<List<MediaRef>> pickVisualMedia({bool allowMultiple = true}) async {
@@ -70,7 +69,6 @@ class FakeMediaPicker implements MediaPicker {
 
   @override
   Future<MediaRef?> pickImage() async {
-    imageCalls++;
     return nextImage;
   }
 }

@@ -203,7 +203,6 @@ void main() {
                   builder: (context, setState) => MaskOverlay(
                     shape: MaskShape.circle,
                     mask: mask,
-                    invert: false,
                     clipTransform: (
                       position: Vec2.zero,
                       scale: 1,

@@ -46,9 +46,6 @@ final class MaskSnap {
   /// Snapped cardinal angle (`0`, `90`, `180`, `270`), or null when free.
   final int? rotationDegrees;
 
-  /// Whether any guide is active.
-  bool get hasAny => centerX || centerY || rotationDegrees != null;
-
   /// Whether any guide newly engaged compared to [previous].
   bool hasNewSnapSince(MaskSnap previous) =>
       (centerX && !previous.centerX) ||

@@ -49,9 +49,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeNewProject => 'New project';
 
   @override
-  String get homeMyProjects => 'My projects';
-
-  @override
   String get homeEmptyTitle => 'No projects yet';
 
   @override
@@ -63,18 +60,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String homeProjectOptions(String name) {
     return 'Options for $name';
-  }
-
-  @override
-  String projectClipCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count clips',
-      one: '1 clip',
-      zero: 'Empty',
-    );
-    return '$_temp0';
   }
 
   @override
@@ -235,9 +220,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get laneAudio => 'Audio';
-
-  @override
-  String get timelineTransition => 'Transition';
 
   @override
   String get timelineMuteOriginal => 'Mute original audio';
@@ -408,9 +390,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get transformBorderCorners => 'Corners';
-
-  @override
-  String get transformBorderColor => 'Color';
 
   @override
   String percentValue(int value) {
